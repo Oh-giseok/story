@@ -5,9 +5,16 @@ from wtforms.validators import DataRequired, Length, EqualTo, Email
 #회원가입
 class UserCreateForm(FlaskForm):
     username = StringField('ID', validators=[DataRequired(), Length(min=2, max=20)])
-    password_hash1 = PasswordField('비밀번호',validators=[DataRequired(), EqualTo('password_hash2',message='비밀번호가 일치하지 않습니다')])
+    password_hash = PasswordField('비밀번호',validators=[DataRequired(), EqualTo('password_hash2',message='비밀번호가 일치하지 않습니다')])
     password_hash2 = PasswordField('비밀번호 재입력',validators=[DataRequired()])
     email = EmailField('이메일',validators=[DataRequired(),Email()])
     name = StringField('이름', validators=[DataRequired()])
     birth = StringField('생년월일', validators=[DataRequired()])
     submit = SubmitField('회원가입')
+
+#로그인
+class UserLoginForm(FlaskForm):
+    username = StringField('아이디',validators=[DataRequired(),Length(min=3,max=25)])
+    password = PasswordField('비밀번호',validators=[DataRequired()])
+    submit = SubmitField('로그인')
+
