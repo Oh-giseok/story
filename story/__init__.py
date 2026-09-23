@@ -1,7 +1,5 @@
-from flask import Flask
 import os
-
-from flask import Flask, render_template
+from flask import Flask, redirect, render_template, url_for
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
@@ -40,24 +38,25 @@ def create_app():
     with app.app_context():
         db.create_all()
 
-    from story.views import main_views, dmviews, auth_views, post_views
+    from story.views import main_views, dmviews, auth_views, post_views, story_views
 
     from . import models
 
     from .views.Reels_views import reels_bp
-    app.register_blueprint(reels_bp)
 
+    app.register_blueprint(reels_bp)
     app.register_blueprint(main_views.bp)
     app.register_blueprint(dmviews.bp)
     app.register_blueprint(auth_views.bp)
     app.register_blueprint(post_views.bp)
+    app.register_blueprint(story_views.bp)
 
     @app.route('/')
     def index():
-        return "flask team project"
+        return redirect(url_for('post._list'))
 
     # 스토리 목록 페이지 추가
-    @app.route('/story/')
+    @app.route('/story')
     def story_list():
         now = datetime.now()
 

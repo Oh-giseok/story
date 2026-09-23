@@ -9,7 +9,7 @@ from story import db  # __init__.py의 db 객체 임포트
 
 class User(db.Model):
 
-    __tablename__ = 'User'
+    __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False) #ID
     password_hash = db.Column(db.String(150), nullable=False) #PW
@@ -70,7 +70,7 @@ class MessageRead(db.Model):
 class Reels(db.Model):
     __tablename__ = 'reels'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('User.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     video_url = db.Column(db.Text, nullable=False)
     thumbnail_url = db.Column(db.String(250), nullable=False)
     caption = db.Column(db.Text, nullable=False)
@@ -82,7 +82,7 @@ class Reels_Likes(db.Model):
     __tablename__ = 'reel_likes'
     id = db.Column(db.Integer, primary_key=True)
     reel_id = db.Column(db.Integer, db.ForeignKey('reels.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('User.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     __table_args__ = (db.UniqueConstraint('user_id', 'reel_id', name='unique_user_reel_like'),)
@@ -91,7 +91,7 @@ class Comments(db.Model):
     __tablename__ = 'comments'
     id = db.Column(db.Integer, primary_key=True)
     reel_id = db.Column(db.Integer, db.ForeignKey('reels.id'))
-    user_id = db.Column(db.Integer, db.ForeignKey('User.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -128,7 +128,7 @@ class StoryLikes(db.Model):
 class Post(db.Model):
     __tablename__ = 'post'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('User.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     caption = db.Column(db.Text)
     media_url = db.Column(db.String(255), nullable=False)
     thumbnail_url = db.Column(db.String(255))
@@ -140,7 +140,7 @@ class PostLike(db.Model):
     __tablename__ = 'post_likes'
     id = db.Column(db.Integer, primary_key=True)
     post_id = db.Column(db.Integer, db.ForeignKey('post.id', ondelete='CASCADE'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('User.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
 
     __table_args__ = (

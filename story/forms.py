@@ -2,6 +2,7 @@ from flask_wtf import FlaskForm
 from wtforms.fields.simple import StringField,TextAreaField,PasswordField,EmailField,SubmitField, FileField
 from wtforms.validators import DataRequired, Length, EqualTo, Email
 from flask_wtf.file import FileAllowed
+
 #회원가입
 class UserCreateForm(FlaskForm):
     username = StringField('ID', validators=[DataRequired(), Length(min=2, max=20)])
