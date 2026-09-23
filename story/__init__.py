@@ -4,7 +4,6 @@ import os
 from flask import Flask, render_template
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
 from datetime import datetime
 
 db = SQLAlchemy()
@@ -13,7 +12,14 @@ migrate = Migrate()
 
 def create_app():
     app = Flask(__name__)
+
     app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'reels_uploads')
+
+    # 게시물 이미지 업로드 폴더
+    upload_folder = os.path.join(app.root_path, 'static', 'photo')
+    os.makedirs(upload_folder, exist_ok=True)
+
+    app.config['POST_UPLOAD_FOLDER'] = upload_folder
 
     app.config.from_object('config')
 
@@ -34,7 +40,7 @@ def create_app():
     with app.app_context():
         db.create_all()
 
-    from story.views import main_views, dmviews, auth_views
+    from story.views import main_views, dmviews, auth_views, post_views
 
     from . import models
 
@@ -44,6 +50,7 @@ def create_app():
     app.register_blueprint(main_views.bp)
     app.register_blueprint(dmviews.bp)
     app.register_blueprint(auth_views.bp)
+    app.register_blueprint(post_views.bp)
 
     @app.route('/')
     def index():

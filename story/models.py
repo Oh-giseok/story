@@ -123,3 +123,26 @@ class StoryLikes(db.Model):
     # 누가 하트를 눌렀는지 연결
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     user = db.relationship('User', backref=db.backref('story_like_set'))
+
+# 게시물 DB
+class Post(db.Model):
+    __tablename__ = 'post'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('User.id', ondelete='CASCADE'), nullable=False)
+    caption = db.Column(db.Text)
+    media_url = db.Column(db.String(255), nullable=False)
+    thumbnail_url = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+    updated_at = db.Column(db.DateTime, nullable=False, default=db.func.now(), onupdate=db.func.now())
+
+# 게시물 좋아요 DB
+class PostLike(db.Model):
+    __tablename__ = 'post_likes'
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('User.id', ondelete='CASCADE'), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+
+    __table_args__ = (
+        db.UniqueConstraint('post_id', 'user_id', name='unique_post_user_like'),
+    )
