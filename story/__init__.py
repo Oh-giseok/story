@@ -26,6 +26,10 @@ def create_app():
     from story.events import socketio
     socketio.init_app(app, cors_allowed_origins="*")
 
+    # [수정] DB 테이블 자동 생성 (기존 run.py의 db.create_all() 통합)
+    with app.app_context():
+        db.create_all()
+
     # 블루프린트 등록
     from story.views import mainviews, dmviews
     app.register_blueprint(mainviews.bp)
@@ -36,3 +40,8 @@ def create_app():
         return "flask team project"
 
     return app
+
+if __name__ == '__main__':
+    from story.events import socketio
+    app = create_app()
+    socketio.run(app, host='127.0.0.1', port=5000, debug=True)
