@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>릴스 업로드</title>
+</head>
+<body>
+
+<h1>릴스 업로드</h1>
+
+<form method="POST" enctype="multipart/form-data">
+
+    {{ form.hidden_tag() }}
+
+    <div>
+        {{ form.video_url.label }}
+        {{ form.video_url(accept="video/*") }}
+    </div>
+
+    <div>
+        {{ form.thumbnail.label }}
+        {{ form.thumbnail() }}
+    </div>
+
+    <div>
+        {{ form.caption.label }}
+        {{ form.caption() }}
+    </div>
+
+    <div>
+        {{ form.submit() }}
+    </div>
+
+</form>
+
+</body>
+</html>
