@@ -1,15 +1,14 @@
-<<<<<<< HEAD
 #models.py
 from story import db
 from datetime import datetime
-=======
+
 from datetime import datetime
 from story import db  # __init__.py의 db 객체 임포트
 
->>>>>>> dm
+
 
 class User(db.Model):
-<<<<<<< HEAD
+
     __tablename__ = 'User'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False) #ID
@@ -21,7 +20,7 @@ class User(db.Model):
     birth = db.Column(db.String(200), nullable=False) #생년월일
     created_at = db.Column(db.DateTime,default=datetime.now,nullable=False) #계정 생성일
     updated_at = db.Column(db.DateTime, default=datetime.now,nullable=False) #계정 정보 수정일
-=======
+
     __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
@@ -80,4 +79,4 @@ class MessageRead(db.Model):
     read_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (db.UniqueConstraint('message_id', 'user_id', name='unique_message_read'),)
->>>>>>> dm
+
