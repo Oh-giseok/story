@@ -1,10 +1,8 @@
-from flask import Flask
 import os
-
+from datetime import datetime
 from flask import Flask, render_template
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -37,16 +35,17 @@ def create_app():
     from story.events import socketio
     socketio.init_app(app, cors_allowed_origins="*")
 
+    # [중요] db.create_all()을 실행하기 전에 모델들을 메모리에 로드해야 외래키 관계 오류가 나지 않습니다.
+    from . import models
+
     with app.app_context():
         db.create_all()
 
+    # 블루프린트 임포트 및 등록
     from story.views import main_views, dmviews, auth_views, post_views
-
-    from . import models
-
     from .views.Reels_views import reels_bp
-    app.register_blueprint(reels_bp)
 
+    app.register_blueprint(reels_bp)
     app.register_blueprint(main_views.bp)
     app.register_blueprint(dmviews.bp)
     app.register_blueprint(auth_views.bp)
