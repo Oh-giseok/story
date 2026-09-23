@@ -20,6 +20,7 @@ MarkupSafe==3.0.3
 narwhals==2.25.0
 nest-asyncio2==1.7.2
 numpy==2.5.3
+opencv-python==5.0.0.93
 packaging==26.3
 parso==0.8.7
 platformdirs==4.11.7

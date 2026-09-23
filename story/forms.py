@@ -20,4 +20,4 @@ class ReelsForm(FlaskForm):
     FileAllowed(['mp4', 'mov', 'webm'], '영상 파일만 업로드할 수 있습니다.')])
     thumbnail = FileField("썸네일 선택", validators=[DataRequired()])
     caption = TextAreaField('캡션', validators=[DataRequired()])
-    submit = SubmitField('업로드')
+    submit = SubmitField('업로드')    submit = SubmitField('업로드')    submit = SubmitField('업로드')
