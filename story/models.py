@@ -8,6 +8,7 @@ from story import db  # __init__.py의 db 객체 임포트
 
 
 class User(db.Model):
+
     __tablename__ = 'User'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False) #ID
@@ -19,6 +20,19 @@ class User(db.Model):
     birth = db.Column(db.String(200), nullable=False) #생년월일
     created_at = db.Column(db.DateTime,default=datetime.now,nullable=False) #계정 생성일
     updated_at = db.Column(db.DateTime, default=datetime.now,nullable=False) #계정 정보 수정일
+
+    __tablename__ = 'user'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    username = db.Column(db.String(150), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    email = db.Column(db.String(200), unique=True, nullable=False)
+    name = db.Column(db.String(200))
+    intro = db.Column(db.Text)
+    profile_img_url = db.Column(db.String(200))
+    birth = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 
 class Conversation(db.Model):
     __tablename__ = 'conversation'

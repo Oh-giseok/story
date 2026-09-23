@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}릴스 | Story{% endblock %}
+{% block content %}
+
+<div class="container">
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="mb-0">릴스</h1>
+    <a class="btn btn-primary" href="{{ url_for('reels.upload') }}">릴스 업로드</a>
+</div>
+
+{% for reels in reels%}
+<p>캡션:{{ reels.caption }}</p>
+<p>영상 길이:{{ reels.duration }}</p>
+<video controls width="400">
+    <source src="{{ url_for('reels.uploaded_file', filename='videos/' + reels.video_url.split('\\')[-1]) }}">
+</video>
+<img src="{{ url_for('reels.uploaded_file', filename='thumbnails/' + reels.thumbnail_url.split('\\')[-1]) }}"
+     width="200">
+
+{% endfor %}
+</div>
+{% endblock %}

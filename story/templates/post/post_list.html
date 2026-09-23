@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% block title %}게시물 | Story{% endblock %}
+{% block head %}
+    <style>
+        .modal-content { border-radius: 12px; overflow: hidden; }
+        .upload-box { min-height: 380px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .preview-img { max-height: 400px; width: 100%; object-fit: contain; background-color: #000; }
+    </style>
+{% endblock %}
+{% block content %}
+
+    <!-- 상단 헤더 / 모달 열기 버튼 -->
+    <div class="bg-white border-bottom mb-4 py-2 sticky-top">
+        <div class="container d-flex justify-content-between align-items-center" style="max-width: 500px">
+            <h4 class="fw-bold m-0">Story</h4>
+            <button class="btn btn-outline-dark btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#createPostModal">
+                <i class="bi bi-plus-square me-1"></i> 만들기
+            </button>
+        </div>
+    </div>
+
+    <div class="container py-2" style="max-width: 500px">
+        <!-- 피드 게시물 목록 -->
+        {% for post in posts %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white d-flex align-items-center justify-content-between py-2">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-person-circle fs-4 me-2 text-secondary"></i>
+                    <span class="fw-bold">User {{ post.user_id }}</span>
+                </div>
+                <small class="text-muted">{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+            </div>
+
+            {% if post.media_url %}
+            <img src="{{ post.media_url }}" class="card-img-top" alt="게시물 이미지" style="object-fit: cover; max-height: 500px;">
+            {% endif %}
+
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <form action="{{ url_for('post.like', post_id=post.id) }}" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-link text-danger p-0 me-3 border-0">
+                            {% if post.likes|length > 0 %}
+                                <i class="bi bi-heart-fill fs-5"></i>
+                            {% else %}
+                                <i class="bi bi-heart text-dark fs-5"></i>
+                            {% endif %}
+                        </button>
+                    </form>
+                    <button class="btn btn-link text-dark p-0 border-0"><i class="bi bi-chat fs-5"></i></button>
+                </div>
+
+                <p class="fw-bold mb-1 small">좋아요 {{ post.likes|length }}개</p>
+
+                <p class="card-text mb-0">
+                    <span class="fw-bold me-1">User {{ post.user_id }}</span>
+                    {{ post.caption }}
+                </p>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-secondary text-center" role="alert">
+            등록된 게시물이 없습니다.
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- 팝업 모달: 새 게시물 만들기 -->
+    <div class="modal fade" id="createPostModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <form action="{{ url_for('post._create') }}" method="post" enctype="multipart/form-data" id="postForm">
+
+                    <!-- 모달 헤더 -->
+                    <div class="modal-header py-2 d-flex justify-content-between align-items-center">
+                        <button type="button" class="btn btn-sm btn-link text-dark p-0 d-none" id="btnBack">
+                            <i class="bi bi-arrow-left fs-5"></i>
+                        </button>
+                        <h6 class="modal-title fw-bold mx-auto">새 게시물 만들기</h6>
+                        <button type="button" class="btn btn-sm btn-link text-primary fw-bold text-decoration-none p-0 d-none" id="btnNext">다음</button>
+                        <button type="submit" class="btn btn-sm btn-link text-primary fw-bold text-decoration-none p-0 d-none" id="btnSubmit">공유하기</button>
+                    </div>
+
+                    <!-- 모달 바디 (1단계: 이미지 선택) -->
+                    <div class="modal-body p-0" id="step1">
+                        <div class="upload-box text-center p-4" id="dropArea">
+                            <i class="bi bi-images display-1 text-secondary mb-3"></i>
+                            <h5>사진과 동영상을 여기에 끌어다 놓으세요</h5>
+                            <input type="file" name="media_file" id="fileInput" accept="image/*" class="d-none" required>
+                            <button type="button" class="btn btn-primary fw-bold mt-3" onclick="document.getElementById('fileInput').click()">
+                                컴퓨터에서 선택
+                            </button>
+                        </div>
+                        <div class="d-none" id="previewContainer">
+                            <img id="imagePreview" class="preview-img" alt="미리보기">
+                        </div>
+                    </div>
+
+                    <!-- 모달 바디 (2단계: 캡션 입력) -->
+                    <div class="modal-body p-0 d-none" id="step2">
+                        <div class="row g-0">
+                            <div class="col-md-7 bg-dark d-flex align-items-center">
+                                <img id="imagePreviewStep2" class="preview-img" alt="미리보기">
+                            </div>
+                            <div class="col-md-5 p-3">
+                                <div class="d-flex align-items-center mb-3">
+                                    <i class="bi bi-person-circle fs-4 me-2"></i>
+                                    <span class="fw-bold">User 1</span>
+                                </div>
+                                <textarea name="caption" class="form-control border-0" rows="8" placeholder="문구 작성..." style="resize: none;"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+{% block script %}
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const imagePreviewStep2 = document.getElementById('imagePreviewStep2');
+        const dropArea = document.getElementById('dropArea');
+        const previewContainer = document.getElementById('previewContainer');
+        const btnNext = document.getElementById('btnNext');
+        const btnBack = document.getElementById('btnBack');
+        const btnSubmit = document.getElementById('btnSubmit');
+        const step1 = document.getElementById('step1');
+        const step2 = document.getElementById('step2');
+
+        // 파일 선택 시 미리보기 처리
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreviewStep2.src = e.target.result;
+                    dropArea.classList.add('d-none');
+                    previewContainer.classList.remove('d-none');
+                    btnNext.classList.remove('d-none');
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // '다음' 버튼 클릭 시 2단계(캡션 작성)로 이동
+        btnNext.addEventListener('click', function() {
+            step1.classList.add('d-none');
+            step2.classList.remove('d-none');
+            btnNext.classList.add('d-none');
+            btnBack.classList.remove('d-none');
+            btnSubmit.classList.remove('d-none');
+        });
+
+        // '뒤로가기' 버튼 클릭 시 1단계로 복귀
+        btnBack.addEventListener('click', function() {
+            step2.classList.add('d-none');
+            step1.classList.remove('d-none');
+            btnSubmit.classList.add('d-none');
+            btnBack.classList.add('d-none');
+            btnNext.classList.remove('d-none');
+        });
+    </script>
+{% endblock %}
