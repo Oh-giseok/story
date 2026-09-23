@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>reels_main</title>
+</head>
+<body>
+
+<h1>reels_main</h1>
+
+{% for reels in reels%}
+<p>캡션:{{ reels.caption }}</p>
+<p>영상 길이:{{ reels.duration }}</p>
+<video controls width="400">
+    <source src="{{ url_for('reels.uploaded_file', filename='videos/' + reels.video_url.split('\\')[-1]) }}">
+</video>
+<img src="{{ url_for('reels.uploaded_file', filename='thumbnails/' + reels.thumbnail_url.split('\\')[-1]) }}"
+     width="200">
+
+{% endfor %}
+</body>
+</html>

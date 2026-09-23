@@ -1,37 +1,71 @@
+from flask import Flask
+import os
+
 from flask import Flask, render_template
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from datetime import datetime
 
 db = SQLAlchemy()
+migrate = Migrate()
+
 
 def create_app():
     app = Flask(__name__)
-    migrate = Migrate()
+    app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'reels_uploads')
 
+    app.config.from_object('config')
 
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///story.db'
+    if not app.config.get('SQLALCHEMY_DATABASE_URI'):
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///story.db'
+
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    db.init_app(app)
+    if not app.config.get('SECRET_KEY'):
+        app.config['SECRET_KEY'] = 'dev-secret-key'
 
+    db.init_app(app)
     migrate.init_app(app, db)
-    from story import models
+
+    from story.events import socketio
+    socketio.init_app(app, cors_allowed_origins="*")
+
+    with app.app_context():
+        db.create_all()
+
+    from story.views import main_views, dmviews, auth_views
+
+    from . import models
+
+    from .views.Reels_views import reels_bp
+    app.register_blueprint(reels_bp)
+
+    app.register_blueprint(main_views.bp)
+    app.register_blueprint(dmviews.bp)
+    app.register_blueprint(auth_views.bp)
 
     @app.route('/')
     def index():
-        return "flaks team project"
+        return "flask team project"
 
+    # 스토리 목록 페이지 추가
     @app.route('/story/')
     def story_list():
-        # 1. 지금 현재 시간을 구합니다.
         now = datetime.now()
 
-        # 2. 만료 시간(expires_at)이 현재 시간보다 미래인(남아있는) 스토리만 가져옵니다!
-        story_list = models.Story.query.filter(models.Story.expires_at > now).order_by(
-            models.Story.create_date.desc()).all()
-        return render_template('story/story_list.html', story_list=story_list)
+        story_list = models.Story.query.filter(
+            models.Story.expires_at > now
+        ).order_by(
+            models.Story.create_date.desc()
+        ).all()
 
+        return render_template(
+            'story/story_list.html',
+            story_list=story_list
+        )
+
+    # 스토리 작성 시간을 인스타그램 스타일로 표시
     @app.template_filter('time_ago')
     def time_ago_filter(value):
         if not value:
@@ -44,14 +78,25 @@ def create_app():
         hours = int(minutes // 60)
         days = int(hours // 24)
 
-        # 시간 차이에 따라 다르게 글씨를 내보냅니다
         if minutes < 1:
             return "방금 전"
         elif minutes < 60:
             return f"{minutes}분 전"
         elif hours < 24:
-            return f"{hours}시간"  # 인스타 스타일: '16시간' 형태로 출력
+            return f"{hours}시간"
         else:
             return f"{days}일 전"
 
     return app
+
+
+if __name__ == '__main__':
+    from story.events import socketio
+
+    app = create_app()
+    socketio.run(
+        app,
+        host='127.0.0.1',
+        port=5000,
+        debug=True
+    )
