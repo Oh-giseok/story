@@ -12,9 +12,12 @@ def create_app():
 
     # 기본 설정
     app.config.from_object('config')
+
     if not app.config.get('SQLALCHEMY_DATABASE_URI'):
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///story.db'
+
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
     if not app.config.get('SECRET_KEY'):
         app.config['SECRET_KEY'] = 'dev-secret-key'
 
@@ -26,14 +29,16 @@ def create_app():
     from story.events import socketio
     socketio.init_app(app, cors_allowed_origins="*")
 
-    # [수정] DB 테이블 자동 생성 (기존 run.py의 db.create_all() 통합)
+    # DB 테이블 자동 생성
     with app.app_context():
         db.create_all()
 
     # 블루프린트 등록
-    from story.views import mainviews, dmviews
-    app.register_blueprint(mainviews.bp)
+    from story.views import main_views, dmviews, auth_views
+
+    app.register_blueprint(main_views.bp)
     app.register_blueprint(dmviews.bp)
+    app.register_blueprint(auth_views.bp)
 
     @app.route('/')
     def index():
@@ -41,7 +46,14 @@ def create_app():
 
     return app
 
+
 if __name__ == '__main__':
     from story.events import socketio
+
     app = create_app()
-    socketio.run(app, host='127.0.0.1', port=5000, debug=True)
+    socketio.run(
+        app,
+        host='127.0.0.1',
+        port=5000,
+        debug=True
+    )
