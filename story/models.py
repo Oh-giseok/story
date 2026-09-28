@@ -86,6 +86,8 @@ class Post(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
     updated_at = db.Column(db.DateTime, nullable=False, default=db.func.now(), onupdate=db.func.now())
 
+    user = db.relationship('User', backref=db.backref('post_set', cascade='all, delete-orphan'))
+
 
 class PostLike(db.Model):
     __tablename__ = 'post_likes'
@@ -99,9 +101,10 @@ class PostLike(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
 
-    __table_args__ = (
-        db.UniqueConstraint('post_id', 'user_id', name='unique_post_user_like'),
-    )
+    # [추가] Post 모델과의 관계
+    post = db.relationship('Post', backref=db.backref('likes', cascade='all, delete-orphan'))
+    # [추가] User 모델과의 관계
+    user = db.relationship('User', backref=db.backref('post_like_set', cascade='all, delete-orphan'))
 
 class PostComment(db.Model):
     __tablename__ = 'post_comments'
@@ -113,8 +116,10 @@ class PostComment(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
-    # Post 모델과 연결 (post.comments 로 댓글 접근 가능)
-    post = db.relationship('Post', backref=db.backref('comments', cascade='all, delete-orphan', order_by='PostComment.created_at.asc()'))
+    # [수정/추가] Post 모델과 연결 -> post.comments 로 댓글 목록 접근
+    post = db.relationship('Post', backref=db.backref('comments', cascade='all, delete-orphan'))
+    # User 모델과 연결 -> comment.user.username 으로 작성자 아이디 접근
+    user = db.relationship('User', backref=db.backref('comment_set', cascade='all, delete-orphan'))
 
 class Reels(db.Model):
     __tablename__ = 'reels'

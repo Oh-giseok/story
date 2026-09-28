@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify, session, g
 from werkzeug.utils import secure_filename
 from story import db
 from story.models import Post, User, PostLike, PostComment
@@ -8,53 +8,54 @@ from story.models import Post, User, PostLike, PostComment
 # /post 경로로 들어오는 요청들을 처리할 블루프린트 생성
 bp = Blueprint('post', __name__, url_prefix='/post')
 
+# 공통 유저 ID 추출 함수 (g.user 또는 session 활용)
+def get_current_user_id():
+    # 1. g.user 객체가 있는 경우 (Flask 로그인 전처리 공통 객체 사용 시)
+    if hasattr(g, 'user') and g.user:
+        return g.user.id
+    # 2. session에 user_id가 직접 들어있는 경우
+    if 'user_id' in session:
+        return session['user_id']
+    # 3. 예외 상황 처리 (로그인 정보가 없을 때 기본값 지정 혹은 None)
+    return None
+
+
 # 1. 게시물 목록 보기
 @bp.route('/')
 def _list():
-    # 최신순(created_at 내림차순)으로 모든 게시물 DB 조회
     posts = Post.query.order_by(Post.created_at.desc()).all()
     return render_template('post/post_list.html', posts=posts)
+
 
 # 2. 게시물 등록 처리
 @bp.route('/create', methods=['POST'])
 def _create():
+    user_id = get_current_user_id()
+    if not user_id:
+        # 로그인하지 않은 유저인 경우 로그인 페이지 등으로 이동 또는 에러 처리
+        return redirect(url_for('auth.login'))  # 사용하시는 로그인 라우트명으로 맞추어 사용해주세요.
+
     caption = request.form.get('caption')
-
-    # [수정 Point 1] getlist()는 파일 객체들의 '리스트(List)'를 반환하므로
-    # 변수명을 직관적으로 media_files(복수형)로 변경했습니다.
     media_files = request.files.getlist('media_file')
-
-    # 저장된 각 파일들의 상대 경로(/static/photo/YYYYMMDD/파일명)를 담을 리스트 생성
     saved_urls = []
 
-    # [수정 Point 2] media_files는 리스트 형태이므로, 기존 코드처럼 media_files.filename으로 직접 접근하면 에러가 납니다.
-    # 리스트에 선택된 파일이 있는지 확인 후, 반복문(for)으로 하나씩 꺼내어 처리합니다.
     if media_files:
-        # 1. 오늘 날짜 폴더 생성 (static/photo/YYYYMMDD)
         today = datetime.now().strftime('%Y%m%d')
         upload_folder = os.path.join(current_app.root_path, 'static/photo', today)
         os.makedirs(upload_folder, exist_ok=True)
 
-        # [수정 Point 3] 반복문을 통해 업로드된 여러 개 파일들을 하나씩 저장합니다.
         for file in media_files:
-            # 빈 파일이 넘어오는 경우(선택 안 함)를 방지하기 위해 파일명 체크
             if file and file.filename != '':
-                # 2. 파일 저장
                 filename = secure_filename(file.filename)
                 file_path = os.path.join(upload_folder, filename)
                 file.save(file_path)
-
-                # 3. 개별 파일의 DB 및 웹 접근 경로를 리스트에 추가
                 saved_urls.append(f'/static/photo/{today}/{filename}')
 
-    # [수정 Point 4] 여러 경로들을 쉼표(,)로 구분된 하나의 문자열로 결합합니다.
-    # 예시: '/static/photo/20260330/img1.jpg,/static/photo/20260330/img2.jpg'
-    # 저장할 파일이 하나도 없으면 None으로 설정됩니다.
     media_url = ','.join(saved_urls) if saved_urls else None
 
-    # 4. DB 저장
+    # 4. DB 저장 (현재 로그인 유저 ID로 저장)
     post = Post(
-        user_id=1,  # 임시 사용자 ID
+        user_id=user_id,
         caption=caption,
         media_url=media_url
     )
@@ -64,10 +65,13 @@ def _create():
     return redirect(url_for('post._list'))
 
 
-# 3. 좋아요 토글 (JSON 반환으로 변경)
+# 3. 좋아요 토글
 @bp.route('/like/<int:post_id>', methods=['POST'])
 def like(post_id):
-    user_id = 1
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
+
     existing_like = PostLike.query.filter_by(post_id=post_id, user_id=user_id).first()
 
     if existing_like:
@@ -80,7 +84,6 @@ def like(post_id):
 
     db.session.commit()
 
-    # 해당 게시물의 전체 좋아요 개수 구하기
     like_count = PostLike.query.filter_by(post_id=post_id).count()
 
     return jsonify({
@@ -90,21 +93,24 @@ def like(post_id):
     })
 
 
-# 4. 댓글 작성 기능 (JSON 반환으로 변경)
+# 4. 댓글 작성 기능
 @bp.route('/comment/<int:post_id>', methods=['POST'])
 def comment(post_id):
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
+
     content = request.form.get('content')
 
     if content and content.strip():
         new_comment = PostComment(
             post_id=post_id,
-            user_id=1,
+            user_id=user_id,  # 현재 로그인 유저 ID
             content=content.strip()
         )
         db.session.add(new_comment)
         db.session.commit()
 
-        # 전체 댓글 개수 조회
         comment_count = PostComment.query.filter_by(post_id=post_id).count()
 
         return jsonify({
