@@ -29,6 +29,41 @@ class ReelsForm(FlaskForm):
     caption = TextAreaField('캡션', validators=[DataRequired()])
     submit = SubmitField('업로드')
 
+class ReelsEditForm(FlaskForm):
+    video_url = FileField(
+        '영상',
+        validators=[
+            FileAllowed(['mp4', 'mov', 'webm'], '영상 파일만 업로드할 수 있습니다.')
+        ],
+        render_kw={'accept': '.mp4,.mov,.webm'}
+    )
+
+    thumbnail = FileField(
+        '썸네일',
+        validators=[
+            FileAllowed(
+                ['jpg', 'jpeg', 'png', 'webp'],
+                '이미지 파일만 업로드할 수 있습니다.'
+            )
+        ],
+        render_kw={'accept': '.jpg,.jpeg,.png,.webp'}
+    )
+
+    caption = TextAreaField(
+        '캡션',
+        validators=[DataRequired()]
+    )
+
+    submit = SubmitField('수정 완료')
+
+
+class CommentsForm(FlaskForm):
+    content = TextAreaField(
+        '댓글',
+        validators=[DataRequired()]
+    )
+
+    submit = SubmitField('등록')
 #회원정보수정
 class ProfileEditForm(FlaskForm):
     username = StringField('아이디')

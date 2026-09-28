@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block title %}릴스 수정 | Story{% endblock %}
+
+{% block content %}
+
+<form method="POST" enctype="multipart/form-data">
+
+    {{ form.csrf_token }}
+
+    <div>
+        <label>영상</label>
+        {{ form.video_url() }}
+    </div>
+
+    <div>
+        <label>썸네일</label>
+        {{ form.thumbnail() }}
+    </div>
+
+    <div>
+        <label>캡션</label>
+        {{ form.caption() }}
+    </div>
+
+    <button type="submit">수정</button>
+</form>
+
+{% endblock %}
