@@ -1,4 +1,4 @@
-from flask import Blueprint,request,redirect,url_for,flash,render_template, session
+from flask import Blueprint,request,redirect,url_for,flash,render_template, session, g
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
@@ -7,6 +7,14 @@ from story.forms import UserCreateForm,UserLoginForm
 from story.models import User
 
 bp =Blueprint('auth', __name__,url_prefix='/auth')
+
+@bp.before_app_request
+def load_loggend_in_user():
+    user_id = session.get('user_id')
+    if user_id is None:
+        g.user = None
+    else:
+        g.user = User.query.get(user_id)
 
 @bp.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -52,3 +60,16 @@ def login():
             return redirect(url_for('index'))
         flash(error)
     return render_template('auth/login.html',form=form)
+
+@bp.route('logout')
+def logout():
+    session.clear()
+    return redirect(url_for('index'))
+
+# 회원정보 수정
+@bp.route('profile_edit')
+def profile_edit():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        name = request.form.get('name')
+
