@@ -18,6 +18,11 @@ def create_app():
     os.makedirs(upload_folder, exist_ok=True)
     app.config['POST_UPLOAD_FOLDER'] = upload_folder
 
+    # 프로필 이미지는 정적 파일로 제공한다.
+    profile_upload_folder = os.path.join(app.root_path, 'static', 'profile')
+    os.makedirs(profile_upload_folder, exist_ok=True)
+    app.config['PROFILE_UPLOAD_FOLDER'] = profile_upload_folder
+
     # 설정 로드
     app.config.from_object('config')
 
@@ -33,7 +38,7 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
 
-    # 1. 모델을 가장 먼저 로드 (Flask-SocketIO나 Blueprint보다 먼저 메타데이터 등록)
+    # 1. 모델을 가장 먼저 로드
     from . import models
 
     # 2. SocketIO 초기화 및 로드
@@ -43,7 +48,7 @@ def create_app():
     with app.app_context():
         db.create_all()
 
-    # 3. 블루프린트 임포트 및 등록 (중복 제거)
+    # 3. 블루프린트 임포트 및 등록
     from story.views import auth_views, dmviews, main_views, post_views, story_views
     from .views.Reels_views import reels_bp
 
