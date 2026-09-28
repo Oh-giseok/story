@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block title %}
+마이페이지
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h5 class="my-3 border-bottom pb-2">마이페이지</h5>
+
+    <div class="d-flex align-items-start gap-4">
+        <!-- 프로필 이미지 -->
+        {% if user.profile_img_url %}
+        <img src="{{ url_for('static', filename=user.profile_img_url) }}"
+             alt="{{ user.name or user.username }} 프로필 이미지"
+             width="100" height="100"
+             class="rounded-circle flex-shrink-0"
+             style="object-fit: cover;">
+        {% else %}
+        <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center flex-shrink-0"
+             role="img" aria-label="프로필 이미지 없음" style="width: 100px; height: 100px;">
+            <i class="bi bi-person-fill fs-2" aria-hidden="true"></i>
+        </div>
+        {% endif %}
+
+        <div>
+            <h2 class="h4 mb-2">{{ user.name or user.username }}</h2>
+            <p class="mb-0 text-break">{{ user.intro or '자기소개가 없습니다.' }}</p>
+        </div>
+    </div>
+
+    <!-- POST = Post 모델, REELS = Reels 모델, STORY = Story 모델 -->
+    <div class="d-flex mt-4 border-bottom" role="tablist" aria-label="내 게시물 종류">
+        <button type="button" class="btn flex-fill rounded-0 border-0 border-bottom border-dark fw-bold"
+                onclick="showPosts('posts', this)" aria-selected="true">POST</button>
+        <button type="button" class="btn flex-fill rounded-0 border-0"
+                onclick="showPosts('reels', this)" aria-selected="false">REELS</button>
+        <button type="button" class="btn flex-fill rounded-0 border-0"
+                onclick="showPosts('stories', this)" aria-selected="false">STORY</button>
+    </div>
+
+    <section id="posts-content" class="row g-3 mt-2">
+        {% for post in posts %}
+        <div class="col-6 col-md-3">
+            <img src="{{ post.media_url if post.media_url.startswith('http') else url_for('static', filename=post.media_url.lstrip('/').removeprefix('static/')) }}"
+                 alt="게시물" class="w-100 rounded" style="aspect-ratio: 1; object-fit: cover;">
+            {% if post.caption %}<p class="small mt-1 mb-0">{{ post.caption }}</p>{% endif %}
+        </div>
+        {% else %}<p class="text-muted text-center py-4">등록한 게시물이 없습니다.</p>{% endfor %}
+    </section>
+
+    <section id="reels-content" class="row g-3 mt-2" hidden>
+        {% for reel in reels %}
+        <div class="col-6 col-md-3">
+            <video controls class="w-100 rounded" style="aspect-ratio: 9 / 16; object-fit: cover;">
+                <source src="{{ url_for('reels.uploaded_file', filename='videos/' + reel.video_url.replace('\\\\', '/').split('/')[-1]) }}">
+            </video>
+            {% if reel.caption %}<p class="small mt-1 mb-0">{{ reel.caption }}</p>{% endif %}
+        </div>
+        {% else %}<p class="text-muted text-center py-4">등록한 릴스가 없습니다.</p>{% endfor %}
+    </section>
+
+    <section id="stories-content" class="row g-3 mt-2" hidden>
+        {% for story in stories %}
+        <div class="col-6 col-md-3">
+            {% if story.media_url %}<img src="{{ url_for('static', filename=story.media_url) }}" alt="스토리" class="w-100 rounded" style="aspect-ratio: 1; object-fit: cover;">{% endif %}
+            {% if story.caption %}<p class="small mt-1 mb-0">{{ story.caption }}</p>{% endif %}
+        </div>
+        {% else %}<p class="text-muted text-center py-4">등록한 스토리가 없습니다.</p>{% endfor %}
+    </section>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+    function showPosts(type, selectedButton) {
+        ['posts', 'reels', 'stories'].forEach((name) => {
+            document.getElementById(`${name}-content`).hidden = name !== type;
+        });
+        document.querySelectorAll('[aria-label="내 게시물 종류"] button').forEach((button) => {
+            button.classList.remove('border-bottom', 'border-dark', 'fw-bold');
+            button.setAttribute('aria-selected', 'false');
+        });
+        selectedButton.classList.add('border-bottom', 'border-dark', 'fw-bold');
+        selectedButton.setAttribute('aria-selected', 'true');
+    }
+</script>
+{% endblock %}
