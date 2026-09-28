@@ -1,10 +1,7 @@
 import os
-<<<<<<< HEAD
 from datetime import datetime
 from flask import Flask, render_template
-=======
 from flask import Flask, redirect, render_template, url_for
->>>>>>> develop
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 
@@ -45,15 +42,10 @@ def create_app():
     with app.app_context():
         db.create_all()
 
-<<<<<<< HEAD
     # 블루프린트 임포트 및 등록
     from story.views import main_views, dmviews, auth_views, post_views
-=======
     from story.views import main_views, dmviews, auth_views, post_views, story_views
-
     from . import models
-
->>>>>>> develop
     from .views.Reels_views import reels_bp
 
     app.register_blueprint(reels_bp)
