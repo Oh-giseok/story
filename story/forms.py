@@ -22,7 +22,20 @@ class UserLoginForm(FlaskForm):
 # 릴스 생성 폼
 class ReelsForm(FlaskForm):
     video_url = FileField('영상 선택', validators=[DataRequired(),
-    FileAllowed(['mp4', 'mov', 'webm'], '영상 파일만 업로드할 수 있습니다.')])
-    thumbnail = FileField("썸네일 선택", validators=[DataRequired()])
+    FileAllowed(['mp4', 'mov', 'webm'], '영상 파일만 업로드할 수 있습니다.')], render_kw={'accept': '.mp4,.mov,.webm'})
+    thumbnail = FileField("썸네일 선택", validators=[DataRequired()], render_kw={'accept': '.jpg,.jpeg,.png,.webp'})
     caption = TextAreaField('캡션', validators=[DataRequired()])
     submit = SubmitField('업로드')
+
+# 릴스 수정 폼
+class ReelsEditForm(FlaskForm):
+    video_url = FileField('영상', validators = [FileAllowed(['mp4', 'mov', 'webm'])], render_kw={'accept': '.mp4,.mov,.webm'})
+    thumbnail = FileField('썸네일', validators = [FileAllowed(['jpg', 'jpeg', 'png', 'webp'])], render_kw={'accept': '.jpg,.jpeg,.png,.webp'})
+    caption = TextAreaField('캡션', validators=[DataRequired()])
+    submit = SubmitField('수정')
+
+# 댓글 생성 폼
+class CommentsForm(FlaskForm):
+    content = TextAreaField("댓글을 달아주세요", validators=[DataRequired()])
+    submit = SubmitField("댓글달기")
+

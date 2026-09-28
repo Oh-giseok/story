@@ -16,7 +16,62 @@
 </video>
 <img src="{{ url_for('reels.uploaded_file', filename='thumbnails/' + reels.thumbnail_url.split('\\')[-1]) }}"
      width="200">
+<form method="POST" action="{{ url_for('reels.like_reel', reel_id=reels.id) }}">
+    {{ form.csrf_token }}
+
+    {% if likes | selectattr('reel_id', 'equalto', reels.id) | selectattr('user_id', 'equalto', session['user_id']) | list | length > 0 %}
+        <button type="submit">❤️ 좋아요 취소</button>
+    {% else %}
+        <button type="submit">🤍 좋아요</button>
+    {% endif %}
+</form>
+    <p>
+    좋아요 {{ likes | selectattr('reel_id', 'equalto', reels.id) | list | length }}개
+</p>
+
+<form method="POST" action="{{ url_for('reels.add_comment', reel_id=reels.id) }}">
+    {{ form.csrf_token }}
+    {{ form.content }}
+    {{ form.submit }}
+</form>
+ {% if reels.user_id == session['user_id'] %}
+    <a href="{{ url_for('reels.edit_reel', reel_id=reels.id) }}">
+        수정
+    </a>
+    <form action="{{ url_for('reels.delete_reel', reel_id=reels.id) }}"
+      method="POST"
+      style="display: inline;"
+      onsubmit="return confirm('정말 이 릴스를 삭제하시겠습니까?');">
+
+    <button type="submit">삭제</button>
+
+</form>
+{% endif %}
+<div>
+    {% for comment in comments %}
+        {% if comment.reel_id == reels.id %}
+            <p>{{ comment.content }}</p>
+
+            {% if comment.user_id == session['user_id'] %}
+<!-- 댓글 수정 -->
+    <form method="POST" action="{{ url_for('reels.edit_comment', comment_id=comment.id) }}">
+        {{ form.csrf_token }}
+        <input type="text" name="content" value="{{ comment.content }}">
+        <button type="submit">수정</button>
+    </form>
+
+    <!-- 댓글 삭제 -->
+    <form method="POST" action="{{ url_for('reels.delete_comment', comment_id=comment.id) }}">
+        {{ form.csrf_token }}
+        <button type="submit">삭제</button>
+    </form>
+            {% endif %}
+
+        {% endif %}
+    {% endfor %}
+</div>
 
 {% endfor %}
 </div>
 {% endblock %}
+

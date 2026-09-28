@@ -121,8 +121,8 @@ class Comments(db.Model):
     __tablename__ = 'comments'
 
     id = db.Column(db.Integer, primary_key=True)
-    reel_id = db.Column(db.Integer, db.ForeignKey('reels.id'))
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    reel_id = db.Column(db.Integer, db.ForeignKey('reels.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
