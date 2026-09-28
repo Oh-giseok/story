@@ -91,6 +91,18 @@ class PostLike(db.Model):
         db.UniqueConstraint('post_id', 'user_id', name='unique_post_user_like'),
     )
 
+class PostComment(db.Model):
+    __tablename__ = 'post_comments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Post 모델과 연결 (post.comments 로 댓글 접근 가능)
+    post = db.relationship('Post', backref=db.backref('comments', cascade='all, delete-orphan', order_by='PostComment.created_at.asc()'))
 
 class Reels(db.Model):
     __tablename__ = 'reels'
@@ -149,4 +161,3 @@ class StoryLikes(db.Model):
     story = db.relationship('Story', backref=db.backref('like_set'))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     user = db.relationship('User', backref=db.backref('story_like_set'))
-

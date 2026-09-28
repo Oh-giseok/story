@@ -7,7 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
-    <!-- Swiper.js CSS 추가 -->
+    <!-- Swiper.js CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
 
     <style>
@@ -15,16 +15,18 @@
         .upload-box { min-height: 380px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .preview-img { max-height: 400px; width: 100%; object-fit: contain; background-color: #000; }
 
-        /* 인스타그램 경고 팝업 전용 스타일 */
         .confirm-modal .modal-content { border-radius: 16px; text-align: center; }
         .confirm-modal .btn-action { width: 100%; padding: 12px; font-weight: bold; border-top: 1px solid #dee2e6; border-radius: 0; }
 
-        /*  Swiper 스타일 맞춤 커스텀 */
-        .swiper { width: 100%; height: 400px; background-color: #000; }
-        .swiper-slide { display: flex; justify-content: center; align-items: center; }
-        .swiper-slide img { width: 100%; height: 100%; object-fit: cover; }
+        /* Swiper Styles */
+        .feed-swiper { width: 100%; height: 400px; background-color: #000; }
+        .feed-swiper .swiper-slide { display: flex; justify-content: center; align-items: center; }
+        .feed-swiper .swiper-slide img { width: 100%; height: 100%; object-fit: cover; }
 
-        /* Swiper 화살표 커스텀 (인스타그램 스타일) */
+        .modal-feed-swiper { width: 100%; height: 100%; min-height: 450px; background-color: #000; }
+        .modal-feed-swiper .swiper-slide { display: flex; justify-content: center; align-items: center; }
+        .modal-feed-swiper .swiper-slide img { width: 100%; height: 100%; object-fit: contain; }
+
         .swiper-button-next, .swiper-button-prev {
             color: #fff;
             width: 30px;
@@ -34,10 +36,22 @@
         }
         .swiper-button-next::after, .swiper-button-prev::after { font-size: 14px; font-weight: bold; }
         .swiper-pagination-bullet-active { background: #0095f6; }
+
+        /* Comment Modal Styles */
+        .post-detail-modal .modal-dialog { max-width: 900px; }
+        .post-detail-modal .modal-content { height: 600px; }
+        .comments-scroll-area { overflow-y: auto; flex-grow: 1; max-height: 380px; }
+        .comment-input-box { border-top: 1px solid #efefef; }
+        .comment-input { border: none; font-size: 0.9rem; }
+        .comment-input:focus { outline: none; box-shadow: none; }
+        .btn-like i, .btn-open-detail i {
+            pointer-events: none;
+        }
     </style>
 </head>
 <body class="bg-light">
 
+    <!-- 상단 헤더 -->
     <div class="bg-white border-bottom mb-4 py-2 sticky-top">
         <div class="container d-flex justify-content-between align-items-center" style="max-width: 500px">
             <h4 class="fw-bold m-0">Story</h4>
@@ -47,9 +61,10 @@
         </div>
     </div>
 
+    <!-- 피드 목록 -->
     <div class="container py-2" style="max-width: 500px">
         {% for post in posts %}
-        <div class="card shadow-sm mb-4">
+        <div class="card shadow-sm mb-4" id="post-card-{{ post.id }}">
             <div class="card-header bg-white d-flex align-items-center justify-content-between py-2">
                 <div class="d-flex align-items-center">
                     <i class="bi bi-person-circle fs-4 me-2 text-secondary"></i>
@@ -58,6 +73,7 @@
                 <small class="text-muted">{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
             </div>
 
+            <!-- 피드 이미지 영역 -->
             {% if post.media_url %}
                 {% set images = post.media_url.split(',') %}
                 <div class="swiper feed-swiper" data-count="{{ images|length }}">
@@ -78,23 +94,47 @@
             {% endif %}
 
             <div class="card-body">
+                <!-- 좋아요 & 댓글 버튼 -->
                 <div class="d-flex align-items-center mb-2">
-                    <form action="{{ url_for('post.like', post_id=post.id) }}" method="post" class="d-inline">
-                        <button type="submit" class="btn btn-link text-danger p-0 me-3 border-0">
-                            {% if post.likes|length > 0 %}
-                                <i class="bi bi-heart-fill fs-5"></i>
-                            {% else %}
-                                <i class="bi bi-heart text-dark fs-5"></i>
-                            {% endif %}
-                        </button>
-                    </form>
-                    <button class="btn btn-link text-dark p-0 border-0"><i class="bi bi-chat fs-5"></i></button>
+                    <!-- 1. 좋아요 버튼 (AJAX) -->
+                    <button type="button" class="btn btn-link text-danger p-0 me-3 border-0 btn-like" data-post-id="{{ post.id }}">
+                        {% if post.likes|length > 0 %}
+                            <i class="bi bi-heart-fill fs-5"></i>
+                        {% else %}
+                            <i class="bi bi-heart text-dark fs-5"></i>
+                        {% endif %}
+                    </button>
+
+                    <!-- 2. 댓글 버튼 & 카운트 -->
+                    <button type="button" class="btn btn-link text-dark p-0 border-0 d-flex align-items-center btn-open-detail" data-post-id="{{ post.id }}">
+                        <i class="bi bi-chat fs-5 me-1"></i>
+                        <span class="fw-bold small comment-count-text">{{ post.comments|length }}</span>
+                    </button>
                 </div>
-                <p class="fw-bold mb-1 small">좋아요 {{ post.likes|length }}개</p>
-                <p class="card-text mb-0">
+
+                <!-- 좋아요 개수 카운트 -->
+                <p class="fw-bold mb-1 small">좋아요 <span class="like-count-text">{{ post.likes|length }}</span>개</p>
+                <p class="card-text mb-2">
                     <span class="fw-bold me-1">User {{ post.user_id }}</span>
-                    {{ post.caption }}
+                    <span class="post-caption-text">{{ post.caption }}</span>
                 </p>
+
+                <!-- 댓글 모달 열기 링크 -->
+                <button type="button" class="btn btn-link text-secondary p-0 small text-decoration-none btn-open-detail" data-post-id="{{ post.id }}">
+                    댓글 <span class="comment-count-text">{{ post.comments|length }}</span>개 모두 보기
+                </button>
+
+                <!-- Hidden raw data for Modal JS -->
+                <div class="d-none raw-post-data">
+                    <div class="raw-images">{% if post.media_url %}{{ post.media_url }}{% endif %}</div>
+                    <div class="raw-comments">
+                        {% for comment in post.comments %}
+                        <div class="comment-item" data-user-id="{{ comment.user_id }}">
+                            {{ comment.content }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
         </div>
         {% else %}
@@ -102,32 +142,73 @@
         {% endfor %}
     </div>
 
-    <!-- 1. 새 게시물 만들기 모달 -->
+    <!-- 게시물 상세 & 댓글 보기 모달 -->
+    <div class="modal fade post-detail-modal" id="postDetailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="row g-0 h-100">
+                    <div class="col-md-7 bg-dark d-flex align-items-center position-relative">
+                        <div class="swiper modal-feed-swiper" id="modalDetailSwiper">
+                            <div class="swiper-wrapper" id="modalDetailSwiperWrapper"></div>
+                            <div class="swiper-pagination"></div>
+                            <div class="swiper-button-prev"></div>
+                            <div class="swiper-button-next"></div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-5 d-flex flex-column bg-white h-100">
+                        <div class="p-3 border-bottom d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-person-circle fs-4 me-2 text-secondary"></i>
+                                <span class="fw-bold" id="detailModalUser">User 1</span>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+
+                        <div class="p-3 comments-scroll-area">
+                            <div class="d-flex mb-3">
+                                <i class="bi bi-person-circle fs-5 me-2 text-secondary"></i>
+                                <div>
+                                    <span class="fw-bold me-1" id="detailModalCaptionUser">User 1</span>
+                                    <span id="detailModalCaption">게시물 내용</span>
+                                </div>
+                            </div>
+                            <hr class="my-2">
+                            <div id="detailModalCommentList"></div>
+                        </div>
+
+                        <div class="mt-auto comment-input-box p-2">
+                            <form id="detailCommentForm" action="" method="post" class="d-flex align-items-center">
+                                <input type="text" name="content" class="form-control comment-input me-2" placeholder="댓글 달기..." required autocomplete="off">
+                                <button type="submit" class="btn btn-link text-primary fw-bold p-0 text-decoration-none small" style="width: 40px;">게시</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 만들기 모달 및 취소 확인 모달 생략 (이전과 동일) -->
     <div class="modal fade" id="createPostModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <form action="{{ url_for('post._create') }}" method="post" enctype="multipart/form-data" id="postForm">
-
                     <div class="modal-header py-2 d-flex justify-content-between align-items-center">
-                        <button type="button" class="btn btn-sm btn-link text-dark p-0 d-none" id="btnBack">
-                            <i class="bi bi-arrow-left fs-4"></i>
-                        </button>
+                        <button type="button" class="btn btn-sm btn-link text-dark p-0 d-none" id="btnBack"><i class="bi bi-arrow-left fs-4"></i></button>
                         <h6 class="modal-title fw-bold mx-auto">새 게시물 만들기</h6>
                         <button type="button" class="btn btn-sm btn-link text-primary fw-bold text-decoration-none p-0 d-none" id="btnNext">다음</button>
                         <button type="submit" class="btn btn-sm btn-link text-primary fw-bold text-decoration-none p-0 d-none" id="btnSubmit">공유하기</button>
+                        <button type="button" class="btn-close ms-2" id="btnCloseModal" aria-label="Close"></button>
                     </div>
 
-                    <!-- 1단계: 사진 선택 및 Swiper 미리보기 -->
                     <div class="modal-body p-0" id="step1">
                         <div class="upload-box text-center p-4" id="dropArea">
                             <i class="bi bi-images display-1 text-secondary mb-3"></i>
                             <h5>사진과 동영상을 여기에 끌어다 놓으세요</h5>
                             <input type="file" name="media_file" id="fileInput" accept="image/*" multiple class="d-none" required>
-                            <button type="button" class="btn btn-primary fw-bold mt-3" onclick="document.getElementById('fileInput').click()">
-                                컴퓨터에서 선택
-                            </button>
+                            <button type="button" class="btn btn-primary fw-bold mt-3" onclick="document.getElementById('fileInput').click()">컴퓨터에서 선택</button>
                         </div>
-
                         <div class="d-none" id="previewContainer">
                             <div class="swiper modal-swiper" id="modalSwiper">
                                 <div class="swiper-wrapper" id="previewInner"></div>
@@ -138,12 +219,9 @@
                         </div>
                     </div>
 
-                    <!-- 2단계: 캡션 추가 -->
                     <div class="modal-body p-0 d-none" id="step2">
                         <div class="row g-0">
-                            <div class="col-md-7 bg-dark d-flex align-items-center" id="previewStep2Container">
-                                <!-- JS로 슬라이더 내용 복사 연동 -->
-                            </div>
+                            <div class="col-md-7 bg-dark d-flex align-items-center" id="previewStep2Container"></div>
                             <div class="col-md-5 p-3">
                                 <div class="d-flex align-items-center mb-3">
                                     <i class="bi bi-person-circle fs-4 me-2"></i>
@@ -153,13 +231,11 @@
                             </div>
                         </div>
                     </div>
-
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- 2. 게시물 삭제 확인 모달 -->
     <div class="modal fade confirm-modal" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content">
@@ -173,29 +249,167 @@
         </div>
     </div>
 
-    <!-- JS 스크립트(부트스트랩, swiper) -->
+    <!-- JS 스크립트 -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 
     <script>
+        // 1. 피드 Swiper 초기화
         document.querySelectorAll('.feed-swiper').forEach((el) => {
             const count = parseInt(el.getAttribute('data-count'));
-
             new Swiper(el, {
                 loop: false,
-                // 이미지가 여러 개일 때만 네비게이션 및 페이징 활성화
-                navigation: count > 1 ? {
-                    nextEl: el.querySelector('.swiper-button-next'),
-                    prevEl: el.querySelector('.swiper-button-prev'),
-                } : false,
-                pagination: count > 1 ? {
-                    el: el.querySelector('.swiper-pagination'),
-                    clickable: true,
-                } : false,
+                navigation: count > 1 ? { nextEl: el.querySelector('.swiper-button-next'), prevEl: el.querySelector('.swiper-button-prev') } : false,
+                pagination: count > 1 ? { el: el.querySelector('.swiper-pagination'), clickable: true } : false,
             });
         });
 
-        // 2. 모달 관련 및 파일 업로드 처리
+        // 2. 좋아요 버튼 비동기(AJAX) 클릭 처리
+        document.querySelectorAll('.btn-like').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault(); // 기본 동작 방지
+
+                const postId = this.getAttribute('data-post-id');
+                const card = document.getElementById(`post-card-${postId}`);
+                const icon = this.querySelector('i');
+                const likeCountElem = card.querySelector('.like-count-text');
+
+                fetch(`/post/like/${postId}`, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        // 빨간 하트 ↔ 빈 하트 클래스 정밀 교체
+                        if (data.liked) {
+                            icon.className = 'bi bi-heart-fill text-danger fs-5';
+                        } else {
+                            icon.className = 'bi bi-heart text-dark fs-5';
+                        }
+
+                        // 좋아요 숫자 반영
+                        likeCountElem.textContent = data.like_count;
+                    }
+                })
+                .catch(err => console.error('좋아요 처리 중 오류:', err));
+            });
+        });
+
+        // 3. 댓글 상세 모달 로직
+        const postDetailModal = new bootstrap.Modal(document.getElementById('postDetailModal'));
+        let modalDetailSwiperInstance = null;
+        let currentActivePostId = null;
+
+        document.querySelectorAll('.btn-open-detail').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const postId = this.getAttribute('data-post-id');
+                currentActivePostId = postId;
+                const card = document.getElementById(`post-card-${postId}`);
+
+                const caption = card.querySelector('.post-caption-text').textContent;
+                const rawImages = card.querySelector('.raw-images').textContent.trim();
+                const commentItems = card.querySelectorAll('.raw-comments .comment-item');
+
+                document.getElementById('detailCommentForm').setAttribute('data-post-id', postId);
+                document.getElementById('detailModalUser').textContent = `User 1`;
+                document.getElementById('detailModalCaptionUser').textContent = `User 1`;
+                document.getElementById('detailModalCaption').textContent = caption;
+
+                // 이미지 Swiper 반영
+                const wrapper = document.getElementById('modalDetailSwiperWrapper');
+                wrapper.innerHTML = '';
+
+                if (rawImages) {
+                    const imgList = rawImages.split(',');
+                    imgList.forEach(src => {
+                        const slide = document.createElement('div');
+                        slide.className = 'swiper-slide';
+                        slide.innerHTML = `<img src="${src}" alt="게시물 이미지">`;
+                        wrapper.appendChild(slide);
+                    });
+
+                    if (modalDetailSwiperInstance) modalDetailSwiperInstance.destroy();
+
+                    setTimeout(() => {
+                        modalDetailSwiperInstance = new Swiper('#modalDetailSwiper', {
+                            navigation: imgList.length > 1 ? { nextEl: '#modalDetailSwiper .swiper-button-next', prevEl: '#modalDetailSwiper .swiper-button-prev' } : false,
+                            pagination: imgList.length > 1 ? { el: '#modalDetailSwiper .swiper-pagination', clickable: true } : false,
+                        });
+                    }, 100);
+                }
+
+                // 댓글 목록 대입
+                renderModalComments(commentItems);
+                postDetailModal.show();
+            });
+        });
+
+        function renderModalComments(commentItems) {
+            const commentListContainer = document.getElementById('detailModalCommentList');
+            commentListContainer.innerHTML = '';
+
+            if (commentItems.length > 0) {
+                commentItems.forEach(item => {
+                    const userId = item.getAttribute('data-user-id');
+                    const text = item.textContent;
+
+                    const commentDiv = document.createElement('div');
+                    commentDiv.className = 'd-flex mb-2 small';
+                    commentDiv.innerHTML = `
+                        <i class="bi bi-person-circle fs-6 me-2 text-secondary"></i>
+                        <div>
+                            <span class="fw-bold me-1">User ${userId}</span>
+                            <span>${text}</span>
+                        </div>
+                    `;
+                    commentListContainer.appendChild(commentDiv);
+                });
+            } else {
+                commentListContainer.innerHTML = '<p class="text-muted small text-center my-4">아직 댓글이 없습니다.</p>';
+            }
+        }
+
+        // 4. 모달 안에서 댓글 게시(AJAX)
+        document.getElementById('detailCommentForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const postId = this.getAttribute('data-post-id');
+            const input = this.querySelector('input[name="content"]');
+            const content = input.value.trim();
+
+            if (!content) return;
+
+            const formData = new FormData();
+            formData.append('content', content);
+
+            fetch(`/post/comment/${postId}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    input.value = ''; // 입력창 초기화
+
+                    // 1) 모달 내 댓글 목록에 추가
+                    const card = document.getElementById(`post-card-${postId}`);
+                    const rawComments = card.querySelector('.raw-comments');
+
+                    const newCommentDiv = document.createElement('div');
+                    newCommentDiv.className = 'comment-item';
+                    newCommentDiv.setAttribute('data-user-id', data.comment.user_id);
+                    newCommentDiv.textContent = data.comment.content;
+                    rawComments.appendChild(newCommentDiv);
+
+                    // 2) 댓글 목록 재렌더링
+                    renderModalComments(card.querySelectorAll('.raw-comments .comment-item'));
+
+                    // 3) 피드 카드의 댓글 카운트 숫자 업데이트
+                    card.querySelectorAll('.comment-count-text').forEach(elem => {
+                        elem.textContent = data.comment_count;
+                    });
+                }
+            });
+        });
+
+        // 5. 글 작성 모달 스크립트 (이전과 동일)
         const fileInput = document.getElementById('fileInput');
         const dropArea = document.getElementById('dropArea');
         const previewContainer = document.getElementById('previewContainer');
@@ -205,6 +419,7 @@
         const btnNext = document.getElementById('btnNext');
         const btnBack = document.getElementById('btnBack');
         const btnSubmit = document.getElementById('btnSubmit');
+        const btnCloseModal = document.getElementById('btnCloseModal');
         const step1 = document.getElementById('step1');
         const step2 = document.getElementById('step2');
 
@@ -213,12 +428,18 @@
 
         let modalSwiperInstance = null;
 
+        btnCloseModal.addEventListener('click', function() {
+            if (fileInput.files.length > 0) {
+                deleteConfirmModal.show();
+            } else {
+                createPostModal.hide();
+            }
+        });
+
         fileInput.addEventListener('change', function(e) {
             const files = Array.from(e.target.files);
             if (files.length > 0) {
                 previewInner.innerHTML = '';
-
-                // 선택한 이미지들을 슬라이드로 생성
                 files.forEach((file) => {
                     const reader = new FileReader();
                     reader.onload = function(e) {
@@ -235,52 +456,36 @@
                 btnNext.classList.remove('d-none');
                 btnBack.classList.remove('d-none');
 
-                // 이전 Swiper 인스턴스가 있으면 파괴 후 재설정
                 if (modalSwiperInstance) modalSwiperInstance.destroy();
 
                 setTimeout(() => {
                     modalSwiperInstance = new Swiper('#modalSwiper', {
-                        navigation: files.length > 1 ? {
-                            nextEl: '#modalSwiper .swiper-button-next',
-                            prevEl: '#modalSwiper .swiper-button-prev',
-                        } : false,
-                        pagination: files.length > 1 ? {
-                            el: '#modalSwiper .swiper-pagination',
-                            clickable: true,
-                        } : false,
+                        navigation: files.length > 1 ? { nextEl: '#modalSwiper .swiper-button-next', prevEl: '#modalSwiper .swiper-button-prev' } : false,
+                        pagination: files.length > 1 ? { el: '#modalSwiper .swiper-pagination', clickable: true } : false,
                     });
                 }, 100);
             }
         });
 
-        // '다음' 버튼 클릭
         btnNext.addEventListener('click', function() {
             step1.classList.add('d-none');
             step2.classList.remove('d-none');
             btnNext.classList.add('d-none');
             btnSubmit.classList.remove('d-none');
-
             previewStep2Container.innerHTML = previewContainer.innerHTML;
         });
 
-        // '뒤로가기' 버튼 클릭 시 삭제 경고 모달 표시
-        btnBack.addEventListener('click', function() {
-            deleteConfirmModal.show();
-        });
+        btnBack.addEventListener('click', function() { deleteConfirmModal.show(); });
 
-        // 삭제 확인
         document.getElementById('btnConfirmDelete').addEventListener('click', function() {
             document.getElementById('postForm').reset();
-
             step2.classList.add('d-none');
             step1.classList.remove('d-none');
             dropArea.classList.remove('d-none');
             previewContainer.classList.add('d-none');
-            
             btnNext.classList.add('d-none');
             btnBack.classList.add('d-none');
             btnSubmit.classList.add('d-none');
-
             deleteConfirmModal.hide();
             createPostModal.hide();
         });

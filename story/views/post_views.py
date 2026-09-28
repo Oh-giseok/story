@@ -1,15 +1,15 @@
 import os
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify
 from werkzeug.utils import secure_filename
 from story import db
-from story.models import Post, User, PostLike  # PostLike 추가
+from story.models import Post, User, PostLike, PostComment
 
 # /post 경로로 들어오는 요청들을 처리할 블루프린트 생성
 bp = Blueprint('post', __name__, url_prefix='/post')
 
 # 1. 게시물 목록 보기
-@bp.route('/list')
+@bp.route('/')
 def _list():
     # 최신순(created_at 내림차순)으로 모든 게시물 DB 조회
     posts = Post.query.order_by(Post.created_at.desc()).all()
@@ -63,22 +63,59 @@ def _create():
 
     return redirect(url_for('post._list'))
 
-# 3. 좋아요 토글 (등록 / 취소)
+
+# 3. 좋아요 토글 (JSON 반환으로 변경)
 @bp.route('/like/<int:post_id>', methods=['POST'])
 def like(post_id):
-    # 로그인 구현 전 임시 1번 처리
     user_id = 1
-
-    # 이미 해당 유저가 이 글에 좋아요를 눌렀는지 확인
     existing_like = PostLike.query.filter_by(post_id=post_id, user_id=user_id).first()
 
     if existing_like:
-        # 이미 눌렀다면 -> 좋아요 취소(삭제)
         db.session.delete(existing_like)
+        liked = False
     else:
-        # 안 눌렀다면 -> 좋아요 등록(추가)
         new_like = PostLike(post_id=post_id, user_id=user_id)
         db.session.add(new_like)
+        liked = True
 
     db.session.commit()
-    return redirect(url_for('post._list'))
+
+    # 해당 게시물의 전체 좋아요 개수 구하기
+    like_count = PostLike.query.filter_by(post_id=post_id).count()
+
+    return jsonify({
+        'success': True,
+        'liked': liked,
+        'like_count': like_count
+    })
+
+
+# 4. 댓글 작성 기능 (JSON 반환으로 변경)
+@bp.route('/comment/<int:post_id>', methods=['POST'])
+def comment(post_id):
+    content = request.form.get('content')
+
+    if content and content.strip():
+        new_comment = PostComment(
+            post_id=post_id,
+            user_id=1,
+            content=content.strip()
+        )
+        db.session.add(new_comment)
+        db.session.commit()
+
+        # 전체 댓글 개수 조회
+        comment_count = PostComment.query.filter_by(post_id=post_id).count()
+
+        return jsonify({
+            'success': True,
+            'comment': {
+                'id': new_comment.id,
+                'user_id': new_comment.user_id,
+                'content': new_comment.content,
+                'created_at': new_comment.created_at.strftime('%Y-%m-%d %H:%M')
+            },
+            'comment_count': comment_count
+        })
+
+    return jsonify({'success': False, 'message': '내용을 입력해주세요.'}), 400
