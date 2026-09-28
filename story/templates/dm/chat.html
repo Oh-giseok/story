@@ -1,27 +1,153 @@
 {% extends 'base.html' %}
 
+{% block title %}메시지{% endblock %}
+
 {% block content %}
-<div class="container mt-4" style="max-width: 600px;">
-    <h3 class="mb-3">{{ target_name }}님과의 대화</h3>
+<!-- 인라인 기본 프로필 SVG Data URI 정의 -->
+{% set default_svg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 16 16' fill='%236c757d'><path d='M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z'/><path fill-rule='evenodd' d='M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z'/></svg>" %}
 
-    <input type="hidden" id="sender_id" value="{{ g.user.id if g.user and g.user.id else session.get('user_id', 1) }}">
-    <input type="hidden" id="target_id" value="{{ target_id or 2 }}">
+<div class="container py-3" style="max-width: 1200px;">
+    <div class="row g-3">
 
-    <div id="chat-section">
-        <div id="chat-box" style="height:450px; border:1px solid #dee2e6; overflow-y:scroll; padding:15px; background:#f8f9fa;" class="mb-3 rounded shadow-sm"></div>
-        <div class="input-group">
-            <input type="text" id="message_text" class="form-control" placeholder="메시지를 입력하세요..." onkeypress="if(event.key==='Enter') sendMessage()">
-            <button type="button" class="btn btn-primary" onclick="sendMessage()">전송</button>
+        <!-- [좌측 패널] 최근 대화 + 대화 가능 대상 목록 -->
+        <div class="col-12 col-md-4 {% if target_id %}d-none d-md-block{% endif %}">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-bold py-3 border-bottom">
+                    <i class="bi bi-chat-left-text me-1 text-primary"></i> 메시지
+                </div>
+
+                <div class="card-body p-2 overflow-auto" style="max-height: 650px;">
+                    <!-- 1. 최근 대화 목록 -->
+                    <div class="fw-bold small text-muted px-2 my-2">최근 대화</div>
+                    <div class="list-group list-group-flush mb-3">
+                        {% for item in active_chat_users %}
+                            <a href="{{ url_for('dm.user_list', target_id=item.user.id) }}"
+                               class="list-group-item list-group-item-action border-0 rounded mb-1 d-flex justify-content-between align-items-center py-2 {% if target_id == item.user.id %}active bg-light text-dark fw-bold{% endif %}">
+                                <div class="d-flex align-items-center text-truncate">
+                                    <img src="{{ item.user.profile_img_url or url_for('static', filename='photo/default_profile.png') }}"
+                                         onerror="this.onerror=null; this.src='{{ default_svg }}';"
+                                         class="rounded-circle me-2 flex-shrink-0" width="40" height="40" style="object-fit: cover;">
+                                    <div class="text-truncate">
+                                        <div class="small text-dark">{{ item.user.name or item.user.username }}</div>
+                                        <small class="text-muted d-block text-truncate" style="font-size: 0.75rem;">
+                                            {{ item.last_message.text if item.last_message else '대화 없음' }}
+                                        </small>
+                                    </div>
+                                </div>
+                            </a>
+                        {% else %}
+                            <div class="text-muted small px-2">진행 중인 대화가 없습니다.</div>
+                        {% endfor %}
+                    </div>
+
+                    <hr class="my-2">
+
+                    <!-- 2. 대화 가능 대상 목록 & 검색 -->
+                    <div class="fw-bold small text-muted px-2 my-2">새 메시지 보내기</div>
+                    <form method="GET" action="{{ url_for('dm.user_list') }}" class="mb-2 px-1">
+                        {% if target_id %}
+                            <input type="hidden" name="target_id" value="{{ target_id }}">
+                        {% endif %}
+                        <div class="input-group input-group-sm">
+                            <input type="text" name="q" class="form-control" placeholder="검색..." value="{{ keyword }}">
+                            <button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i></button>
+                        </div>
+                    </form>
+
+                    <div class="list-group list-group-flush">
+                        {% for user in all_users %}
+                            <a href="{{ url_for('dm.user_list', target_id=user.id) }}"
+                               class="list-group-item list-group-item-action border-0 rounded mb-1 d-flex align-items-center justify-content-between py-2 px-1">
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ user.profile_img_url or url_for('static', filename='photo/default_profile.png') }}"
+                                         onerror="this.onerror=null; this.src='{{ default_svg }}';"
+                                         class="rounded-circle me-2 flex-shrink-0" width="36" height="36" style="object-fit: cover;">
+                                    <div>
+                                        <div class="small fw-bold text-dark">{{ user.name or user.username }}</div>
+                                        <small class="text-muted" style="font-size:0.7rem;">@{{ user.username }}</small>
+                                    </div>
+                                </div>
+                                <span class="btn btn-xs btn-outline-primary rounded-pill px-2 py-0" style="font-size: 0.75rem;">대화</span>
+                            </a>
+                        {% else %}
+                            <div class="text-muted small px-2">검색 결과가 없습니다.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <!-- [우측 패널] 실시간 채팅 화면 -->
+        <div class="col-12 col-md-8 {% if not target_id %}d-none d-md-block{% endif %}">
+            <div class="card shadow-sm h-100">
+
+                <!-- 상단 헤더 -->
+                <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between border-bottom">
+                    <!-- 모바일전용 '목록으로' 버튼 -->
+                    <a href="{{ url_for('dm.user_list') }}" class="btn btn-outline-secondary btn-sm d-md-none">
+                        <i class="bi bi-chevron-left"></i> 목록으로
+                    </a>
+
+                    <!-- 대화 상대 프로필 및 이름 표시 -->
+                    <div class="d-flex align-items-center">
+                        {% if target_user %}
+                            <img src="{{ target_user.profile_img_url or url_for('static', filename='photo/default_profile.png') }}"
+                                 onerror="this.onerror=null; this.src='{{ default_svg }}';"
+                                 class="rounded-circle me-2" width="36" height="36" style="object-fit: cover;">
+                        {% endif %}
+                        <h5 class="mb-0 fw-bold">
+                            {% if target_name %}
+                                {{ target_name }}
+                            {% else %}
+                                대화 상대를 선택하세요
+                            {% endif %}
+                        </h5>
+                    </div>
+
+                    <!-- 모바일 정렬용 균형 레이아웃 -->
+                    <div class="d-md-none" style="width: 75px;"></div>
+                </div>
+
+                <!-- 채팅창 본문 -->
+                <div class="card-body d-flex flex-column" style="height: 580px;">
+                    {% if target_id %}
+                        <input type="hidden" id="sender_id" value="{{ g.user.id if g.user and g.user.id else session.get('user_id', 1) }}">
+                        <input type="hidden" id="target_id" value="{{ target_id }}">
+                        <!-- 상대방 프로필 사진 경로 전달용 hidden input -->
+                        <input type="hidden" id="target_profile_img" value="{{ target_user.profile_img_url if target_user and target_user.profile_img_url else url_for('static', filename='photo/default_profile.png') }}">
+
+                        <div id="chat-box" class="flex-grow-1 border rounded p-3 mb-3 bg-light overflow-auto" style="height: 480px;"></div>
+
+                        <div class="input-group">
+                            <input type="text" id="message_text" class="form-control" placeholder="메시지를 입력하세요..." onkeypress="if(event.key==='Enter') sendMessage()">
+                            <button type="button" class="btn btn-primary px-4" onclick="sendMessage()">전송</button>
+                        </div>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <i class="bi bi-chat-dots display-1 mb-3 text-secondary"></i>
+                            <p>좌측 목록에서 대화할 상대를 선택해 주세요.</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+            </div>
+        </div>
+
     </div>
 </div>
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
+const DEFAULT_SVG = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 16 16' fill='%236c757d'><path d='M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z'/><path fill-rule='evenodd' d='M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z'/></svg>";
 const socket = io();
 let currentConvId = null;
 
-document.addEventListener('DOMContentLoaded', connectChat);
+document.addEventListener('DOMContentLoaded', () => {
+    const targetInput = document.getElementById('target_id');
+    if (targetInput && targetInput.value) {
+        connectChat();
+    }
+});
 
 async function connectChat() {
     const userId1 = parseInt(document.getElementById('sender_id').value);
@@ -33,7 +159,6 @@ async function connectChat() {
     }
 
     try {
-        // 1. 대화방 생성 또는 ID 조회
         const res = await fetch('/dm/conversations', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -52,10 +177,7 @@ async function connectChat() {
         const data = await res.json();
         currentConvId = data.conversation_id;
 
-        // 2. 소켓 룸 입장
         socket.emit('join_room', { conversation_id: currentConvId });
-
-        // 3. 읽음 상태 업데이트 및 기존 메시지 로드
         socket.emit('mark_read', { conversation_id: currentConvId, user_id: userId1 });
         await loadMessages();
     } catch (error) {
@@ -82,7 +204,10 @@ async function loadMessages() {
 
 function sendMessage() {
     const textInput = document.getElementById('message_text');
-    const senderId = parseInt(document.getElementById('sender_id').value);
+    const senderElem = document.getElementById('sender_id');
+
+    if (!senderElem) return;
+    const senderId = parseInt(senderElem.value);
     const text = textInput.value.trim();
 
     if (!text || !currentConvId) return;
@@ -98,7 +223,9 @@ function sendMessage() {
 }
 
 socket.on('receive_message', function(msg) {
-    const currentUserId = parseInt(document.getElementById('sender_id').value);
+    const senderElem = document.getElementById('sender_id');
+    if (!senderElem) return;
+    const currentUserId = parseInt(senderElem.value);
 
     appendMessage(msg);
 
@@ -115,19 +242,33 @@ socket.on('update_read_status', function(data) {
 
 function appendMessage(msg) {
     const chatBox = document.getElementById('chat-box');
+    if (!chatBox) return;
+
     const currentUserId = parseInt(document.getElementById('sender_id').value);
+    const targetProfileImg = document.getElementById('target_profile_img') ? document.getElementById('target_profile_img').value : '';
     const isMe = msg.sender_id === currentUserId;
 
     const div = document.createElement('div');
-    div.className = `d-flex mb-2 ${isMe ? 'justify-content-end' : 'justify-content-start'}`;
+    div.className = `d-flex mb-3 ${isMe ? 'justify-content-end' : 'justify-content-start'}`;
 
     const unreadBadge = msg.unread_count > 0
         ? `<span class="badge bg-warning text-dark me-1 align-self-end unread-count" style="font-size:0.7rem;">${msg.unread_count}</span>`
         : '';
 
-    div.innerHTML = isMe ?
-        `${unreadBadge}<div class="p-2 rounded bg-primary text-white" style="max-width:70%;"><strong>나:</strong> ${escapeHtml(msg.text)} <br><small class="text-white-50" style="font-size:0.75rem;">${msg.created_at}</small></div>` :
-        `<div class="p-2 rounded bg-white border" style="max-width:70%;"><strong>상대방:</strong> ${escapeHtml(msg.text)} <br><small class="text-muted" style="font-size:0.75rem;">${msg.created_at}</small></div>${unreadBadge}`;
+    if (isMe) {
+        div.innerHTML = `${unreadBadge}<div class="p-2 rounded bg-primary text-white" style="max-width:70%;"><strong>나:</strong> ${escapeHtml(msg.text)} <br><small class="text-white-50" style="font-size:0.75rem;">${msg.created_at}</small></div>`;
+    } else {
+        div.innerHTML = `
+            <img src="${targetProfileImg}"
+                 onerror="this.onerror=null; this.src='${DEFAULT_SVG}';"
+                 class="rounded-circle me-2 flex-shrink-0 align-self-start" width="36" height="36" style="object-fit: cover;">
+            <div class="p-2 rounded bg-white border" style="max-width:70%;">
+                <strong>상대방:</strong> ${escapeHtml(msg.text)} <br>
+                <small class="text-muted" style="font-size:0.75rem;">${msg.created_at}</small>
+            </div>
+            ${unreadBadge}
+        `;
+    }
 
     chatBox.appendChild(div);
     chatBox.scrollTop = chatBox.scrollHeight;

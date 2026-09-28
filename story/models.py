@@ -3,6 +3,11 @@ from . import db
 
 
 class User(db.Model):
+from story import db  # __init__.py의 db 객체 임포트
+from flask_login import UserMixin
+
+class User(db.Model, UserMixin):
+
     __tablename__ = 'user'
     __table_args__ = {'extend_existing': True}
 
@@ -156,8 +161,8 @@ class Comments(db.Model):
     __table_args__ = {'extend_existing': True}
 
     id = db.Column(db.Integer, primary_key=True)
-    reel_id = db.Column(db.Integer, db.ForeignKey('reels.id'))
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    reel_id = db.Column(db.Integer, db.ForeignKey('reels.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

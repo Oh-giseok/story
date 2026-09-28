@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container my-3">
+
+    <!-- 스토리 제목 -->
+    <h2 class="border-bottom py-2">{{ story.user.username }}님의 스토리</h2>
+
+    <!-- 스토리 카드 본문 -->
+    <div class="card my-3">
+        <div class="card-body">
+
+            <!-- 스토리 이미지 -->
+            {% if story.media_url %}
+            <div class="my-3">
+                <img src="{{ url_for('static', filename=story.media_url) }}"
+                     alt="스토리 이미지"
+                     style="max-width: 100%; height: auto;"
+                     class="img-thumbnail">
+            </div>
+            {% endif %}
+
+            <!-- 스토리 내용 -->
+            {% if story.caption %}
+            <div class="card-text" style="white-space: pre-line;">{{ story.caption }}</div>
+            {% endif %}
+
+            <!-- 작성자 / 작성일시 -->
+            <div class="d-flex justify-content-end">
+                <div class="badge bg-light text-dark p-2">
+                    <p class="mb-2">{{ story.user.username }}</p>
+                    <p>{{ story.create_date | time_ago }}</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 목록으로 이동 버튼 -->
+    <div class="my-3">
+        <a href="{{ url_for('story.story_list') }}"
+           class="btn btn-sm btn-outline-secondary">목록으로</a>
+    </div>
+
+</div>
+{% endblock %}

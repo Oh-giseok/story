@@ -3,9 +3,11 @@ from datetime import datetime
 from flask import Flask, redirect, render_template, url_for
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager
 
 db = SQLAlchemy()
 migrate = Migrate()
+login_manager = LoginManager()
 
 
 def create_app():
@@ -37,18 +39,24 @@ def create_app():
     # ORM 초기화
     db.init_app(app)
     migrate.init_app(app, db)
+    login_manager.init_app(app)
 
-    # 1. 모델을 가장 먼저 로드
+    # 모델 로드
     from . import models
 
-    # 2. SocketIO 초기화 및 로드
+    # Flask-Login 사용자 불러오기
+    @login_manager.user_loader
+    def load_user(user_id):
+        return models.User.query.get(int(user_id))
+
+    # SocketIO 초기화 및 로드
     from story.events import socketio
     socketio.init_app(app, cors_allowed_origins="*")
 
     with app.app_context():
         db.create_all()
 
-    # 3. 블루프린트 임포트 및 등록
+    # 블루프린트 임포트 및 등록
     from story.views import auth_views, dmviews, main_views, post_views, story_views
     from .views.Reels_views import reels_bp
 
@@ -59,14 +67,17 @@ def create_app():
     app.register_blueprint(post_views.bp)
     app.register_blueprint(story_views.bp)
 
-    # 라우트 설정
+    # 메인 페이지
     @app.route('/')
     def index():
         from flask import g
+
         if g.user is None:
             return redirect(url_for('auth.login'))
+
         return redirect(url_for('post._list'))
 
+    # 스토리 페이지
     @app.route('/story')
     def story_list():
         now = datetime.now()
@@ -110,6 +121,7 @@ if __name__ == '__main__':
     from story.events import socketio
 
     app = create_app()
+
     socketio.run(
         app,
         host='127.0.0.1',

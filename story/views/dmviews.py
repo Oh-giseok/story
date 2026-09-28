@@ -8,59 +8,68 @@ bp = Blueprint('dm', __name__, url_prefix='/dm')
 
 @bp.before_request
 def check_login():
-    # g.user 객체가 존재하는 경우 g.user.id를 가져오도록 수정
     current_user_id = session.get('user_id')
     if not current_user_id and hasattr(g, 'user') and g.user:
         current_user_id = g.user.id
 
     if not current_user_id:
-        # AJAX(JSON) 요청이거나 conversations 경로인 경우 401 JSON 반환 (HTML 리다이렉트 방지)
         if request.is_json or request.path.startswith('/dm/conversations'):
             return jsonify({'error': '로그인이 필요합니다.'}), 401
 
-        # 일반 페이지 접근 시 로그인 페이지로 리다이렉트
-        if request.endpoint in ['dm.user_list', 'dm.chat_room']:
+        if request.endpoint in ['dm.user_list', 'dm.chat_room', 'dm.chat_main']:
             return redirect(url_for('auth.login'))
 
 
-# 메시지 대상 선택 화면 (상단: 이전 채팅 목록 / 하단: 모든 유저 목록 및 검색)
+# 통합 메인 뷰 (데스크톱: 좌측 목록 + 우측 채팅 / 모바일: 조건별 분기)
+@bp.route('/')
 @bp.route('/users')
+@bp.route('/chat')
 def user_list():
     current_user_id = session.get('user_id') or (g.user.id if hasattr(g, 'user') and g.user else None)
+
+    target_id = request.args.get('target_id', default=None, type=int)
     keyword = request.args.get('q', '', type=str)
 
-    # 1. 이전 대화 목록 조회
+    # 1. 최근 대화 목록 조회
     conversations = Conversation.query.filter(
         (Conversation.user_id1 == current_user_id) | (Conversation.user_id2 == current_user_id)
     ).all()
 
     active_chat_users = []
-    active_user_ids = set()
-
     for conv in conversations:
-        target_id = conv.user_id2 if conv.user_id1 == current_user_id else conv.user_id1
-        target_user = User.query.get(target_id)
-
-        if target_user:
-            last_message = Message.query.filter_by(conversation_id=conv.id).order_by(Message.created_at.desc()).first()
+        tid = conv.user_id2 if conv.user_id1 == current_user_id else conv.user_id1
+        tuser = User.query.get(tid)
+        if tuser:
+            last_msg = Message.query.filter_by(conversation_id=conv.id).order_by(Message.created_at.desc()).first()
             active_chat_users.append({
-                'user': target_user,
-                'last_message': last_message
+                'user': tuser,
+                'last_message': last_msg
             })
-            active_user_ids.add(target_id)
 
-    # 2. 전체 유저 목록 (검색 기능 포함)
+    # 최신 메시지 작성일 기준 내림차순 정렬
+    active_chat_users.sort(
+        key=lambda x: x['last_message'].created_at if x['last_message'] else None,
+        reverse=True
+    )
+
+    # 2. 대화 가능 대상 유저 목록 (검색 기능 포함)
     query = User.query.filter(User.id != current_user_id)
     if keyword:
         query = query.filter((User.username.contains(keyword)) | (User.name.contains(keyword)))
-
     all_users = query.all()
 
+    # 3. 선택된 상대방 정보 (target_id가 존재할 때만 조회)
+    target_user = User.query.get(target_id) if target_id else None
+    target_name = (target_user.name or target_user.username) if target_user else None
+
     return render_template(
-        'dm/user_list.html',
+        'dm/chat.html',
         active_chat_users=active_chat_users,
         all_users=all_users,
-        keyword=keyword
+        keyword=keyword,
+        target_id=target_id,
+        target_name=target_name,
+        target_user=target_user  # <-- target_user 객체 전달 반영 완료
     )
 
 
@@ -94,17 +103,3 @@ def get_messages(conv_id):
         db.session.commit()
 
     return jsonify([msg.to_dict() for msg in messages])
-
-
-# 선택된 target_id로 채팅방 진입
-@bp.route('/chat')
-def chat_room():
-    target_id = request.args.get('target_id', type=int)
-
-    if not target_id:
-        return redirect(url_for('dm.user_list'))
-
-    target_user = User.query.get_or_404(target_id)
-    target_name = target_user.name if target_user.name else target_user.username
-
-    return render_template('dm/chat.html', target_id=target_id, target_name=target_name)
