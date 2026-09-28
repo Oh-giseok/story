@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}메시지 대화 상대 선택{% endblock %}
+
+{% block content %}
+<div class="container py-2" style="max-width: 600px;">
+
+    <!-- 1. 이전 대화 목록 (상단 배치) -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-white fw-bold">
+            <i class="bi bi-chat-dots me-1"></i> 최근 대화
+        </div>
+        <div class="list-group list-group-flush">
+            {% for item in active_chat_users %}
+                <a href="{{ url_for('dm.chat_room', target_id=item.user.id) }}"
+                   class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3">
+                    <div class="d-flex align-items-center">
+                        <img src="{{ item.user.profile_img_url or url_for('static', filename='photo/default_profile.png') }}"
+                             class="rounded-circle me-3" width="48" height="48" style="object-fit: cover;">
+                        <div>
+                            <h6 class="mb-1 fw-bold text-dark">{{ item.user.name or item.user.username }}</h6>
+                            <p class="mb-0 text-muted small text-truncate" style="max-width: 280px;">
+                                {% if item.last_message %}
+                                    {{ item.last_message.text or '[이미지]' }}
+                                {% else %}
+                                    새로운 대화가 시작되었습니다.
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    {% if item.last_message %}
+                        <small class="text-muted">{{ item.last_message.created_at.strftime('%m/%d %H:%M') }}</small>
+                    {% endif %}
+                </a>
+            {% else %}
+                <div class="p-3 text-center text-muted small">진행 중인 대화가 없습니다.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 2. 새 메시지 보낼 유저 검색 및 전체 목록 (하단 배치) -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-person-plus me-1"></i> 새 메시지 보내기</span>
+        </div>
+        <div class="card-body">
+            <!-- 검색 폼 -->
+            <form method="GET" action="{{ url_for('dm.user_list') }}" class="mb-3">
+                <div class="input-group">
+                    <input type="text" name="q" class="form-control" placeholder="이름 또는 아이디 검색..." value="{{ keyword }}">
+                    <button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i> 검색</button>
+                </div>
+            </form>
+
+            <!-- 전체 유저 목록 -->
+            <div class="list-group list-group-flush">
+                {% for user in all_users %}
+                    <a href="{{ url_for('dm.chat_room', target_id=user.id) }}"
+                       class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-2">
+                        <div class="d-flex align-items-center">
+                            <img src="{{ user.profile_img_url or url_for('static', filename='photo/default_profile.png') }}"
+                                 class="rounded-circle me-3" width="40" height="40" style="object-fit: cover;">
+                            <div>
+                                <h6 class="mb-0 text-dark small fw-bold">{{ user.name or user.username }}</h6>
+                                <small class="text-muted">@{{ user.username }}</small>
+                            </div>
+                        </div>
+                        <span class="btn btn-sm btn-outline-primary rounded-pill px-3">대화하기</span>
+                    </a>
+                {% else %}
+                    <div class="p-3 text-center text-muted small">검색 결과가 없습니다.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

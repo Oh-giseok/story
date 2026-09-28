@@ -46,7 +46,8 @@
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('post._list') }}">게시물</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('story_list') }}">스토리</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('reels.reels') }}">릴스</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('dm.chat_room') }}">메시지</a></li>
+                    <!-- 메시지 링크를 대화 상대 선택 화면(dm.user_list)으로 변경 -->
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('dm.user_list') }}">메시지</a></li>
                 </ul>
                 <!-- 로그인 상태에 따른 메뉴 -->
                 <div class="d-flex gap-2">
