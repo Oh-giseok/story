@@ -23,10 +23,7 @@ def create_app():
     os.makedirs(profile_upload_folder, exist_ok=True)
     app.config['PROFILE_UPLOAD_FOLDER'] = profile_upload_folder
 
-<<<<<<< HEAD
     # 설정 로드
-=======
->>>>>>> workspace
     app.config.from_object('config')
 
     if not app.config.get('SQLALCHEMY_DATABASE_URI'):
