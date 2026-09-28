@@ -52,9 +52,30 @@
                 <div class="d-flex gap-2">
                     {% if g.user %}
                         <!-- 로그인한 경우 -->
-                        <span class="navbar-text text-white">{{ g.user.username }}</span>
-                        <a class="btn btn-outline-light btn-sm" href="{{ url_for('auth.logout') }}">로그아웃</a>
-                        <a class="btn btn-outline-light btn-sm" href="{{ url_for('auth.profile_edit') }}">마이페이지</a>
+                        <span class="navbar-text text-white d-flex align-items-center">
+                            {% if g.user.profile_img_url %}
+                                <img src="{{ url_for('static', filename=g.user.profile_img_url) }}"
+                                     alt="{{ g.user.username }} 프로필"
+                                     class="rounded-circle me-2"
+                                     width="28" height="28"
+                                     style="object-fit: cover;">
+                            {% else %}
+                                <i class="bi bi-person-circle me-2" aria-hidden="true"></i>
+                            {% endif %}
+                            {{ g.user.username }}
+                        </span>
+                        <!-- 드롭다운 메뉴 -->
+                        <div class="dropdown">
+                            <button class="btn btn-outline-light" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="메뉴">
+                                <i class="bi bi-list"></i>
+                            </button>
+                            <!-- 드롭다운 메뉴 목록-->
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{{ url_for('auth.mypage') }}"><i class="bi bi-person me-2"></i>마이페이지</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('auth.profile_edit') }}"><i class="bi bi-person me-2"></i>회원 정보수정</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="bi bi-person me-2"></i>로그아웃</a></li>
+                            </ul>
+                        </div>
                     {% else %}
                         <!-- 로그인하지 않은 경우 -->
                         <a class="btn btn-outline-light btn-sm" href="{{ url_for('auth.login') }}">로그인</a>

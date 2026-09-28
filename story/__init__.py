@@ -19,6 +19,11 @@ def create_app():
 
     app.config['POST_UPLOAD_FOLDER'] = upload_folder
 
+    # 프로필 이미지는 정적 파일로 제공한다.
+    profile_upload_folder = os.path.join(app.root_path, 'static', 'profile')
+    os.makedirs(profile_upload_folder, exist_ok=True)
+    app.config['PROFILE_UPLOAD_FOLDER'] = profile_upload_folder
+
     app.config.from_object('config')
 
     if not app.config.get('SQLALCHEMY_DATABASE_URI'):
