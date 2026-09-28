@@ -2,9 +2,12 @@
 {% block content %}
 <div class="container">
     <h5 class="my-3 border-bottom pb-2">회원 가입</h5>
-    <form method="post" novalidate>
+    <form method="post" enctype="multipart/form-data">
         {{ form.csrf_token }}
         {% include 'form_errors.html' %}
+
+        {{ form.profile_img_url.label }}
+        {{ form.profile_img_url(class="form-control") }}
 
         {{ form.username.label }}
         {{ form.username(class="form-control mb-3") }}
@@ -20,6 +23,9 @@
 
         {{ form.name.label }}
         {{ form.name(class="form-control mb-3") }}
+
+        {{ form.intro.label }}
+        {{ form.intro(class="form-control", rows="4") }}
 
         {{ form.birth.label }}
         {{ form.birth(class="form-control mb-3") }}

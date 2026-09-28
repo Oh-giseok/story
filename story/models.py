@@ -1,12 +1,11 @@
-#models.py
-from story import db
 from datetime import datetime
-
+from . import db
 
 
 class User(db.Model):
-
     __tablename__ = 'user'
+    __table_args__ = {'extend_existing': True}
+
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
@@ -14,7 +13,6 @@ class User(db.Model):
     name = db.Column(db.String(200))
     intro = db.Column(db.Text)
     profile_img_url = db.Column(db.String(200))
-    # 회원가입 폼에서 생년월일을 문자열로 받으므로 문자열로 저장한다.
     birth = db.Column(db.String(200), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -22,17 +20,23 @@ class User(db.Model):
 
 class Conversation(db.Model):
     __tablename__ = 'conversation'
+    __table_args__ = (
+        db.UniqueConstraint('user_id1', 'user_id2', name='unique_user_pair'),
+        {'extend_existing': True}
+    )
+
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id1 = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user_id2 = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    __table_args__ = (db.UniqueConstraint('user_id1', 'user_id2', name='unique_user_pair'),)
     messages = db.relationship('Message', backref='conversation', lazy=True, cascade="all, delete-orphan")
 
 
 class Message(db.Model):
     __tablename__ = 'message'
+    __table_args__ = {'extend_existing': True}
+
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     conversation_id = db.Column(db.Integer, db.ForeignKey('conversation.id'), nullable=False)
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -59,16 +63,20 @@ class Message(db.Model):
 
 class MessageRead(db.Model):
     __tablename__ = 'message_read'
+    __table_args__ = (
+        db.UniqueConstraint('message_id', 'user_id', name='unique_message_read'),
+        {'extend_existing': True}
+    )
+
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     message_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     read_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    __table_args__ = (db.UniqueConstraint('message_id', 'user_id', name='unique_message_read'),)
-
 
 class Post(db.Model):
     __tablename__ = 'post'
+    __table_args__ = {'extend_existing': True}
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
@@ -81,6 +89,10 @@ class Post(db.Model):
 
 class PostLike(db.Model):
     __tablename__ = 'post_likes'
+    __table_args__ = (
+        db.UniqueConstraint('post_id', 'user_id', name='unique_post_user_like'),
+        {'extend_existing': True}
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     post_id = db.Column(db.Integer, db.ForeignKey('post.id', ondelete='CASCADE'), nullable=False)
@@ -106,6 +118,7 @@ class PostComment(db.Model):
 
 class Reels(db.Model):
     __tablename__ = 'reels'
+    __table_args__ = {'extend_existing': True}
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -119,6 +132,10 @@ class Reels(db.Model):
 
 class Reels_Likes(db.Model):
     __tablename__ = 'reel_likes'
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'reel_id', name='unique_user_reel_like'),
+        {'extend_existing': True}
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     reel_id = db.Column(db.Integer, db.ForeignKey('reels.id'), nullable=False)
@@ -131,6 +148,7 @@ class Reels_Likes(db.Model):
 
 class Comments(db.Model):
     __tablename__ = 'comments'
+    __table_args__ = {'extend_existing': True}
 
     id = db.Column(db.Integer, primary_key=True)
     reel_id = db.Column(db.Integer, db.ForeignKey('reels.id'))
@@ -142,6 +160,7 @@ class Comments(db.Model):
 
 class Story(db.Model):
     __tablename__ = 'story'
+    __table_args__ = {'extend_existing': True}
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
@@ -155,6 +174,7 @@ class Story(db.Model):
 
 class StoryLikes(db.Model):
     __tablename__ = 'story_likes'
+    __table_args__ = {'extend_existing': True}
 
     id = db.Column(db.Integer, primary_key=True)
     story_id = db.Column(db.Integer, db.ForeignKey('story.id', ondelete='CASCADE'), nullable=False)

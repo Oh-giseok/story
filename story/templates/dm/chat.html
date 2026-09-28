@@ -1,72 +1,145 @@
 {% extends 'base.html' %}
+
 {% block content %}
-<div class="container mt-4">
-<h3>{{ target_name }}</h3>
-<input type="hidden" id="sender_id" value="{{ g.user.id if g.user else session.get('user_id', 1) }}">
-<input type="hidden" id="target_id" value="{{ target_id or 2 }}">
-<div id="chat-section">
-<div id="chat-box" style="height:400px;border:1px solid #ccc;overflow-y:scroll;padding:15px;background:#f8f9fa;" class="mb-3 rounded"></div>
-<div class="input-group">
-<input type="text" id="message_text" class="form-control" placeholder="메시지를 입력하세요..." onkeypress="if(event.key==='Enter')sendMessage()">
-<button class="btn btn-primary" onclick="sendMessage()">전송</button>
+<div class="container mt-4" style="max-width: 600px;">
+    <h3 class="mb-3">{{ target_name }}님과의 대화</h3>
+
+    <input type="hidden" id="sender_id" value="{{ g.user.id if g.user and g.user.id else session.get('user_id', 1) }}">
+    <input type="hidden" id="target_id" value="{{ target_id or 2 }}">
+
+    <div id="chat-section">
+        <div id="chat-box" style="height:450px; border:1px solid #dee2e6; overflow-y:scroll; padding:15px; background:#f8f9fa;" class="mb-3 rounded shadow-sm"></div>
+        <div class="input-group">
+            <input type="text" id="message_text" class="form-control" placeholder="메시지를 입력하세요..." onkeypress="if(event.key==='Enter') sendMessage()">
+            <button type="button" class="btn btn-primary" onclick="sendMessage()">전송</button>
+        </div>
+    </div>
 </div>
-</div>
-</div>
+
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
-const socket=io();
-let currentConvId=null;
-document.addEventListener('DOMContentLoaded',connectChat);
-async function connectChat(){
-const userId1=parseInt(document.getElementById('sender_id').value);
-const userId2=parseInt(document.getElementById('target_id').value);
-if(!userId1||!userId2)return;
-const res=await fetch('/dm/conversations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id1:userId1,user_id2:userId2})});
-const data=await res.json();
-currentConvId=data.conversation_id;
-socket.emit('join_room',{conversation_id:currentConvId});
-await fetch(`/dm/conversations/${currentConvId}/messages?user_id=${userId1}`);
-socket.emit('mark_read',{conversation_id:currentConvId,user_id:userId1});
-await loadMessages();
+const socket = io();
+let currentConvId = null;
+
+document.addEventListener('DOMContentLoaded', connectChat);
+
+async function connectChat() {
+    const userId1 = parseInt(document.getElementById('sender_id').value);
+    const userId2 = parseInt(document.getElementById('target_id').value);
+
+    if (!userId1 || !userId2) {
+        console.error("유저 정보를 찾을 수 없습니다.");
+        return;
+    }
+
+    try {
+        // 1. 대화방 생성 또는 ID 조회
+        const res = await fetch('/dm/conversations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id1: userId1, user_id2: userId2 })
+        });
+
+        if (!res.ok) {
+            if (res.status === 401) {
+                alert("로그인이 필요합니다.");
+                window.location.href = "/auth/login";
+                return;
+            }
+            throw new Error(`서버 응답 오류: ${res.status}`);
+        }
+
+        const data = await res.json();
+        currentConvId = data.conversation_id;
+
+        // 2. 소켓 룸 입장
+        socket.emit('join_room', { conversation_id: currentConvId });
+
+        // 3. 읽음 상태 업데이트 및 기존 메시지 로드
+        socket.emit('mark_read', { conversation_id: currentConvId, user_id: userId1 });
+        await loadMessages();
+    } catch (error) {
+        console.error("채팅방 연결 오류:", error);
+    }
 }
-async function loadMessages(){
-const userId1=parseInt(document.getElementById('sender_id').value);
-const msgRes=await fetch(`/dm/conversations/${currentConvId}/messages?user_id=${userId1}`);
-const messages=await msgRes.json();
-const chatBox=document.getElementById('chat-box');
-chatBox.innerHTML='';
-messages.forEach(msg=>appendMessage(msg));
+
+async function loadMessages() {
+    if (!currentConvId) return;
+    const userId1 = parseInt(document.getElementById('sender_id').value);
+
+    try {
+        const msgRes = await fetch(`/dm/conversations/${currentConvId}/messages?user_id=${userId1}`);
+        if (!msgRes.ok) return;
+
+        const messages = await msgRes.json();
+        const chatBox = document.getElementById('chat-box');
+        chatBox.innerHTML = '';
+        messages.forEach(msg => appendMessage(msg));
+    } catch (error) {
+        console.error("메시지 로딩 오류:", error);
+    }
 }
-function sendMessage(){
-const textInput=document.getElementById('message_text');
-const senderId=parseInt(document.getElementById('sender_id').value);
-if(!textInput.value.trim()||!currentConvId)return;
-socket.emit('send_message',{conversation_id:currentConvId,sender_id:senderId,text:textInput.value,img_url:null});
-textInput.value='';
+
+function sendMessage() {
+    const textInput = document.getElementById('message_text');
+    const senderId = parseInt(document.getElementById('sender_id').value);
+    const text = textInput.value.trim();
+
+    if (!text || !currentConvId) return;
+
+    socket.emit('send_message', {
+        conversation_id: currentConvId,
+        sender_id: senderId,
+        text: text,
+        img_url: null
+    });
+
+    textInput.value = '';
 }
-socket.on('receive_message',function(msg){
-const senderId=parseInt(document.getElementById('sender_id').value);
-if(msg.sender_id!==senderId){
-socket.emit('mark_read',{conversation_id:currentConvId,user_id:senderId});
-}else{
-appendMessage(msg);
-}
+
+socket.on('receive_message', function(msg) {
+    const currentUserId = parseInt(document.getElementById('sender_id').value);
+
+    appendMessage(msg);
+
+    if (msg.sender_id !== currentUserId) {
+        socket.emit('mark_read', { conversation_id: currentConvId, user_id: currentUserId });
+    }
 });
-socket.on('update_read_status',function(data){
-if(data.conversation_id===currentConvId){loadMessages();}
+
+socket.on('update_read_status', function(data) {
+    if (data.conversation_id === currentConvId) {
+        loadMessages();
+    }
 });
-function appendMessage(msg){
-const chatBox=document.getElementById('chat-box');
-const currentUserId=parseInt(document.getElementById('sender_id').value);
-const isMe=msg.sender_id===currentUserId;
-const div=document.createElement('div');
-div.className=`d-flex mb-2 ${isMe?'justify-content-end':'justify-content-start'}`;
-const unreadBadge=msg.unread_count>0?`<span class="badge bg-warning text-dark me-1 align-self-end unread-count" style="font-size:0.7rem;">${msg.unread_count}</span>`:'';
-div.innerHTML=isMe?
-`${unreadBadge}<div class="p-2 rounded bg-primary text-white" style="max-width:70%;"><strong>나:</strong> ${msg.text} <br><small class="text-white-50" style="font-size:0.75rem;">${msg.created_at}</small></div>`:
-`<div class="p-2 rounded bg-white border" style="max-width:70%;"><strong>사용자 ${msg.sender_id}:</strong> ${msg.text} <br><small class="text-muted" style="font-size:0.75rem;">${msg.created_at}</small></div>${unreadBadge}`;
-chatBox.appendChild(div);
-chatBox.scrollTop=chatBox.scrollHeight;
+
+function appendMessage(msg) {
+    const chatBox = document.getElementById('chat-box');
+    const currentUserId = parseInt(document.getElementById('sender_id').value);
+    const isMe = msg.sender_id === currentUserId;
+
+    const div = document.createElement('div');
+    div.className = `d-flex mb-2 ${isMe ? 'justify-content-end' : 'justify-content-start'}`;
+
+    const unreadBadge = msg.unread_count > 0
+        ? `<span class="badge bg-warning text-dark me-1 align-self-end unread-count" style="font-size:0.7rem;">${msg.unread_count}</span>`
+        : '';
+
+    div.innerHTML = isMe ?
+        `${unreadBadge}<div class="p-2 rounded bg-primary text-white" style="max-width:70%;"><strong>나:</strong> ${escapeHtml(msg.text)} <br><small class="text-white-50" style="font-size:0.75rem;">${msg.created_at}</small></div>` :
+        `<div class="p-2 rounded bg-white border" style="max-width:70%;"><strong>상대방:</strong> ${escapeHtml(msg.text)} <br><small class="text-muted" style="font-size:0.75rem;">${msg.created_at}</small></div>${unreadBadge}`;
+
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function escapeHtml(text) {
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 </script>
 {% endblock %}
