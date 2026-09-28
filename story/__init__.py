@@ -1,8 +1,8 @@
 import os
+from datetime import datetime
 from flask import Flask, redirect, render_template, url_for
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -11,14 +11,19 @@ migrate = Migrate()
 def create_app():
     app = Flask(__name__)
 
+    # 업로드 폴더 설정
     app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'reels_uploads')
 
-    # 게시물 이미지 업로드 폴더
     upload_folder = os.path.join(app.root_path, 'static', 'photo')
     os.makedirs(upload_folder, exist_ok=True)
-
     app.config['POST_UPLOAD_FOLDER'] = upload_folder
 
+    # 프로필 이미지는 정적 파일로 제공한다.
+    profile_upload_folder = os.path.join(app.root_path, 'static', 'profile')
+    os.makedirs(profile_upload_folder, exist_ok=True)
+    app.config['PROFILE_UPLOAD_FOLDER'] = profile_upload_folder
+
+    # 설정 로드
     app.config.from_object('config')
 
     if not app.config.get('SQLALCHEMY_DATABASE_URI'):
@@ -29,19 +34,22 @@ def create_app():
     if not app.config.get('SECRET_KEY'):
         app.config['SECRET_KEY'] = 'dev-secret-key'
 
+    # ORM 초기화
     db.init_app(app)
     migrate.init_app(app, db)
 
+    # 1. 모델을 가장 먼저 로드
+    from . import models
+
+    # 2. SocketIO 초기화 및 로드
     from story.events import socketio
     socketio.init_app(app, cors_allowed_origins="*")
 
     with app.app_context():
         db.create_all()
 
-    from story.views import main_views, dmviews, auth_views, post_views, story_views
-
-    from . import models
-
+    # 3. 블루프린트 임포트 및 등록
+    from story.views import auth_views, dmviews, main_views, post_views, story_views
     from .views.Reels_views import reels_bp
 
     app.register_blueprint(reels_bp)
@@ -51,11 +59,14 @@ def create_app():
     app.register_blueprint(post_views.bp)
     app.register_blueprint(story_views.bp)
 
+    # 라우트 설정
     @app.route('/')
     def index():
+        from flask import g
+        if g.user is None:
+            return redirect(url_for('auth.login'))
         return redirect(url_for('post._list'))
 
-    # 스토리 목록 페이지 추가
     @app.route('/story')
     def story_list():
         now = datetime.now()
@@ -71,14 +82,13 @@ def create_app():
             story_list=story_list
         )
 
-    # 스토리 작성 시간을 인스타그램 스타일로 표시
+    # 템플릿 필터
     @app.template_filter('time_ago')
     def time_ago_filter(value):
         if not value:
             return ""
 
         diff = datetime.now() - value
-
         seconds = diff.total_seconds()
         minutes = int(seconds // 60)
         hours = int(minutes // 60)

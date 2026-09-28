@@ -1,23 +1,66 @@
 {% extends 'base.html' %}
+
+{% block title %}
+회원정보 수정
+{% endblock %}
+
 {% block content %}
+
 <div class="container">
-    <h5 class="my-3 border-bottom pb-2">회원정보 수정</h5>
-    <form method="post" novalidate>
+
+    <h5 class="my-3 border-bottom pb-2">
+        회원정보 수정
+    </h5>
+
+    <form method="post" enctype="multipart/form-data">
+
         {{ form.csrf_token }}
+
         {% include 'form_errors.html' %}
 
+
+        <!-- 아이디 -->
         {{ form.username.label }}
         {{ form.username(class="form-control mb-3") }}
 
-        {{ form.email.label }}
-        {{ form.email(class="form-control mb-3") }}
 
+        <!-- 이름 -->
         {{ form.name.label }}
         {{ form.name(class="form-control mb-3") }}
 
+
+        <!-- 생년월일 -->
         {{ form.birth.label }}
         {{ form.birth(class="form-control mb-3") }}
 
+
+        <!-- 이메일 -->
+        {{ form.email.label }}
+        {{ form.email(class="form-control mb-3") }}
+
+        <!-- 현재 프로필 이미지 -->
+        {% if g.user.profile_img_url %}
+        <div class="mb-3">
+            <div>{{ form.profile_img_url.label }}</div>
+            <img src="{{ url_for('static', filename=g.user.profile_img_url) }}"
+                 alt="현재 프로필 이미지" class="rounded-circle mb-2"
+                 width="72" height="72" style="object-fit: cover;">
+            {{ form.profile_img_url(class="form-control") }}
+        </div>
+        {% else %}
+        {{ form.profile_img_url.label }}
+        {{ form.profile_img_url(class="form-control mb-3") }}
+        {% endif %}
+
+        <!-- 자기소개 -->
+        {{ form.intro.label }}
+        {{ form.intro(class="form-control mb-3", rows="4") }}
+
+
+        <!-- 저장 -->
+        {{ form.submit(class="btn btn-primary") }}
     </form>
+
 </div>
+
 {% endblock %}
