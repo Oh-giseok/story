@@ -19,7 +19,8 @@
 
 
 <body class="bg-light">
-    <!-- Navbar -->
+    {% if g.user %}
+    <!-- Navbar: 로그인한 사용자에게만 표시 -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <!-- 로고 -->
@@ -41,7 +42,7 @@
 
             <!-- Navbar 메뉴 -->
             <div class="collapse navbar-collapse" id="mainNav">
-                <!-- 왼쪽 메뉴 -->
+                <!-- 로그인한 사용자용 메뉴 -->
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('post._list') }}">게시물</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('story_list') }}">스토리</a></li>
@@ -49,43 +50,36 @@
                     <!-- 메시지 링크를 대화 상대 선택 화면(dm.user_list)으로 변경 -->
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('dm.user_list') }}">메시지</a></li>
                 </ul>
-                <!-- 로그인 상태에 따른 메뉴 -->
+                <!-- 사용자 메뉴 -->
                 <div class="d-flex gap-2">
-                    {% if g.user %}
-                        <!-- 로그인한 경우 -->
-                        <span class="navbar-text text-white d-flex align-items-center">
-                            {% if g.user.profile_img_url %}
-                                <img src="{{ url_for('static', filename=g.user.profile_img_url) }}"
-                                     alt="{{ g.user.username }} 프로필"
-                                     class="rounded-circle me-2"
-                                     width="28" height="28"
-                                     style="object-fit: cover;">
-                            {% else %}
-                                <i class="bi bi-person-circle me-2" aria-hidden="true"></i>
-                            {% endif %}
-                            {{ g.user.username }}
-                        </span>
-                        <!-- 드롭다운 메뉴 -->
-                        <div class="dropdown">
-                            <button class="btn btn-outline-light" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="메뉴">
-                                <i class="bi bi-list"></i>
-                            </button>
-                            <!-- 드롭다운 메뉴 목록-->
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="{{ url_for('auth.mypage') }}"><i class="bi bi-person me-2"></i>마이페이지</a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('auth.profile_edit') }}"><i class="bi bi-person me-2"></i>회원 정보수정</a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="bi bi-person me-2"></i>로그아웃</a></li>
-                            </ul>
-                        </div>
-                    {% else %}
-                        <!-- 로그인하지 않은 경우 -->
-                        <a class="btn btn-outline-light btn-sm" href="{{ url_for('auth.login') }}">로그인</a>
-                        <a class="btn btn-light btn-sm" href="{{ url_for('auth.signup') }}">회원가입</a>
-                    {% endif %}
+                    <span class="navbar-text text-white d-flex align-items-center">
+                        {% if g.user.profile_img_url %}
+                            <img src="{{ url_for('static', filename=g.user.profile_img_url) }}"
+                                 alt="{{ g.user.username }} 프로필"
+                                 class="rounded-circle me-2"
+                                 width="28" height="28"
+                                 style="object-fit: cover;">
+                        {% else %}
+                            <i class="bi bi-person-circle me-2" aria-hidden="true"></i>
+                        {% endif %}
+                        {{ g.user.username }}
+                    </span>
+                    <!-- 드롭다운 메뉴 -->
+                    <div class="dropdown">
+                        <button class="btn btn-outline-light" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="메뉴">
+                            <i class="bi bi-list"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{{ url_for('auth.mypage') }}"><i class="bi bi-person me-2"></i>마이페이지</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.profile_edit') }}"><i class="bi bi-person me-2"></i>회원 정보수정</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="bi bi-person me-2"></i>로그아웃</a></li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
     </nav>
+    {% endif %}
     <!-- Flash 메시지 -->
     <main class="py-4">
         {% with messages = get_flashed_messages() %}

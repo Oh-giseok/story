@@ -62,6 +62,9 @@ def create_app():
     # 라우트 설정
     @app.route('/')
     def index():
+        from flask import g
+        if g.user is None:
+            return redirect(url_for('auth.login'))
         return redirect(url_for('post._list'))
 
     @app.route('/story')

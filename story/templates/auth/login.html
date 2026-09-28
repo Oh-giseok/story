@@ -12,7 +12,10 @@
         {{ form.password.label }}
         {{ form.password(class="form-control mb-3") }}
 
-        {{ form.submit(class="btn btn-primary") }}
+        <div class="d-flex gap-2">
+            {{ form.submit(class="btn btn-primary") }}
+            <a class="btn btn-outline-secondary" href="{{ url_for('auth.signup') }}">회원가입</a>
+        </div>
     </form>
 </div>
 {% endblock %}
