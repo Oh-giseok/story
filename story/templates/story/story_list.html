@@ -1,10 +1,11 @@
 {% extends 'base.html' %}
 
 {% block content %}
+
 <!-- 스토리 목록 -->
 <div class="container my-3">
 
-    <table class="table table-hover">
+    <table class="table table-hover align-middle">
         <thead>
             <tr class="table-dark">
                 <th>번호</th>
@@ -15,75 +16,58 @@
         </thead>
 
         <tbody>
-
         {% if story_list %}
+            {% for story in story_list %}
+            <tr class="class-story-click"
+                data-story-id="{{ story.id }}"
+                data-username="{{ story.user.username }}"
+                data-media="{{ story.media_url }}"
+                style="cursor: pointer;">
 
-        {% for story in story_list %}
+                <td>{{ loop.index }}</td>
 
-        <tr class="class-story-click"
-            data-username="{{ story.user.username }}"
-            data-media="{{ story.media_url }}"
-            style="cursor: pointer;">
+                <!-- 스토리 이미지 -->
+                <td>
+                    {% if story.media_url %}
+                    <img src="{{ url_for('static', filename=story.media_url) }}"
+                         alt="스토리 이미지"
+                         style="width: 50px; height: 50px; object-fit: cover;"
+                         class="img-thumbnail rounded-circle">
+                    {% else %}
+                    <span class="text-muted" style="font-size: 0.8rem;">이미지 없음</span>
+                    {% endif %}
+                </td>
 
-            <td>{{ loop.index }}</td>
+                <!-- 글쓴이 -->
+                <td>{{ story.user.username }}</td>
 
-            <!-- 스토리 이미지 -->
-            <td>
-                {% if story.media_url %}
-                <img src="{{ url_for('static', filename=story.media_url) }}"
-                     alt="스토리 이미지"
-                     style="max-width: 60px; height: 60px; object-fit: cover;"
-                     class="img-thumbnail rounded-circle">
-                {% endif %}
-            </td>
-
-            <!-- 글쓴이 -->
-            <td>{{ story.user.username }}</td>
-
-            <!-- 작성일시 -->
-           <td>{{ story.create_date | time_ago }}</td>
-
-        </tr>
-
-        {% endfor %}
-
+                <!-- 작성일시 -->
+                <td>{{ story.create_date | time_ago }}</td>
+            </tr>
+            {% endfor %}
         {% else %}
-
-        <tr>
-            <td colspan="4" class="text-center text-muted">
-                현재 활성화된 스토리가 없습니다.
-            </td>
-        </tr>
-
+            <tr>
+                <td colspan="4" class="text-center text-muted py-4">
+                    현재 활성화된 스토리가 없습니다.
+                </td>
+            </tr>
         {% endif %}
-
         </tbody>
     </table>
 
 </div>
 {% endblock %}
 
-
 {% block script %}
 <script>
-
-    // 스토리 클릭시
+    // 스토리 클릭시 상세 페이지 이동
     const story_elements = document.querySelectorAll('.class-story-click');
 
-    console.log(story_elements);
-
     story_elements.forEach(element => {
-
         element.addEventListener('click', function(){
-
-            const username = this.dataset.username;
-            const mediaUrl = this.dataset.media;
-
-            alert(username + "님의 스토리를 확인합니다.\n이미지 파일 경로: " + mediaUrl);
-
+            const story_id = this.dataset.storyId;
+            location.href = "{{ url_for('story.detail', story_id=0) }}".replace('0', story_id);
         });
-
     });
-
 </script>
 {% endblock %}

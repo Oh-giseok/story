@@ -38,3 +38,9 @@ class ProfileEditForm(FlaskForm):
     profile_img_url = FileField('프로필 이미지', validators=[FileAllowed(['jpg', 'jpeg', 'png', 'gif', 'webp'], '이미지파일만 업로드할 수 있습니다.')])
     intro = TextAreaField('자기소개', validators=[Length(max=500)])
     submit = SubmitField('저장하기')
+
+# 스토리 생성 폼
+class StoryForm(FlaskForm):
+    image = FileField('스토리 이미지', validators=[DataRequired()])
+    caption = TextAreaField('스토리 문구')
+    submit = SubmitField('업로드')

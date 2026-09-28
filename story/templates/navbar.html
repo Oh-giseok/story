@@ -1,26 +1,43 @@
-    <nav class="navbar bg-dark navbar-expand-sm" data-bs-theme="dark">
-      <div class="container-fluid">
+<nav class="navbar bg-dark navbar-expand-sm" data-bs-theme="dark">
+    <div class="container-fluid">
         <a class="navbar-brand" href="{{ url_for('main.index') }}">Pybo</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
+            <span class="navbar-toggler-icon"></span>
         </button>
+
+        <!-- 💡 반응형 메뉴 감싸는 태그 내부로 정확하게 이동했습니다 -->
         <div class="collapse navbar-collapse" id="navbarNav">
-          {% if g.user %}
-          <ul class="navbar-nav">
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('auth.logout') }}">{{ g.user.username }} (로그아웃)</a>
-            </li>
-          </ul>
-          {% else %}
-          <ul class="navbar-nav">
-            <li class="nav-item">
-              <a class="nav-link active" aria-current="page" href="{{ url_for('auth.signup') }}">회원가입</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('auth.login') }}">로그인</a>
-            </li>
-          </ul>
-          {% endif %}
+
+            <!-- 왼쪽 메뉴: 게시물 / 스토리 상시 노출 -->
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.index') }}">게시물</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('story.story_list') }}">스토리</a>
+                </li>
+            </ul>
+
+            <!-- 오른쪽 메뉴: 로그인 상태에 따른 변경 -->
+            {% if current_user.is_authenticated %}
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('auth.logout') }}">
+                        {{ current_user.username }} (로그아웃)
+                    </a>
+                </li>
+            </ul>
+            {% else %}
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('auth.signup') }}">회원가입</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('auth.login') }}">로그인</a>
+                </li>
+            </ul>
+            {% endif %}
+
         </div>
-      </div>
-    </nav>
+    </div>
+</nav>
