@@ -1,5 +1,6 @@
 from datetime import datetime
 from story import db
+<<<<<<< HEAD
 
 
 class User(db.Model):
@@ -14,6 +15,26 @@ class User(db.Model):
     birth = db.Column(db.String(200), nullable=False)  # 생년월일
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)  # 계정 생성일
     updated_at = db.Column(db.DateTime, default=datetime.now, nullable=False)  # 계정 정보 수정일
+=======
+from datetime import datetime
+
+
+
+class User(db.Model):
+
+    __tablename__ = 'user'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    username = db.Column(db.String(150), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    email = db.Column(db.String(200), unique=True, nullable=False)
+    name = db.Column(db.String(200))
+    intro = db.Column(db.Text)
+    profile_img_url = db.Column(db.String(200))
+    # 회원가입 폼에서 생년월일을 문자열로 받으므로 문자열로 저장한다.
+    birth = db.Column(db.String(200), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+>>>>>>> develop
 
 
 class Conversation(db.Model):
@@ -63,8 +84,37 @@ class MessageRead(db.Model):
     __table_args__ = (db.UniqueConstraint('message_id', 'user_id', name='unique_message_read'),)
 
 
+<<<<<<< HEAD
+=======
+class Post(db.Model):
+    __tablename__ = 'post'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    caption = db.Column(db.Text)
+    media_url = db.Column(db.String(255), nullable=False)
+    thumbnail_url = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+    updated_at = db.Column(db.DateTime, nullable=False, default=db.func.now(), onupdate=db.func.now())
+
+
+class PostLike(db.Model):
+    __tablename__ = 'post_likes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+
+    __table_args__ = (
+        db.UniqueConstraint('post_id', 'user_id', name='unique_post_user_like'),
+    )
+
+
+>>>>>>> develop
 class Reels(db.Model):
     __tablename__ = 'reels'
+
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # 'User.id' -> 'user.id'
     video_url = db.Column(db.Text, nullable=False)
@@ -77,16 +127,19 @@ class Reels(db.Model):
 
 class Reels_Likes(db.Model):
     __tablename__ = 'reel_likes'
+
     id = db.Column(db.Integer, primary_key=True)
     reel_id = db.Column(db.Integer, db.ForeignKey('reels.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # 'User.id' -> 'user.id'
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
     __table_args__ = (db.UniqueConstraint('user_id', 'reel_id', name='unique_user_reel_like'),)
 
 
 class Comments(db.Model):
     __tablename__ = 'comments'
+
     id = db.Column(db.Integer, primary_key=True)
     reel_id = db.Column(db.Integer, db.ForeignKey('reels.id'))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # 'User.id' -> 'user.id'
@@ -95,34 +148,33 @@ class Comments(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
+<<<<<<< HEAD
 # 2. 인스타 스토리 테이블
+=======
+>>>>>>> develop
 class Story(db.Model):
     __tablename__ = 'story'
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     user = db.relationship('User', backref=db.backref('story_set'))
-    media_url = db.Column(db.String(200), nullable=False)  # 사진/동영상 경로
-    thumbnail_url = db.Column(db.String(200), nullable=True)  # 썸네일 이미지 경로
-    caption = db.Column(db.Text)  # 스토리 본문 글귀
+    media_url = db.Column(db.String(200), nullable=False)
+    thumbnail_url = db.Column(db.String(200))
+    caption = db.Column(db.Text)
     create_date = db.Column(db.DateTime, nullable=False)
-    expires_at = db.Column(db.DateTime, nullable=False)  # 24시간 만료 시간 칸
+    expires_at = db.Column(db.DateTime, nullable=False)
 
 
-# 3. 스토리 좋아요 테이블
 class StoryLikes(db.Model):
     __tablename__ = 'story_likes'
 
     id = db.Column(db.Integer, primary_key=True)
-
-    # 어떤 스토리글에 하트가 달렸는지 연결
     story_id = db.Column(db.Integer, db.ForeignKey('story.id', ondelete='CASCADE'), nullable=False)
     story = db.relationship('Story', backref=db.backref('like_set'))
-
-    # 누가 하트를 눌렀는지 연결
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     user = db.relationship('User', backref=db.backref('story_like_set'))
 
+<<<<<<< HEAD
 
 # 게시물 DB
 class Post(db.Model):
@@ -149,3 +201,5 @@ class PostLike(db.Model):
     __table_args__ = (
         db.UniqueConstraint('post_id', 'user_id', name='unique_post_user_like'),
     )
+=======
+>>>>>>> develop
