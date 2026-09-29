@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>story feed</title>
+    <title>Story Feed</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -18,38 +18,79 @@
         .confirm-modal .modal-content { border-radius: 16px; text-align: center; }
         .confirm-modal .btn-action { width: 100%; padding: 12px; font-weight: bold; border-top: 1px solid #dee2e6; border-radius: 0; }
 
-        /* Swiper Styles */
-        .feed-swiper { width: 100%; height: 400px; background-color: #000; }
+        /* Swiper Styles (피드 & 모달 공통 맞춤) */
+        .feed-swiper { width: 100%; height: 400px; background-color: #000; position: relative; }
         .feed-swiper .swiper-slide { display: flex; justify-content: center; align-items: center; }
         .feed-swiper .swiper-slide img { width: 100%; height: 100%; object-fit: cover; }
 
-        .modal-feed-swiper { width: 100%; height: 100%; min-height: 450px; background-color: #000; }
+        .modal-feed-swiper { width: 100%; height: 100%; min-height: 450px; background-color: #000; position: relative; }
         .modal-feed-swiper .swiper-slide { display: flex; justify-content: center; align-items: center; }
         .modal-feed-swiper .swiper-slide img { width: 100%; height: 100%; object-fit: contain; }
 
+        /* Swiper Navigation Buttons (피드와 모달 공통 통일) */
         .swiper-button-next, .swiper-button-prev {
-            color: #fff;
-            width: 30px;
-            height: 30px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 50%;
+            color: #fff !important;
+            width: 30px !important;
+            height: 30px !important;
+            background: rgba(0, 0, 0, 0.5) !important;
+            border-radius: 50% !important;
+            cursor: pointer !important;
+            pointer-events: auto !important;
+            z-index: 10 !important;
+            transition: background 0.2s ease, transform 0.1s ease;
         }
-        .swiper-button-next::after, .swiper-button-prev::after { font-size: 14px; font-weight: bold; }
+
+        /* 마우스 호버 및 클릭 시 반응 */
+        .swiper-button-next:hover, .swiper-button-prev:hover {
+            background: rgba(0, 0, 0, 0.8) !important;
+            transform: scale(1.05);
+        }
+
+        /* 화살표 아이콘 폰트 크기 및 정렬 */
+        .swiper-button-next::after, .swiper-button-prev::after {
+            font-size: 13px !important;
+            font-weight: bold !important;
+        }
+
+        /* 슬라이드가 1개이거나 끝일 때 비활성화 스타일 */
+        .swiper-button-disabled {
+            opacity: 0.35 !important;
+            cursor: auto !important;
+            pointer-events: none !important;
+        }
+
         .swiper-pagination-bullet-active { background: #0095f6; }
 
         /* Comment Modal Styles */
         .post-detail-modal .modal-dialog { max-width: 900px; }
-        .post-detail-modal .modal-content { height: 600px; }
+        .post-detail-modal .modal-content { height: 600px; border-radius: 12px; }
         .comments-scroll-area { overflow-y: auto; flex-grow: 1; max-height: 380px; }
         .comment-input-box { border-top: 1px solid #efefef; }
         .comment-input { border: none; font-size: 0.9rem; }
-        .comment-input:focus { outline: none; shadow: none; }
-        .btn-like i, .btn-open-detail i {
-            pointer-events: none;
+        .comment-input:focus { outline: none; box-shadow: none; }
+        .btn-like i, .btn-open-detail i { pointer-events: none; }
+
+        .btn-edit-comment {
+            font-size: 0.75rem;
+            color: #8e8e8e;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .btn-edit-comment:hover { color: #262626; }
+
+        .post-detail-modal .btn-close {
+            cursor: pointer !important;
+            pointer-events: auto !important; /* 마우스 이벤트 강제 활성화 */
         }
     </style>
 </head>
 <body class="bg-light">
+
+    <!-- 현재 로그인 사용자 정보 전달 -->
+    <script>
+        const currentUsername = "{{ g.user.username if g.user else session.get('username', '') }}";
+        const currentUserImg = "{{ url_for('static', filename=g.user.profile_img_url) if (g.user and g.user.profile_img_url) else '' }}";
+    </script>
 
     <!-- 상단 헤더 -->
     <div class="bg-white border-bottom mb-4 py-2 sticky-top">
@@ -71,10 +112,7 @@
                 <div class="d-flex align-items-center">
                     {% if post.user.profile_img_url %}
                     <img src="{{ url_for('static', filename=post.user.profile_img_url) }}"
-                     alt="프로필 이미지"
-                     class="rounded-circle me-2"
-                     width="32" height="32"
-                     style="object-fit: cover;">
+                         alt="프로필 이미지" class="rounded-circle me-2" width="32" height="32" style="object-fit: cover;">
                     {% else %}
                     <i class="bi bi-person-circle fs-4 me-2 text-secondary"></i>
                     {% endif %}
@@ -130,11 +168,15 @@
                     댓글 <span class="comment-count-text">{{ post.comments|length }}</span>개 모두 보기
                 </button>
 
+                <!-- 서버 데이터 원본 저장 영역 -->
                 <div class="d-none raw-post-data">
                     <div class="raw-images">{% if post.media_url %}{{ post.media_url }}{% endif %}</div>
                     <div class="raw-comments">
                         {% for comment in post.comments %}
-                        <div class="comment-item" data-user-name="{{ comment.user.username }}">
+                        <div class="comment-item"
+                             data-comment-id="{{ comment.id }}"
+                             data-user-name="{{ comment.user.username }}"
+                             data-user-img="{{ url_for('static', filename=comment.user.profile_img_url) if comment.user.profile_img_url else '' }}">
                             {{ comment.content }}
                         </div>
                         {% endfor %}
@@ -147,55 +189,7 @@
         {% endfor %}
     </div>
 
-    <!-- 게시물 상세 & 댓글 보기 모달 -->
-    <div class="modal fade post-detail-modal" id="postDetailModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="row g-0 h-100">
-                    <div class="col-md-7 bg-dark d-flex align-items-center position-relative">
-                        <div class="swiper modal-feed-swiper" id="modalDetailSwiper">
-                            <div class="swiper-wrapper" id="modalDetailSwiperWrapper"></div>
-                            <div class="swiper-pagination"></div>
-                            <div class="swiper-button-prev"></div>
-                            <div class="swiper-button-next"></div>
-                        </div>
-                    </div>
-
-                    <div class="col-md-5 d-flex flex-column bg-white h-100">
-                        <div class="p-3 border-bottom d-flex align-items-center justify-content-between">
-                            <div class="d-flex align-items-center">
-                                <img id="detailModalUserImg" src="" alt="프로필 이미지" class="rounded-circle me-2 d-none" width="32" height="32" style="object-fit: cover;">
-                                <i id="detailModalUserIcon" class="bi bi-person-circle fs-4 me-2 text-secondary"></i>
-                                <span class="fw-bold" id="detailModalUser">User</span>
-                            </div>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-
-                        <div class="p-3 comments-scroll-area">
-                            <div class="d-flex mb-3">
-                                <i class="bi bi-person-circle fs-5 me-2 text-secondary"></i>
-                                <div>
-                                    <span class="fw-bold me-1" id="detailModalCaptionUser">User</span>
-                                    <span id="detailModalCaption">게시물 내용</span>
-                                </div>
-                            </div>
-                            <hr class="my-2">
-                            <div id="detailModalCommentList"></div>
-                        </div>
-
-                        <div class="mt-auto comment-input-box p-2">
-                            <form id="detailCommentForm" action="" method="post" class="d-flex align-items-center">
-                                <input type="text" name="content" class="form-control comment-input me-2" placeholder="댓글 달기..." required autocomplete="off">
-                                <button type="submit" class="btn btn-link text-primary fw-bold p-0 text-decoration-none small" style="width: 40px;">게시</button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 만들기 모달 -->
+    <!-- 만들기 모달 (post_list 전용) -->
     <div class="modal fade" id="createPostModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
@@ -255,19 +249,8 @@
         </div>
     </div>
 
-    <!-- 삭제 확인 모달 -->
-    <div class="modal fade confirm-modal" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-sm">
-            <div class="modal-content">
-                <div class="pt-4 pb-3 px-3">
-                    <h6 class="fw-bold fs-5 mb-1">게시물을 삭제하시겠어요?</h6>
-                    <small class="text-secondary">지금 나가면 수정 내용이 저장되지 않습니다.</small>
-                </div>
-                <button type="button" class="btn btn-action text-danger" id="btnConfirmDelete">삭제</button>
-                <button type="button" class="btn btn-action text-dark" data-bs-dismiss="modal">취소</button>
-            </div>
-        </div>
-    </div>
+    <!-- 공통 상세보기 및 삭제/수정 모달 불러오기 -->
+    {% include 'post/post_detail_modal.html' %}
 
     <!-- JS 스크립트 -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -284,7 +267,7 @@
             });
         });
 
-        // 2. 좋아요 버튼 비동기(AJAX) 클릭 처리
+        // 2. 좋아요 버튼 처리
         document.querySelectorAll('.btn-like').forEach(btn => {
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -298,22 +281,20 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        if (data.liked) {
-                            icon.className = 'bi bi-heart-fill text-danger fs-5';
-                        } else {
-                            icon.className = 'bi bi-heart text-dark fs-5';
-                        }
+                        icon.className = data.liked ? 'bi bi-heart-fill text-danger fs-5' : 'bi bi-heart text-dark fs-5';
                         likeCountElem.textContent = data.like_count;
                     } else if (data.message) {
                         alert(data.message);
                     }
-                })
-                .catch(err => console.error('좋아요 처리 중 오류:', err));
+                });
             });
         });
 
-        // 3. 댓글 상세 모달 로직
+        // 3. 댓글 상세 모달 및 더보기 옵션 제어
         const postDetailModal = new bootstrap.Modal(document.getElementById('postDetailModal'));
+        const postOptionModal = new bootstrap.Modal(document.getElementById('postOptionModal'));
+        const deleteConfirmModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+
         let modalDetailSwiperInstance = null;
         let currentActivePostId = null;
 
@@ -324,20 +305,39 @@
                 const card = document.getElementById(`post-card-${postId}`);
 
                 const postUserName = card.getAttribute('data-user-name');
+                const postUserImg = card.getAttribute('data-user-img');
+
                 document.getElementById('detailModalUser').textContent = postUserName;
                 document.getElementById('detailModalCaptionUser').textContent = postUserName;
 
-                const postUserImg = card.getAttribute('data-user-img');
+                // [본인 확인] 작성자와 로그인 사용자가 같을 때만 (...) 노출
+                const btnPostMoreOption = document.getElementById('btnPostMoreOption');
+                if (postUserName === currentUsername) {
+                    btnPostMoreOption.classList.remove('d-none');
+                } else {
+                    btnPostMoreOption.classList.add('d-none');
+                }
+
+                // 프로필 이미지 세팅
                 const modalUserImgElem = document.getElementById('detailModalUserImg');
                 const modalUserIconElem = document.getElementById('detailModalUserIcon');
+                const captionUserImgElem = document.getElementById('detailModalCaptionUserImg');
+                const captionUserIconElem = document.getElementById('detailModalCaptionUserIcon');
 
                 if (postUserImg) {
                     modalUserImgElem.src = postUserImg;
                     modalUserImgElem.classList.remove('d-none');
                     modalUserIconElem.classList.add('d-none');
+
+                    captionUserImgElem.src = postUserImg;
+                    captionUserImgElem.classList.remove('d-none');
+                    captionUserIconElem.classList.add('d-none');
                 } else {
                     modalUserImgElem.classList.add('d-none');
                     modalUserIconElem.classList.remove('d-none');
+
+                    captionUserImgElem.classList.add('d-none');
+                    captionUserIconElem.classList.remove('d-none');
                 }
 
                 const caption = card.querySelector('.post-caption-text').textContent;
@@ -346,6 +346,8 @@
 
                 document.getElementById('detailCommentForm').setAttribute('data-post-id', postId);
                 document.getElementById('detailModalCaption').textContent = caption;
+                document.getElementById('detailModalCaption').classList.remove('d-none');
+                document.getElementById('captionEditBox').classList.add('d-none');
 
                 // 이미지 Swiper 반영
                 const wrapper = document.getElementById('modalDetailSwiperWrapper');
@@ -363,10 +365,25 @@
                     if (modalDetailSwiperInstance) modalDetailSwiperInstance.destroy();
 
                     setTimeout(() => {
-                        modalDetailSwiperInstance = new Swiper('#modalDetailSwiper', {
-                            navigation: imgList.length > 1 ? { nextEl: '#modalDetailSwiper .swiper-button-next', prevEl: '#modalDetailSwiper .swiper-button-prev' } : false,
-                            pagination: imgList.length > 1 ? { el: '#modalDetailSwiper .swiper-pagination', clickable: true } : false,
-                        });
+                        const nextBtn = document.querySelector('#modalDetailSwiper .swiper-button-next');
+                        const prevBtn = document.querySelector('#modalDetailSwiper .swiper-button-prev');
+                        const pagination = document.querySelector('#modalDetailSwiper .swiper-pagination');
+
+                        const modalSwiperOptions = { observer: true, observeParents: true };
+
+                        if (imgList.length > 1) {
+                            modalSwiperOptions.navigation = { nextEl: '#modalDetailSwiper .swiper-button-next', prevEl: '#modalDetailSwiper .swiper-button-prev' };
+                            modalSwiperOptions.pagination = { el: '#modalDetailSwiper .swiper-pagination', clickable: true };
+                            if (nextBtn) nextBtn.style.display = '';
+                            if (prevBtn) prevBtn.style.display = '';
+                            if (pagination) pagination.style.display = '';
+                        } else {
+                            if (nextBtn) nextBtn.style.display = 'none';
+                            if (prevBtn) prevBtn.style.display = 'none';
+                            if (pagination) pagination.style.display = 'none';
+                        }
+
+                        modalDetailSwiperInstance = new Swiper('#modalDetailSwiper', modalSwiperOptions);
                     }, 100);
                 }
 
@@ -375,6 +392,82 @@
             });
         });
 
+        // 더보기 아이콘 클릭 -> 더보기 옵션 모달 열기
+        document.getElementById('btnPostMoreOption').addEventListener('click', function() {
+            postOptionModal.show();
+        });
+
+        // 옵션 모달 -> 삭제버튼 클릭
+        document.getElementById('btnOptDeletePost').addEventListener('click', function() {
+            postOptionModal.hide();
+            deleteConfirmModal.show();
+        });
+
+        // 최종 삭제 확인 -> AJAX 삭제 처리
+        document.getElementById('btnConfirmDeletePost').addEventListener('click', function() {
+            if (!currentActivePostId) return;
+
+            fetch(`/post/delete/${currentActivePostId}`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    deleteConfirmModal.hide();
+                    postDetailModal.hide();
+
+                    // DOM에서 삭제된 게시물 카드 제거
+                    const card = document.getElementById(`post-card-${currentActivePostId}`);
+                    if (card) card.remove();
+                } else {
+                    alert(data.message || '삭제 실패');
+                }
+            });
+        });
+
+        // 옵션 모달 -> 수정버튼 클릭
+        document.getElementById('btnOptEditPost').addEventListener('click', function() {
+            postOptionModal.hide();
+            const currentCaption = document.getElementById('detailModalCaption').textContent;
+
+            document.getElementById('captionEditText').value = currentCaption;
+            document.getElementById('detailModalCaption').classList.add('d-none');
+            document.getElementById('captionEditBox').classList.remove('d-none');
+        });
+
+        // 문구 수정 저장 처리
+        document.getElementById('btnSaveCaptionEdit').addEventListener('click', function() {
+            const newCaption = document.getElementById('captionEditText').value;
+            const formData = new FormData();
+            formData.append('caption', newCaption);
+
+            fetch(`/post/edit/${currentActivePostId}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('detailModalCaption').textContent = data.caption;
+                    document.getElementById('detailModalCaption').classList.remove('d-none');
+                    document.getElementById('captionEditBox').classList.add('d-none');
+
+                    // 피드 메인 카드 문구도 업데이트
+                    const card = document.getElementById(`post-card-${currentActivePostId}`);
+                    if (card) {
+                        card.querySelector('.post-caption-text').textContent = data.caption;
+                    }
+                } else {
+                    alert(data.message || '수정 실패');
+                }
+            });
+        });
+
+        // 문구 수정 취소
+        document.getElementById('btnCancelCaptionEdit').addEventListener('click', function() {
+            document.getElementById('detailModalCaption').classList.remove('d-none');
+            document.getElementById('captionEditBox').classList.add('d-none');
+        });
+
+        // 댓글 렌더링
         function renderModalComments(commentItems) {
             const commentListContainer = document.getElementById('detailModalCommentList');
             commentListContainer.innerHTML = '';
@@ -382,16 +475,30 @@
             if (commentItems.length > 0) {
                 commentItems.forEach(item => {
                     const userName = item.getAttribute('data-user-name');
-                    const text = item.textContent;
+                    const userImg = item.getAttribute('data-user-img');
+                    const commentId = item.getAttribute('data-comment-id');
+                    const text = item.textContent.trim();
 
                     const commentDiv = document.createElement('div');
-                    commentDiv.className = 'd-flex mb-2 small';
+                    commentDiv.className = 'd-flex justify-content-between align-items-start mb-3 small comment-row';
+                    commentDiv.setAttribute('id', `comment-row-${commentId}`);
+
+                    const avatarHtml = userImg
+                        ? `<img src="${userImg}" alt="프로필" class="rounded-circle me-2" width="28" height="28" style="object-fit: cover;">`
+                        : `<i class="bi bi-person-circle fs-6 me-2 text-secondary"></i>`;
+
+                    const isOwner = (userName === currentUsername);
+                    const editBtnHtml = isOwner && commentId ? `<a href="javascript:void(0)" class="btn-edit-comment ms-2" onclick="enableCommentEdit('${commentId}', '${text}')">수정</a>` : '';
+
                     commentDiv.innerHTML = `
-                        <i class="bi bi-person-circle fs-6 me-2 text-secondary"></i>
-                        <div>
-                            <span class="fw-bold me-1">${userName}</span>
-                            <span>${text}</span>
+                        <div class="d-flex flex-grow-1 me-2 align-items-start">
+                            ${avatarHtml}
+                            <div class="w-100 comment-content-box">
+                                <span class="fw-bold me-1">${userName}</span>
+                                <span class="comment-text">${text}</span>
+                            </div>
                         </div>
+                        <div>${editBtnHtml}</div>
                     `;
                     commentListContainer.appendChild(commentDiv);
                 });
@@ -400,7 +507,7 @@
             }
         }
 
-        // 4. 모달 안에서 댓글 게시(AJAX)
+        // 모달 내 댓글 작성
         document.getElementById('detailCommentForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const postId = this.getAttribute('data-post-id');
@@ -426,8 +533,15 @@
 
                     const newCommentDiv = document.createElement('div');
                     newCommentDiv.className = 'comment-item';
-                    newCommentDiv.setAttribute('data-user-name', data.comment.user_name || '나');
-                    newCommentDiv.textContent = data.comment.content;
+
+                    const writerName = (data.comment && data.comment.user_name) ? data.comment.user_name : currentUsername;
+                    const writerImg = (data.comment && data.comment.profile_img_url) ? data.comment.profile_img_url : currentUserImg;
+                    const newCommentId = (data.comment && data.comment.id) ? data.comment.id : '';
+
+                    newCommentDiv.setAttribute('data-user-name', writerName);
+                    newCommentDiv.setAttribute('data-user-img', writerImg);
+                    if (newCommentId) newCommentDiv.setAttribute('data-comment-id', newCommentId);
+                    newCommentDiv.textContent = content;
                     rawComments.appendChild(newCommentDiv);
 
                     renderModalComments(card.querySelectorAll('.raw-comments .comment-item'));
@@ -441,7 +555,58 @@
             });
         });
 
-        // 5. 글 작성 모달 스크립트
+        // 댓글 인라인 수정
+        function enableCommentEdit(commentId, oldContent) {
+            const commentRow = document.getElementById(`comment-row-${commentId}`);
+            if (!commentRow) return;
+
+            const contentBox = commentRow.querySelector('.comment-content-box');
+            contentBox.innerHTML = `
+                <div class="d-flex flex-column mt-1">
+                    <input type="text" class="form-control form-control-sm mb-1 edit-input" value="${oldContent}">
+                    <div class="d-flex justify-content-end">
+                        <button type="button" class="btn btn-sm btn-primary py-0 px-2 me-1" style="font-size:0.75rem;" onclick="submitCommentEdit('${commentId}', '${oldContent}')">저장</button>
+                        <button type="button" class="btn btn-sm btn-secondary py-0 px-2" style="font-size:0.75rem;" onclick="cancelCommentEdit('${commentId}', '${oldContent}')">취소</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function cancelCommentEdit(commentId, oldContent) {
+            const card = document.getElementById(`post-card-${currentActivePostId}`);
+            if (card) renderModalComments(card.querySelectorAll('.raw-comments .comment-item'));
+        }
+
+        function submitCommentEdit(commentId, oldContent) {
+            const commentRow = document.getElementById(`comment-row-${commentId}`);
+            const newContent = commentRow.querySelector('.edit-input').value.trim();
+
+            if (!newContent) {
+                alert('댓글 내용을 입력해주세요.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('content', newContent);
+
+            fetch(`/post/comment/edit/${commentId}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const card = document.getElementById(`post-card-${currentActivePostId}`);
+                    const rawCommentItem = card.querySelector(`.comment-item[data-comment-id="${commentId}"]`);
+                    if (rawCommentItem) rawCommentItem.textContent = newContent;
+                    renderModalComments(card.querySelectorAll('.raw-comments .comment-item'));
+                } else {
+                    alert(data.message || '수정에 실패했습니다.');
+                }
+            });
+        }
+
+        // 4. 글 만들기 모달 업로드 스크립트
         const fileInput = document.getElementById('fileInput');
         const dropArea = document.getElementById('dropArea');
         const previewContainer = document.getElementById('previewContainer');
@@ -456,7 +621,6 @@
         const step2 = document.getElementById('step2');
 
         const createPostModal = new bootstrap.Modal(document.getElementById('createPostModal'));
-        const deleteConfirmModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
 
         let modalSwiperInstance = null;
         let step2SwiperInstance = null;
@@ -473,7 +637,7 @@
             const files = Array.from(e.target.files);
             if (files.length > 0) {
                 previewInner.innerHTML = '';
-                step2Inner.innerHTML = ''; // step2 미리보기 도 초기화
+                step2Inner.innerHTML = '';
 
                 let loadedCount = 0;
                 files.forEach((file) => {
@@ -492,12 +656,20 @@
                         loadedCount++;
                         if (loadedCount === files.length) {
                             if (modalSwiperInstance) modalSwiperInstance.destroy();
-                            modalSwiperInstance = new Swiper('#modalSwiper', {
-                                observer: true,
-                                observeParents: true,
-                                navigation: files.length > 1 ? { nextEl: '#modalSwiper .swiper-button-next', prevEl: '#modalSwiper .swiper-button-prev' } : false,
-                                pagination: files.length > 1 ? { el: '#modalSwiper .swiper-pagination', clickable: true } : false,
-                            });
+
+                            const swiperOptions = { observer: true, observeParents: true };
+
+                            if (files.length > 1) {
+                                swiperOptions.navigation = { nextEl: '#modalSwiper .swiper-button-next', prevEl: '#modalSwiper .swiper-button-prev' };
+                                swiperOptions.pagination = { el: '#modalSwiper .swiper-pagination', clickable: true };
+                                document.querySelectorAll('#modalSwiper .swiper-button-next, #modalSwiper .swiper-button-prev, #modalSwiper .swiper-pagination')
+                                    .forEach(el => el.style.display = '');
+                            } else {
+                                document.querySelectorAll('#modalSwiper .swiper-button-next, #modalSwiper .swiper-button-prev, #modalSwiper .swiper-pagination')
+                                    .forEach(el => el.style.display = 'none');
+                            }
+
+                            modalSwiperInstance = new Swiper('#modalSwiper', swiperOptions);
                         }
                     }
                     reader.readAsDataURL(file);
@@ -510,7 +682,6 @@
             }
         });
 
-        // Step 1 -> Step 2 전환 (다음 버튼 클릭)
         btnNext.addEventListener('click', function() {
             step1.classList.add('d-none');
             step2.classList.remove('d-none');
@@ -520,32 +691,25 @@
             const fileCount = fileInput.files.length;
             if (step2SwiperInstance) step2SwiperInstance.destroy();
 
-            // Step 2 레이아웃 변경 후 Swiper 재계산
             setTimeout(() => {
-                step2SwiperInstance = new Swiper('#step2Swiper', {
-                    observer: true,
-                    observeParents: true,
-                    navigation: fileCount > 1 ? { nextEl: '#step2Swiper .swiper-button-next', prevEl: '#step2Swiper .swiper-button-prev' } : false,
-                    pagination: fileCount > 1 ? { el: '#step2Swiper .swiper-pagination', clickable: true } : false,
-                });
+                const step2SwiperOptions = { observer: true, observeParents: true };
+
+                if (fileCount > 1) {
+                    step2SwiperOptions.navigation = { nextEl: '#step2Swiper .swiper-button-next', prevEl: '#step2Swiper .swiper-button-prev' };
+                    step2SwiperOptions.pagination = { el: '#step2Swiper .swiper-pagination', clickable: true };
+                    document.querySelectorAll('#step2Swiper .swiper-button-next, #step2Swiper .swiper-button-prev, #step2Swiper .swiper-pagination')
+                        .forEach(el => el.style.display = '');
+                } else {
+                    document.querySelectorAll('#step2Swiper .swiper-button-next, #step2Swiper .swiper-button-prev, #step2Swiper .swiper-pagination')
+                        .forEach(el => el.style.display = 'none');
+                }
+
+                step2SwiperInstance = new Swiper('#step2Swiper', step2SwiperOptions);
                 step2SwiperInstance.update();
             }, 100);
         });
 
         btnBack.addEventListener('click', function() { deleteConfirmModal.show(); });
-
-        document.getElementById('btnConfirmDelete').addEventListener('click', function() {
-            document.getElementById('postForm').reset();
-            step2.classList.add('d-none');
-            step1.classList.remove('d-none');
-            dropArea.classList.remove('d-none');
-            previewContainer.classList.add('d-none');
-            btnNext.classList.add('d-none');
-            btnBack.classList.add('d-none');
-            btnSubmit.classList.add('d-none');
-            deleteConfirmModal.hide();
-            createPostModal.hide();
-        });
     </script>
 </body>
 </html>
