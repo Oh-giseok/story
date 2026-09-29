@@ -1,36 +1,33 @@
 import os
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, request, redirect, url_for, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, current_app, g
 from werkzeug.utils import secure_filename
 
 from story import db
 from story.models import Story
-from story.forms import StoryForm
-from flask_login import login_required, current_user
+
 
 bp = Blueprint('story', __name__, url_prefix='/story')
 
 #  24시간 필터링이 적용된 스토리 목록 조회
-@bp.route('/')
-def story_list():
+@bp.route('/create/')
+def create():
     now = datetime.now()
     story_list = Story.query.filter(Story.expires_at > now).order_by(Story.create_date.desc()).all()
-
     return render_template('story/story_list.html', story_list=story_list)
 
 
-# 스토리 생성/업로드 기능
+# 스토리 생성/업로드 기능 (배우신 이미지 저장 로직 반영!)
 @bp.route('/create/', methods=['GET', 'POST'])
-@login_required
+# @login_required
 def create():
-    form = StoryForm()
-    if request.method == 'POST' and form.validate_on_submit():
+    if request.method == 'POST':
         # 폼에서 전송된 이미지 파일 가져오기
-        image_file = form.image.data
-        caption = form.caption.data
+        image_file = request.files.get('image')
+        caption = request.form.get('caption', '')
         image_path = None
 
-        if image_file and image_file.filename != '':
+        if image_file:
             # 저장 경로 : 오늘 날짜로 폴더 생성
             today = datetime.now().strftime('%Y%m%d')
             upload_folder = os.path.join(current_app.root_path, 'static/photo', today)
@@ -47,7 +44,7 @@ def create():
         now = datetime.now()
         expires_at = now + timedelta(days=1)
 
-        user_id = current_user.id
+        user_id = g.user.id
 
         story = Story(
             user_id=user_id,
@@ -61,10 +58,4 @@ def create():
 
         return redirect(url_for('story.story_list'))
 
-    return render_template('story/story_form.html', form=form)
-
-# 스토리 상세 보기
-@bp.route('/detail/<int:story_id>/')
-def detail(story_id):
-    story = Story.query.get_or_404(story_id)
-    return render_template('story/story_detail.html', story=story)
+    return render_template('story/story_form.html')
