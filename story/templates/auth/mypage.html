@@ -6,7 +6,7 @@
 
 {% block content %}
 <div class="container">
-    <h5 class="my-3 border-bottom pb-2">마이페이지</h5>
+    <h5 class="my-3 border-bottom pb-2">My Page</h5>
 
     <div class="d-flex align-items-start gap-4">
         <!-- 프로필 이미지 -->
@@ -28,6 +28,23 @@
             <p class="mb-0 text-break">{{ user.intro or '자기소개가 없습니다.' }}</p>
         </div>
     </div>
+
+    <section class="card mt-4">
+        <div class="card-body">
+            <h2 class="h5">계정 관리</h2>
+            <p class="text-muted mb-3">현재 상태: {{ {'active': '활성', 'inactive': '비활성', 'deletion_pending': '탈퇴 대기'}[user.status] }}</p>
+            <div class="d-flex flex-wrap gap-2">
+                <form method="post" action="{{ url_for('auth.deactivate') }}">
+                    {{ account_form.csrf_token }}
+                    <button class="btn btn-outline-secondary" type="submit" onclick="return confirm('계정을 비활성화할까요? 다시 로그인하면 활성화됩니다.');">비활성화</button>
+                </form>
+                <form method="post" action="{{ url_for('auth.request_account_deletion') }}">
+                    {{ account_form.csrf_token }}
+                    <button class="btn btn-outline-danger" type="submit" onclick="return confirm('탈퇴를 신청할까요? 10일 이내 다시 로그인하면 취소할 수 있습니다.');">회원 탈퇴</button>
+                </form>
+            </div>
+        </div>
+    </section>
 
     <!-- POST = Post 모델, REELS = Reels 모델, STORY = Story 모델 -->
     <div class="d-flex mt-4 border-bottom" role="tablist" aria-label="내 게시물 종류">
@@ -52,10 +69,9 @@
     <section id="reels-content" class="row g-3 mt-2" hidden>
         {% for reel in reels %}
         <div class="col-6 col-md-3">
-            <video controls class="w-100 rounded" style="aspect-ratio: 9 / 16; object-fit: cover;">
-                <source src="{{ url_for('reels.uploaded_file', filename='videos/' + reel.video_url.replace('\\\\', '/').split('/')[-1]) }}">
-            </video>
-            {% if reel.caption %}<p class="small mt-1 mb-0">{{ reel.caption }}</p>{% endif %}
+            <img src="{{ reel.thumbnail_url if reel.thumbnail_url.startswith('http') else url_for('static', filename=reel.thumbnail_url.lstrip('/').removeprefix('static/')) }}"
+                 alt="릴스 썸네일" class="w-100 rounded" style="aspect-ratio: 1; object-fit: cover; cursor: pointer;">
+            {% if reels.caption %}<p class="small mt-1 mb-0">{{ reels.caption }}</p>{% endif %}
         </div>
         {% else %}<p class="text-muted text-center py-4">등록한 릴스가 없습니다.</p>{% endfor %}
     </section>

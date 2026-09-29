@@ -1,6 +1,6 @@
 import os
-from datetime import datetime
-from flask import Flask, redirect, render_template, url_for
+from datetime import datetime, timedelta
+from flask import Flask, redirect, render_template, url_for, g, session
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, current_user
@@ -32,6 +32,12 @@ def create_app():
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///story.db'
 
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    if app.config.get('SQLALCHEMY_DATABASE_URI', '').startswith('sqlite:'):
+        engine_options = dict(app.config.get('SQLALCHEMY_ENGINE_OPTIONS') or {})
+        connect_args = dict(engine_options.get('connect_args') or {})
+        connect_args.setdefault('timeout', 30)
+        engine_options['connect_args'] = connect_args
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = engine_options
 
     if not app.config.get('SECRET_KEY'):
         app.config['SECRET_KEY'] = 'dev-secret-key'
@@ -58,6 +64,28 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        # create_all does not add columns to an existing database.
+        from sqlalchemy import inspect, text
+        user_columns = {column['name'] for column in inspect(db.engine).get_columns('user')}
+        schema_changed = False
+        if 'status' not in user_columns:
+            db.session.execute(text("ALTER TABLE user ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'active'"))
+            schema_changed = True
+        if 'last_activity_at' not in user_columns:
+            db.session.execute(text('ALTER TABLE user ADD COLUMN last_activity_at DATETIME'))
+            schema_changed = True
+        if 'deletion_requested_at' not in user_columns:
+            db.session.execute(text('ALTER TABLE user ADD COLUMN deletion_requested_at DATETIME'))
+            schema_changed = True
+            if 'deleted_date' in user_columns:
+                db.session.execute(text(
+                    'UPDATE user SET deletion_requested_at = deleted_date '
+                    'WHERE deleted_date IS NOT NULL'
+                ))
+        if schema_changed:
+            db.session.commit()
+        else:
+            db.session.rollback()
 
     # 블루프린트 임포트 및 등록
     from story.views import auth_views, dmviews, main_views, post_views, story_views
@@ -70,15 +98,52 @@ def create_app():
     app.register_blueprint(post_views.bp)
     app.register_blueprint(story_views.bp)
 
+    account_maintenance = {'last_run': datetime.min}
+
     # 로그인과 회원가입, 정적 파일만 비로그인 상태에서 접근할 수 있다.
     @app.before_request
     def require_login():
         from flask import request
 
-        if request.endpoint == 'static' or request.endpoint in {'auth.login', 'auth.signup'}:
+        # Run account lifecycle maintenance on requests, so no external scheduler is
+        # required. Deletion happens on the first request after the 10-day deadline.
+        from story.models import User
+        from story import db
+        now = datetime.utcnow()
+        # Avoid writing to SQLite on every request. Lifecycle sweeps run at most
+        # every 30 minutes; login separately enforces an expired deletion deadline.
+        if now - account_maintenance['last_run'] >= timedelta(minutes=30):
+            User.query.filter(
+                User.status == 'active',
+                User.last_activity_at < now - timedelta(days=30)
+            ).update({User.status: 'inactive'}, synchronize_session=False)
+
+            expired_users = User.query.filter(
+                User.status == 'deletion_pending',
+                User.deletion_requested_at <= now - timedelta(days=10)
+            ).all()
+            if expired_users:
+                from story.views.auth_views import permanently_delete_user
+                for expired_user in expired_users:
+                    permanently_delete_user(expired_user)
+            db.session.commit()
+            account_maintenance['last_run'] = now
+
+        # Keep the currently logged-in account's activity timestamp current.
+        user_id = session.get('user_id')
+        if user_id:
+            g.user = User.query.get(user_id)
+            if g.user and g.user.status == 'active' and (
+                not g.user.last_activity_at or
+                g.user.last_activity_at < now - timedelta(minutes=5)
+            ):
+                g.user.last_activity_at = now
+                db.session.commit()
+
+        if request.endpoint == 'static' or request.endpoint in {'auth.login', 'auth.signup', 'auth.find_info'}:
             return None
 
-        if not current_user.is_authenticated:
+        if not current_user.is_authenticated or (g.user and g.user.status != 'active'):
             return redirect(url_for('auth.login', next=request.url))
 
     # 메인 페이지
