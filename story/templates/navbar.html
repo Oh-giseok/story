@@ -13,7 +13,7 @@
         rel="stylesheet">
     <link
         rel="stylesheet"
-        href="{{ url_for('static', filename='style.css') }}">
+        href="{{ url_for('static', filename='story_style.css') }}">
     {% block head %}{% endblock %}
 </head>
 
@@ -43,9 +43,9 @@
             <!-- Navbar 메뉴 -->
             <div class="collapse navbar-collapse" id="mainNav">
                 <!-- 로그인한 사용자용 메뉴 -->
-               <ul class="navbar-nav me-auto">
+            <ul class="navbar-nav me-auto">
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('post._list') }}">게시물</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('story.story_list') }}">스토리</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('story_list') }}">스토리</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('reels.reels') }}">릴스</a></li>
                     <!-- 메시지 링크를 대화 상대 선택 화면(dm.user_list)으로 변경 -->
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('dm.user_list') }}">메시지</a></li>
