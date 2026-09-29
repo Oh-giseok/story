@@ -2,6 +2,7 @@
 
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, g
 from story.models import db, Conversation, Message, MessageRead, User
+from datetime import datetime
 
 bp = Blueprint('dm', __name__, url_prefix='/dm')
 
@@ -27,7 +28,6 @@ def check_login():
 def user_list():
     current_user_id = session.get('user_id') or (g.user.id if hasattr(g, 'user') and g.user else None)
 
-    # [수정] target_id가 URL 쿼리 파라미터로 전달된 경우에만 가져옴 (기본값 None)
     target_id = request.args.get('target_id', default=None, type=int)
     keyword = request.args.get('q', '', type=str)
 
@@ -47,6 +47,12 @@ def user_list():
                 'last_message': last_msg
             })
 
+    # 최신 메시지 작성일 기준 내림차순 정렬
+    active_chat_users.sort(
+        key=lambda x: x['last_message'].created_at if x['last_message'] else datetime.min,
+        reverse=True
+    )
+
     # 2. 대화 가능 대상 유저 목록 (검색 기능 포함)
     query = User.query.filter(User.id != current_user_id)
     if keyword:
@@ -57,15 +63,14 @@ def user_list():
     target_user = User.query.get(target_id) if target_id else None
     target_name = (target_user.name or target_user.username) if target_user else None
 
-    # [수정] 강제 자동 할당 로직 제거 -> 모바일에서 '목록으로' 클릭 시 target_id가 None이 되어 세로 목록이 정상 노출됨
-
     return render_template(
         'dm/chat.html',
         active_chat_users=active_chat_users,
         all_users=all_users,
         keyword=keyword,
         target_id=target_id,
-        target_name=target_name
+        target_name=target_name,
+        target_user=target_user  # <-- target_user 객체 전달 반영 완료
     )
 
 

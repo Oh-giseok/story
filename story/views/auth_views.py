@@ -1,8 +1,10 @@
 from flask import Blueprint,request,redirect,url_for,flash,render_template, session, g, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+from urllib.parse import urlparse
 import os
 from werkzeug.utils import secure_filename
+from flask_login import login_user, logout_user
 
 from story import db
 from story.forms import UserCreateForm,UserLoginForm,ProfileEditForm
@@ -71,14 +73,21 @@ def login():
             error = '비밀번호가 올바르지 않습니다'
         if error is None:
             session.clear()
+            login_user(user)
             session['user_id'] = user.id
             session['username'] = user.username
+            next_url = request.args.get('next')
+            if next_url:
+                parsed_next_url = urlparse(next_url)
+                if not parsed_next_url.netloc and parsed_next_url.path.startswith('/'):
+                    return redirect(next_url)
             return redirect(url_for('index'))
         flash(error)
     return render_template('auth/login.html',form=form)
 
-@bp.route('logout')
+@bp.route('/logout')
 def logout():
+    logout_user()
     session.clear()
     return redirect(url_for('index'))
 

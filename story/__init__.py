@@ -3,7 +3,7 @@ from datetime import datetime
 from flask import Flask, redirect, render_template, url_for
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
+from flask_login import LoginManager, current_user
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -40,6 +40,9 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
+    login_manager.login_view = 'auth.login'
+    login_manager.login_message = '로그인이 필요합니다.'
+    login_manager.login_message_category = 'info'
 
     # 모델 로드
     from . import models
@@ -66,6 +69,17 @@ def create_app():
     app.register_blueprint(auth_views.bp)
     app.register_blueprint(post_views.bp)
     app.register_blueprint(story_views.bp)
+
+    # 로그인과 회원가입, 정적 파일만 비로그인 상태에서 접근할 수 있다.
+    @app.before_request
+    def require_login():
+        from flask import request
+
+        if request.endpoint == 'static' or request.endpoint in {'auth.login', 'auth.signup'}:
+            return None
+
+        if not current_user.is_authenticated:
+            return redirect(url_for('auth.login', next=request.url))
 
     # 메인 페이지
     @app.route('/')
