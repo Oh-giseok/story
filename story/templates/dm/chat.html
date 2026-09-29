@@ -6,6 +6,33 @@
 <!-- 인라인 기본 프로필 SVG Data URI 정의 -->
 {% set default_svg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 16 16' fill='%236c757d'><path d='M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z'/><path fill-rule='evenodd' d='M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z'/></svg>" %}
 
+<style>
+    /* 온라인/오프라인 표시 동그라미 스타일 */
+    .status-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 6px;
+        vertical-align: middle;
+        flex-shrink: 0;
+    }
+    .status-dot.online {
+        background-color: #28a745;
+    }
+    .status-dot.offline {
+        background-color: #6c757d;
+    }
+    .status-text {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-left: 4px;
+        font-weight: normal;
+    }
+</style>
+
+{% set current_uid = g.user.id if g.user and g.user.id else session.get('user_id') %}
+
 <div class="container py-3" style="max-width: 1200px;">
     <div class="row g-3">
 
@@ -21,6 +48,8 @@
                     <div class="fw-bold small text-muted px-2 my-2">최근 대화</div>
                     <div class="list-group list-group-flush mb-3">
                         {% for item in active_chat_users %}
+                            {% set is_self_recent = (item.user.id == current_uid) %}
+                            {% set is_online_recent = is_self_recent or item.user.is_online %}
                             <a href="{{ url_for('dm.user_list', target_id=item.user.id) }}"
                                class="list-group-item list-group-item-action border-0 rounded mb-1 d-flex justify-content-between align-items-center py-2 {% if target_id == item.user.id %}active bg-light text-dark fw-bold{% endif %}">
                                 <div class="d-flex align-items-center text-truncate">
@@ -28,7 +57,12 @@
                                          onerror="this.onerror=null; this.src='{{ default_svg }}';"
                                          class="rounded-circle me-2 flex-shrink-0" width="40" height="40" style="object-fit: cover;">
                                     <div class="text-truncate">
-                                        <div class="small text-dark">{{ item.user.name or item.user.username }}</div>
+                                        <div class="small text-dark d-flex align-items-center">
+                                            <!-- 원 & 유저명 & (Online/Offline) -->
+                                            <span class="status-dot {{ 'online' if is_online_recent else 'offline' }}" id="left-recent-dot-{{ item.user.id }}"></span>
+                                            <span>{{ item.user.name or item.user.username }}</span>
+                                            <span class="status-text" id="left-recent-text-{{ item.user.id }}">({{ 'Online' if is_online_recent else 'Offline' }})</span>
+                                        </div>
                                         <small class="text-muted d-block text-truncate" style="font-size: 0.75rem;">
                                             {{ item.last_message.text if item.last_message else '대화 없음' }}
                                         </small>
@@ -56,6 +90,8 @@
 
                     <div class="list-group list-group-flush">
                         {% for user in all_users %}
+                            {% set is_self_all = (user.id == current_uid) %}
+                            {% set is_online_all = is_self_all or user.is_online %}
                             <a href="{{ url_for('dm.user_list', target_id=user.id) }}"
                                class="list-group-item list-group-item-action border-0 rounded mb-1 d-flex align-items-center justify-content-between py-2 px-1">
                                 <div class="d-flex align-items-center">
@@ -63,7 +99,12 @@
                                          onerror="this.onerror=null; this.src='{{ default_svg }}';"
                                          class="rounded-circle me-2 flex-shrink-0" width="36" height="36" style="object-fit: cover;">
                                     <div>
-                                        <div class="small fw-bold text-dark">{{ user.name or user.username }}</div>
+                                        <div class="small fw-bold text-dark d-flex align-items-center">
+                                            <!-- 원 & 유저명 & (Online/Offline) -->
+                                            <span class="status-dot {{ 'online' if is_online_all else 'offline' }}" id="left-all-dot-{{ user.id }}"></span>
+                                            <span>{{ user.name or user.username }}</span>
+                                            <span class="status-text" id="left-all-text-{{ user.id }}">({{ 'Online' if is_online_all else 'Offline' }})</span>
+                                        </div>
                                         <small class="text-muted" style="font-size:0.7rem;">@{{ user.username }}</small>
                                     </div>
                                 </div>
@@ -95,9 +136,14 @@
                                  onerror="this.onerror=null; this.src='{{ default_svg }}';"
                                  class="rounded-circle me-2" width="36" height="36" style="object-fit: cover;">
                         {% endif %}
-                        <h5 class="mb-0 fw-bold">
+                        <h5 class="mb-0 fw-bold d-flex align-items-center">
                             {% if target_name %}
-                                {{ target_name }}
+                                {% set is_self_target = (target_id|int == current_uid|int) %}
+                                {% set is_online_target = is_self_target or (target_user and target_user.is_online) %}
+                                <!-- 대화 상대 유저명 앞 원 및 뒤 (Online/Offline) -->
+                                <span class="status-dot {{ 'online' if is_online_target else 'offline' }}" id="chat-header-dot"></span>
+                                <span>{{ target_name }}</span>
+                                <span class="status-text" id="chat-header-text">({{ 'Online' if is_online_target else 'Offline' }})</span>
                             {% else %}
                                 대화 상대를 선택하세요
                             {% endif %}
@@ -111,7 +157,7 @@
                 <!-- 채팅창 본문 -->
                 <div class="card-body d-flex flex-column" style="height: 580px;">
                     {% if target_id %}
-                        <input type="hidden" id="sender_id" value="{{ g.user.id if g.user and g.user.id else session.get('user_id', 1) }}">
+                        <input type="hidden" id="sender_id" value="{{ current_uid if current_uid else 1 }}">
                         <input type="hidden" id="target_id" value="{{ target_id }}">
                         <!-- 상대방 프로필 사진 경로 전달용 hidden input -->
                         <input type="hidden" id="target_profile_img" value="{{ target_user.profile_img_url if target_user and target_user.profile_img_url else url_for('static', filename='photo/default_profile.png') }}">
@@ -139,14 +185,58 @@
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
 const DEFAULT_SVG = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 16 16' fill='%236c757d'><path d='M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z'/><path fill-rule='evenodd' d='M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z'/></svg>";
-const socket = io();
+
+const senderElem = document.getElementById('sender_id');
+const currentUserId = senderElem ? senderElem.value : "{{ current_uid }}";
+
+// SocketIO 접속 시 유저 ID 쿼리로 전달
+const socket = io({ query: { user_id: currentUserId } });
 let currentConvId = null;
+
+// 15초 주기 하트비트 발송
+setInterval(() => {
+    if (currentUserId) {
+        socket.emit('heartbeat', { user_id: currentUserId });
+    }
+}, 15000);
 
 document.addEventListener('DOMContentLoaded', () => {
     const targetInput = document.getElementById('target_id');
     if (targetInput && targetInput.value) {
         connectChat();
     }
+});
+
+// 실시간 상태 변화 수신 이벤트
+socket.on('presence_change', (data) => {
+    const userId = String(data.user_id);
+
+    // 본인의 상태 변경 이벤트는 무시하고 항상 온라인 상태 유지
+    if (userId === String(currentUserId)) return;
+
+    const isOnline = (data.status === 'online');
+    const targetInput = document.getElementById('target_id');
+    const currentTargetId = targetInput ? String(targetInput.value) : null;
+
+    // 1. 대화창 상단 헤더 상대방 상태 업데이트
+    if (currentTargetId && userId === currentTargetId) {
+        const headerDot = document.getElementById('chat-header-dot');
+        const headerText = document.getElementById('chat-header-text');
+        if (headerDot && headerText) {
+            headerDot.className = `status-dot ${isOnline ? 'online' : 'offline'}`;
+            headerText.innerText = `(${isOnline ? 'Online' : 'Offline'})`;
+        }
+    }
+
+    // 2. 좌측 최근 대화 및 전체 유저 목록 상태 업데이트
+    ['left-recent', 'left-all'].forEach(prefix => {
+        const dot = document.getElementById(`${prefix}-dot-${userId}`);
+        const text = document.getElementById(`${prefix}-text-${userId}`);
+        if (dot && text) {
+            dot.className = `status-dot ${isOnline ? 'online' : 'offline'}`;
+            text.innerText = `(${isOnline ? 'Online' : 'Offline'})`;
+        }
+    });
 });
 
 async function connectChat() {
