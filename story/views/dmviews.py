@@ -2,6 +2,7 @@
 
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, g
 from story.models import db, Conversation, Message, MessageRead, User
+from datetime import datetime
 
 bp = Blueprint('dm', __name__, url_prefix='/dm')
 
@@ -48,7 +49,7 @@ def user_list():
 
     # 최신 메시지 작성일 기준 내림차순 정렬
     active_chat_users.sort(
-        key=lambda x: x['last_message'].created_at if x['last_message'] else None,
+        key=lambda x: x['last_message'].created_at if x['last_message'] else datetime.min,
         reverse=True
     )
 

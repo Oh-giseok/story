@@ -1,8 +1,4 @@
 from datetime import datetime
-from . import db
-
-
-class User(db.Model):
 from story import db  # __init__.py의 db 객체 임포트
 from flask_login import UserMixin
 
