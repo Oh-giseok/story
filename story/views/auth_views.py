@@ -304,23 +304,20 @@ def mypage():
     account_form = FlaskForm()
 
     return render_template(
-<<<<<<< HEAD
         'auth/mypage.html',
         user=g.user,
         posts=posts,
         reels=reels,
         stories=stories,
         account_form=account_form
-=======
-        'auth/mypage.html', user=g.user, posts=posts, reels=reels, stories=stories,
+                     ('auth/mypage.html', user=g.user, posts=posts, reels=reels, stories=stories,
         reel_comments_by_id=reel_comments_by_id,
         reel_comment_users=reel_comment_users,
         account_form=FlaskForm()
->>>>>>> develop
     )
 
 
-@bp.route('/deactivate', methods=['POST'])
+@bp.route('/deactivate', methods=['POST']))
 def deactivate():
     from flask_wtf import FlaskForm
     form = FlaskForm()
