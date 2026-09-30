@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from flask import Flask, redirect, render_template, url_for
+from flask import Flask, redirect, render_template, url_for, g, session
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, current_user
@@ -41,8 +41,19 @@ def create_app():
     migrate.init_app(app, db)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
-    login_manager.login_message = '로그인이 필요합니다.'
-    login_manager.login_message_category = 'info'
+    login_message = '로그인이 필요합니다.'
+    login_message_category = 'info'
+
+    # 프로필 이미지 경로 안전 변환 템플릿 필터
+    @app.template_filter('profile_img')
+    def profile_img_filter(img_url):
+        if not img_url:
+            return url_for('static', filename='photo/default_profile.png')
+        if img_url.startswith('http://') or img_url.startswith('https://') or img_url.startswith('/'):
+            return img_url
+        if img_url.startswith('profile/') or img_url.startswith('photo/'):
+            return url_for('static', filename=img_url)
+        return url_for('static', filename='profile/' + img_url)
 
     # 모델 로드
     from . import models
@@ -81,33 +92,7 @@ def create_app():
         if not current_user.is_authenticated:
             return redirect(url_for('auth.login', next=request.url))
 
-    # 메인 페이지
-    @app.route('/')
-    def index():
-        from flask import g
-
-        if g.user is None:
-            return redirect(url_for('auth.login'))
-
-        return redirect(url_for('post._list'))
-
-    # 스토리 페이지
-    @app.route('/story')
-    def story_list():
-        now = datetime.now()
-
-        story_list = models.Story.query.filter(
-            models.Story.expires_at > now
-        ).order_by(
-            models.Story.create_date.desc()
-        ).all()
-
-        return render_template(
-            'story/story_list.html',
-            story_list=story_list
-        )
-
-    # 템플릿 필터
+    # 템플릿 필터 (작성 시간)
     @app.template_filter('time_ago')
     def time_ago_filter(value):
         if not value:
@@ -124,7 +109,7 @@ def create_app():
         elif minutes < 60:
             return f"{minutes}분 전"
         elif hours < 24:
-            return f"{hours}시간"
+            return f"{hours}시간 전"
         else:
             return f"{days}일 전"
 

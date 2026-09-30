@@ -42,7 +42,13 @@
                 <td>{{ story.user.username }}</td>
 
                 <!-- 작성일시 -->
-                <td>{{ story.create_date | time_ago }}</td>
+                <td>
+                    {% if story.create_date %}
+                        {{ story.create_date | time_ago if story.create_date | time_ago else story.create_date.strftime('%Y-%m-%d %H:%M') }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         {% else %}
@@ -66,7 +72,11 @@
     story_elements.forEach(element => {
         element.addEventListener('click', function(){
             const story_id = this.dataset.storyId;
-            location.href = "{{ url_for('story.detail', story_id=0) }}".replace('0', story_id);
+            {% if 'story.detail' in url_for.__globals__.get('current_app').view_functions %}
+                location.href = "{{ url_for('story.detail', story_id=0) }}".replace('0', story_id);
+            {% else %}
+                location.href = "/story/" + story_id;
+            {% endif %}
         });
     });
 </script>

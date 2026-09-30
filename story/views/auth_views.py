@@ -1,4 +1,4 @@
-from flask import Blueprint,request,redirect,url_for,flash,render_template, session, g, current_app
+from flask import Blueprint, request, redirect, url_for, flash, render_template, session, g, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from urllib.parse import urlparse
@@ -7,10 +7,11 @@ from werkzeug.utils import secure_filename
 from flask_login import login_user, logout_user
 
 from story import db
-from story.forms import UserCreateForm,UserLoginForm,ProfileEditForm
+from story.forms import UserCreateForm, UserLoginForm, ProfileEditForm
 from story.models import User, Post, Reels, Story
 
-bp =Blueprint('auth', __name__,url_prefix='/auth')
+bp = Blueprint('auth', __name__, url_prefix='/auth')
+
 
 @bp.before_app_request
 def load_loggend_in_user():
@@ -19,6 +20,7 @@ def load_loggend_in_user():
         g.user = None
     else:
         g.user = User.query.get(user_id)
+
 
 @bp.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -31,7 +33,7 @@ def signup():
             profile_img_url = None
             image = form.profile_img_url.data
 
-            if image and getattr(image,"filename",""):
+            if image and getattr(image, "filename", ""):
                 filename = secure_filename(image.filename)
                 image.save(
                     os.path.join(
@@ -55,15 +57,17 @@ def signup():
             db.session.add(user)
             db.session.commit()
 
-            return redirect(url_for('index'))
+            # 💡 main 블루프린트의 index 라우트로 리다이렉트
+            return redirect(url_for('main.index'))
         else:
             flash('이미 존재하는 사용자입니다.')
 
     return render_template('auth/signup.html', form=form)
 
-@bp.route('/login',methods=['GET','POST'])
+
+@bp.route('/login', methods=['GET', 'POST'])
 def login():
-    form =  UserLoginForm()
+    form = UserLoginForm()
     if request.method == 'POST' and form.validate_on_submit():
         error = None
         user = User.query.filter_by(username=form.username.data).first()
@@ -81,20 +85,24 @@ def login():
                 parsed_next_url = urlparse(next_url)
                 if not parsed_next_url.netloc and parsed_next_url.path.startswith('/'):
                     return redirect(next_url)
-            return redirect(url_for('index'))
+
+            # 💡 main 블루프린트의 index 라우트로 리다이렉트
+            return redirect(url_for('main.index'))
         flash(error)
-    return render_template('auth/login.html',form=form)
+    return render_template('auth/login.html', form=form)
+
 
 @bp.route('/logout')
 def logout():
     logout_user()
     session.clear()
-    return redirect(url_for('index'))
+    # 💡 main 블루프린트의 index 라우트로 리다이렉트
+    return redirect(url_for('main.index'))
+
 
 # 회원정보 수정
 @bp.route('/profile_edit', methods=['GET', 'POST'])
 def profile_edit():
-
     form = ProfileEditForm()
 
     # 처음 페이지에 들어왔을 때 기존 정보 표시
@@ -156,14 +164,16 @@ def profile_edit():
 
         flash('회원정보가 수정되었습니다.')
 
-        return redirect(url_for('post._list'))
+        # 💡 기존 post._list에서 main.index로 변경
+        return redirect(url_for('main.index'))
 
     return render_template(
         'auth/profile_edit.html',
         form=form
     )
 
-#마이페이지
+
+# 마이페이지
 @bp.route('/mypage')
 def mypage():
     if g.user is None:

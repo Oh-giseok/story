@@ -1,8 +1,11 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 
-{% block title %}메시지 대화 상대 선택{% endblock %}
+{% block title %}메시지{% endblock %}
 
 {% block content %}
+<!-- 인라인 기본 프로필 SVG Data URI 정의 -->
+{% set default_svg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 16 16' fill='%236c757d'><path d='M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z'/><path fill-rule='evenodd' d='M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z'/></svg>" %}
+
 <style>
     /* 온라인/오프라인 표시 동그라미 스타일 */
     .status-dot {
@@ -15,13 +18,13 @@
         flex-shrink: 0;
     }
     .status-dot.online {
-        background-color: #28a745; /* 초록색 */
+        background-color: #28a745;
     }
     .status-dot.offline {
-        background-color: #6c757d; /* 회색 */
+        background-color: #6c757d;
     }
     .status-text {
-        font-size: 0.8em;
+        font-size: 0.85rem;
         color: #6c757d;
         margin-left: 4px;
         font-weight: normal;
@@ -30,98 +33,149 @@
 
 {% set current_uid = g.user.id if g.user and g.user.id else session.get('user_id') %}
 
-<!-- 데스크톱 가로 배치를 고려해 전체 컨테이너 너비를 확장 (600px -> 1000px) -->
-<div class="container py-3" style="max-width: 1000px;">
+<div class="container py-3" style="max-width: 1200px;">
+    <div class="row g-3">
 
-    <!-- Bootstrap 반응형 그리드 적용 (col-12: 모바일 직렬 배치, col-md-6: 데스크톱 병렬 배치) -->
-    <div class="row g-4">
-
-        <!-- 1. 이전 대화 목록 (모바일: 상단 / 데스크톱: 좌측) -->
-        <div class="col-12 col-md-6">
-            <div class="card h-100 shadow-sm">
-                <div class="card-header bg-white fw-bold py-3">
-                    <i class="bi bi-chat-dots me-1 text-primary"></i> 최근 대화
+        <!-- [좌측 패널] 최근 대화 + 대화 가능 대상 목록 -->
+        <div class="col-12 col-md-4 {% if target_id %}d-none d-md-block{% endif %}">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-bold py-3 border-bottom">
+                    <i class="bi bi-chat-left-text me-1 text-primary"></i> 메시지
                 </div>
-                <div class="list-group list-group-flush overflow-auto" style="max-height: 550px;">
-                    {% for item in active_chat_users %}
-                        {% set is_self_recent = (item.user.id == current_uid) %}
-                        {% set is_online_recent = is_self_recent or item.user.is_online %}
-                        <a href="{{ url_for('dm.chat_room', target_id=item.user.id) }}"
-                           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3">
-                            <div class="d-flex align-items-center">
-                                <img src="{{ item.user.profile_img_url or url_for('static', filename='photo/default_profile.png') }}"
-                                     class="rounded-circle me-3" width="48" height="48" style="object-fit: cover;">
-                                <div>
-                                    <h6 class="mb-1 fw-bold text-dark d-flex align-items-center">
-                                        <!-- 자신일 경우 무조건 온라인 표시 -->
-                                        <span class="status-dot {{ 'online' if is_online_recent else 'offline' }}" id="recent-dot-{{ item.user.id }}"></span>
-                                        <span>{{ item.user.name or item.user.username }}</span>
-                                        <span class="status-text" id="recent-text-{{ item.user.id }}">({{ 'Online' if is_online_recent else 'Offline' }})</span>
-                                    </h6>
-                                    <p class="mb-0 text-muted small text-truncate" style="max-width: 180px;">
-                                        {% if item.last_message %}
-                                            {{ item.last_message.text or '[이미지]' }}
-                                        {% else %}
-                                            새로운 대화가 시작되었습니다.
-                                        {% endif %}
-                                    </p>
+
+                <div class="card-body p-2 overflow-auto" style="max-height: 650px;">
+                    <!-- 1. 최근 대화 목록 -->
+                    <div class="fw-bold small text-muted px-2 my-2">최근 대화</div>
+                    <div class="list-group list-group-flush mb-3">
+                        {% for item in active_chat_users %}
+                            {% set is_self_recent = (item.user.id == current_uid) %}
+                            {% set is_online_recent = is_self_recent or item.user.is_online %}
+                            <a href="{{ url_for('dm.user_list', target_id=item.user.id) }}"
+                               class="list-group-item list-group-item-action border-0 rounded mb-1 d-flex justify-content-between align-items-center py-2 {% if target_id == item.user.id %}active bg-light text-dark fw-bold{% endif %}">
+                                <div class="d-flex align-items-center text-truncate">
+                                    <img src="{{ item.user.profile_img_url | profile_img }}"
+                                         onerror="this.onerror=null; this.src='{{ default_svg }}';"
+                                         class="rounded-circle me-2 flex-shrink-0" width="40" height="40" style="object-fit: cover;">
+                                    <div class="text-truncate">
+                                        <div class="small text-dark d-flex align-items-center">
+                                            <span class="status-dot {{ 'online' if is_online_recent else 'offline' }}" id="left-recent-dot-{{ item.user.id }}"></span>
+                                            <span>{{ item.user.name or item.user.username }}</span>
+                                            <span class="status-text" id="left-recent-text-{{ item.user.id }}">({{ 'Online' if is_online_recent else 'Offline' }})</span>
+                                        </div>
+                                        <small class="text-muted d-block text-truncate" style="font-size: 0.75rem;">
+                                            {{ item.last_message.text if item.last_message else '대화 없음' }}
+                                        </small>
+                                    </div>
                                 </div>
-                            </div>
-                            {% if item.last_message %}
-                                <small class="text-muted ms-2" style="font-size: 0.75rem;">
-                                    {{ item.last_message.created_at.strftime('%m/%d %H:%M') }}
-                                </small>
-                            {% endif %}
-                        </a>
-                    {% else %}
-                        <div class="p-4 text-center text-muted small">진행 중인 대화가 없습니다.</div>
-                    {% endfor %}
+                            </a>
+                        {% else %}
+                            <div class="text-muted small px-2">진행 중인 대화가 없습니다.</div>
+                        {% endfor %}
+                    </div>
+
+                    <hr class="my-2">
+
+                    <!-- 2. 대화 가능 대상 목록 & 검색 -->
+                    <div class="fw-bold small text-muted px-2 my-2">새 메시지 보내기</div>
+                    <form method="GET" action="{{ url_for('dm.user_list') }}" class="mb-2 px-1">
+                        {% if target_id %}
+                            <input type="hidden" name="target_id" value="{{ target_id }}">
+                        {% endif %}
+                        <div class="input-group input-group-sm">
+                            <input type="text" name="q" class="form-control" placeholder="검색..." value="{{ keyword }}">
+                            <button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i></button>
+                        </div>
+                    </form>
+
+                    <div class="list-group list-group-flush">
+                        {% for user in all_users %}
+                            {% set is_self_all = (user.id == current_uid) %}
+                            {% set is_online_all = is_self_all or user.is_online %}
+                            <a href="{{ url_for('dm.user_list', target_id=user.id) }}"
+                               class="list-group-item list-group-item-action border-0 rounded mb-1 d-flex align-items-center justify-content-between py-2 px-1">
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ user.profile_img_url | profile_img }}"
+                                         onerror="this.onerror=null; this.src='{{ default_svg }}';"
+                                         class="rounded-circle me-2 flex-shrink-0" width="36" height="36" style="object-fit: cover;">
+                                    <div>
+                                        <div class="small fw-bold text-dark d-flex align-items-center">
+                                            <span class="status-dot {{ 'online' if is_online_all else 'offline' }}" id="left-all-dot-{{ user.id }}"></span>
+                                            <span>{{ user.name or user.username }}</span>
+                                            <span class="status-text" id="left-all-text-{{ user.id }}">({{ 'Online' if is_online_all else 'Offline' }})</span>
+                                        </div>
+                                        <small class="text-muted" style="font-size:0.7rem;">@{{ user.username }}</small>
+                                    </div>
+                                </div>
+                                <span class="btn btn-xs btn-outline-primary rounded-pill px-2 py-0" style="font-size: 0.75rem;">대화</span>
+                            </a>
+                        {% else %}
+                            <div class="text-muted small px-2">검색 결과가 없습니다.</div>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- 2. 새 메시지 보낼 유저 검색 및 전체 목록 (모바일: 하단 / 데스크톱: 우측) -->
-        <div class="col-12 col-md-6">
-            <div class="card h-100 shadow-sm">
-                <div class="card-header bg-white fw-bold py-3 d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-person-plus me-1 text-primary"></i> 새 메시지 보내기</span>
-                </div>
-                <div class="card-body">
-                    <!-- 검색 폼 -->
-                    <form method="GET" action="{{ url_for('dm.user_list') }}" class="mb-3">
-                        <div class="input-group">
-                            <input type="text" name="q" class="form-control" placeholder="이름 또는 아이디 검색..." value="{{ keyword }}">
-                            <button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i> 검색</button>
-                        </div>
-                    </form>
+        <!-- [우측 패널] 실시간 채팅 화면 -->
+        <div class="col-12 col-md-8 {% if not target_id %}d-none d-md-block{% endif %}">
+            <div class="card shadow-sm h-100">
 
-                    <!-- 전체 유저 목록 -->
-                    <div class="list-group list-group-flush overflow-auto" style="max-height: 470px;">
-                        {% for user in all_users %}
-                            {% set is_self_all = (user.id == current_uid) %}
-                            {% set is_online_all = is_self_all or user.is_online %}
-                            <a href="{{ url_for('dm.chat_room', target_id=user.id) }}"
-                               class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-2 px-1">
-                                <div class="d-flex align-items-center">
-                                    <img src="{{ user.profile_img_url or url_for('static', filename='photo/default_profile.png') }}"
-                                         class="rounded-circle me-3" width="40" height="40" style="object-fit: cover;">
-                                    <div>
-                                        <h6 class="mb-0 text-dark small fw-bold d-flex align-items-center">
-                                            <!-- 자신일 경우 무조건 온라인 표시 -->
-                                            <span class="status-dot {{ 'online' if is_online_all else 'offline' }}" id="all-dot-{{ user.id }}"></span>
-                                            <span>{{ user.name or user.username }}</span>
-                                            <span class="status-text" id="all-text-{{ user.id }}">({{ 'Online' if is_online_all else 'Offline' }})</span>
-                                        </h6>
-                                        <small class="text-muted">@{{ user.username }}</small>
-                                    </div>
-                                </div>
-                                <span class="btn btn-sm btn-outline-primary rounded-pill px-3">대화하기</span>
-                            </a>
-                        {% else %}
-                            <div class="p-4 text-center text-muted small">검색 결과가 없습니다.</div>
-                        {% endfor %}
+                <!-- 상단 헤더 -->
+                <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between border-bottom">
+                    <a href="{{ url_for('dm.user_list') }}" class="btn btn-outline-secondary btn-sm d-md-none">
+                        <i class="bi bi-chevron-left"></i> 목록으로
+                    </a>
+
+                    <div class="d-flex align-items-center">
+                        {% if target_user %}
+                            <img src="{{ target_user.profile_img_url | profile_img }}"
+                                 onerror="this.onerror=null; this.src='{{ default_svg }}';"
+                                 class="rounded-circle me-2" width="36" height="36" style="object-fit: cover;">
+                        {% endif %}
+                        <h5 class="mb-0 fw-bold d-flex align-items-center">
+                            {% if target_name %}
+                                {% set is_self_target = (target_id|int == current_uid|int) %}
+                                {% set is_online_target = is_self_target or (target_user and target_user.is_online) %}
+                                <span class="status-dot {{ 'online' if is_online_target else 'offline' }}" id="chat-header-dot"></span>
+                                <span>{{ target_name }}</span>
+                                <span class="status-text" id="chat-header-text">({{ 'Online' if is_online_target else 'Offline' }})</span>
+                            {% else %}
+                                대화 상대를 선택하세요
+                            {% endif %}
+                        </h5>
                     </div>
+
+                    <!-- 대화 나가기 버튼 -->
+                    {% if target_id %}
+                        <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="leaveConversation({{ target_id }})">
+                            <i class="bi bi-box-arrow-right me-1"></i> 대화 나가기
+                        </button>
+                    {% else %}
+                        <div class="d-md-none" style="width: 75px;"></div>
+                    {% endif %}
                 </div>
+
+                <!-- 채팅창 본문 -->
+                <div class="card-body d-flex flex-column" style="height: 580px;">
+                    {% if target_id %}
+                        <input type="hidden" id="sender_id" value="{{ current_uid if current_uid else 1 }}">
+                        <input type="hidden" id="target_id" value="{{ target_id }}">
+                        <input type="hidden" id="target_profile_img" value="{{ target_user.profile_img_url | profile_img if target_user else url_for('static', filename='photo/default_profile.png') }}">
+
+                        <div id="chat-box" class="flex-grow-1 border rounded p-3 mb-3 bg-light overflow-auto" style="height: 480px;"></div>
+
+                        <div class="input-group">
+                            <input type="text" id="message_text" class="form-control" placeholder="메시지를 입력하세요..." onkeypress="if(event.key==='Enter') sendMessage()">
+                            <button type="button" class="btn btn-primary px-4" onclick="sendMessage()">전송</button>
+                        </div>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                            <i class="bi bi-chat-dots display-1 mb-3 text-secondary"></i>
+                            <p>좌측 목록에서 대화할 상대를 선택해 주세요.</p>
+                        </div>
+                    {% endif %}
+                </div>
+
             </div>
         </div>
 
@@ -130,35 +184,212 @@
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
-    const CURRENT_USER_ID = "{{ current_uid }}";
-    const socket = io({ query: { user_id: CURRENT_USER_ID } });
+const DEFAULT_SVG = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 16 16' fill='%236c757d'><path d='M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z'/><path fill-rule='evenodd' d='M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z'/></svg>";
 
-    // 15초마다 백엔드로 하트비트 전송
-    setInterval(() => {
-        if (CURRENT_USER_ID) {
-            socket.emit('heartbeat', { user_id: CURRENT_USER_ID });
+const senderElem = document.getElementById('sender_id');
+const currentUserId = senderElem ? senderElem.value : "{{ current_uid }}";
+
+const socket = io({ query: { user_id: currentUserId } });
+let currentConvId = null;
+
+setInterval(() => {
+    if (currentUserId) {
+        socket.emit('heartbeat', { user_id: currentUserId });
+    }
+}, 15000);
+
+document.addEventListener('DOMContentLoaded', () => {
+    const targetInput = document.getElementById('target_id');
+    if (targetInput && targetInput.value) {
+        connectChat();
+    }
+});
+
+socket.on('presence_change', (data) => {
+    const userId = String(data.user_id);
+    if (userId === String(currentUserId)) return;
+
+    const isOnline = (data.status === 'online');
+    const targetInput = document.getElementById('target_id');
+    const currentTargetId = targetInput ? String(targetInput.value) : null;
+
+    if (currentTargetId && userId === currentTargetId) {
+        const headerDot = document.getElementById('chat-header-dot');
+        const headerText = document.getElementById('chat-header-text');
+        if (headerDot && headerText) {
+            headerDot.className = `status-dot ${isOnline ? 'online' : 'offline'}`;
+            headerText.innerText = `(${isOnline ? 'Online' : 'Offline'})`;
         }
-    }, 15000);
+    }
 
-    // 실시간으로 다른 유저의 접속/퇴장 상태 받아와 UI 변경
-    socket.on('presence_change', (data) => {
-        const userId = String(data.user_id);
-
-        // 본인의 상태 변경 이벤트는 무시하고 항상 온라인 상태 유지
-        if (userId === String(CURRENT_USER_ID)) return;
-
-        const isOnline = (data.status === 'online');
-
-        // 최근 대화 및 전체 목록 돔 요소 업데이트
-        ['recent', 'all'].forEach(prefix => {
-            const dot = document.getElementById(`${prefix}-dot-${userId}`);
-            const text = document.getElementById(`${prefix}-text-${userId}`);
-
-            if (dot && text) {
-                dot.className = `status-dot ${isOnline ? 'online' : 'offline'}`;
-                text.innerText = `(${isOnline ? 'Online' : 'Offline'})`;
-            }
-        });
+    ['left-recent', 'left-all'].forEach(prefix => {
+        const dot = document.getElementById(`${prefix}-dot-${userId}`);
+        const text = document.getElementById(`${prefix}-text-${userId}`);
+        if (dot && text) {
+            dot.className = `status-dot ${isOnline ? 'online' : 'offline'}`;
+            text.innerText = `(${isOnline ? 'Online' : 'Offline'})`;
+        }
     });
+});
+
+async function connectChat() {
+    const userId1 = parseInt(document.getElementById('sender_id').value);
+    const userId2 = parseInt(document.getElementById('target_id').value);
+
+    if (!userId1 || !userId2) {
+        console.error("유저 정보를 찾을 수 없습니다.");
+        return;
+    }
+
+    try {
+        const res = await fetch('/dm/conversations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id1: userId1, user_id2: userId2 })
+        });
+
+        if (!res.ok) {
+            if (res.status === 401) {
+                alert("로그인이 필요합니다.");
+                window.location.href = "/auth/login";
+                return;
+            }
+            throw new Error(`서버 응답 오류: ${res.status}`);
+        }
+
+        const data = await res.json();
+        currentConvId = data.conversation_id;
+
+        socket.emit('join_room', { conversation_id: currentConvId });
+        socket.emit('mark_read', { conversation_id: currentConvId, user_id: userId1 });
+        await loadMessages();
+    } catch (error) {
+        console.error("채팅방 연결 오류:", error);
+    }
+}
+
+async function loadMessages() {
+    if (!currentConvId) return;
+    const userId1 = parseInt(document.getElementById('sender_id').value);
+
+    try {
+        const msgRes = await fetch(`/dm/conversations/${currentConvId}/messages?user_id=${userId1}`);
+        if (!msgRes.ok) return;
+
+        const messages = await msgRes.json();
+        const chatBox = document.getElementById('chat-box');
+        chatBox.innerHTML = '';
+        messages.forEach(msg => appendMessage(msg));
+    } catch (error) {
+        console.error("메시지 로딩 오류:", error);
+    }
+}
+
+function sendMessage() {
+    const textInput = document.getElementById('message_text');
+    const senderElem = document.getElementById('sender_id');
+
+    if (!senderElem) return;
+    const senderId = parseInt(senderElem.value);
+    const text = textInput.value.trim();
+
+    if (!text || !currentConvId) return;
+
+    socket.emit('send_message', {
+        conversation_id: currentConvId,
+        sender_id: senderId,
+        text: text,
+        img_url: null
+    });
+
+    textInput.value = '';
+}
+
+// 대화방 나가기 함수
+async function leaveConversation(targetId) {
+    if (!confirm("정말 이 대화방에서 나가지시겠습니까?\n나간 대화는 최근 대화 목록에서 제거됩니다.")) {
+        return;
+    }
+
+    try {
+        const res = await fetch('/dm/leave', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target_id: targetId })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            alert("대화방에서 나갔습니다.");
+            window.location.href = "{{ url_for('dm.user_list') }}";
+        } else {
+            alert(data.error || "대화방 나가기에 실패했습니다.");
+        }
+    } catch (error) {
+        console.error("대화 나가기 오류:", error);
+        alert("오류가 발생했습니다.");
+    }
+}
+
+socket.on('receive_message', function(msg) {
+    const senderElem = document.getElementById('sender_id');
+    if (!senderElem) return;
+    const currentUserId = parseInt(senderElem.value);
+
+    appendMessage(msg);
+
+    if (msg.sender_id !== currentUserId) {
+        socket.emit('mark_read', { conversation_id: currentConvId, user_id: currentUserId });
+    }
+});
+
+socket.on('update_read_status', function(data) {
+    if (data.conversation_id === currentConvId) {
+        loadMessages();
+    }
+});
+
+function appendMessage(msg) {
+    const chatBox = document.getElementById('chat-box');
+    if (!chatBox) return;
+
+    const currentUserId = parseInt(document.getElementById('sender_id').value);
+    const targetProfileImg = document.getElementById('target_profile_img') ? document.getElementById('target_profile_img').value : '';
+    const isMe = msg.sender_id === currentUserId;
+
+    const div = document.createElement('div');
+    div.className = `d-flex mb-3 ${isMe ? 'justify-content-end' : 'justify-content-start'}`;
+
+    const unreadBadge = msg.unread_count > 0
+        ? `<span class="badge bg-warning text-dark me-1 align-self-end unread-count" style="font-size:0.7rem;">${msg.unread_count}</span>`
+        : '';
+
+    if (isMe) {
+        div.innerHTML = `${unreadBadge}<div class="p-2 rounded bg-primary text-white" style="max-width:70%;"><strong>나:</strong> ${escapeHtml(msg.text)} <br><small class="text-white-50" style="font-size:0.75rem;">${msg.created_at}</small></div>`;
+    } else {
+        div.innerHTML = `
+            <img src="${targetProfileImg}"
+                 onerror="this.onerror=null; this.src='${DEFAULT_SVG}';"
+                 class="rounded-circle me-2 flex-shrink-0 align-self-start" width="36" height="36" style="object-fit: cover;">
+            <div class="p-2 rounded bg-white border" style="max-width:70%;">
+                <strong>상대방:</strong> ${escapeHtml(msg.text)} <br>
+                <small class="text-muted" style="font-size:0.75rem;">${msg.created_at}</small>
+            </div>
+            ${unreadBadge}
+        `;
+    }
+
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function escapeHtml(text) {
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
 </script>
 {% endblock %}

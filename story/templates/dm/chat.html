@@ -53,12 +53,11 @@
                             <a href="{{ url_for('dm.user_list', target_id=item.user.id) }}"
                                class="list-group-item list-group-item-action border-0 rounded mb-1 d-flex justify-content-between align-items-center py-2 {% if target_id == item.user.id %}active bg-light text-dark fw-bold{% endif %}">
                                 <div class="d-flex align-items-center text-truncate">
-                                    <img src="{{ item.user.profile_img_url or url_for('static', filename='photo/default_profile.png') }}"
+                                    <img src="{{ item.user.profile_img_url | profile_img }}"
                                          onerror="this.onerror=null; this.src='{{ default_svg }}';"
                                          class="rounded-circle me-2 flex-shrink-0" width="40" height="40" style="object-fit: cover;">
                                     <div class="text-truncate">
                                         <div class="small text-dark d-flex align-items-center">
-                                            <!-- 원 & 유저명 & (Online/Offline) -->
                                             <span class="status-dot {{ 'online' if is_online_recent else 'offline' }}" id="left-recent-dot-{{ item.user.id }}"></span>
                                             <span>{{ item.user.name or item.user.username }}</span>
                                             <span class="status-text" id="left-recent-text-{{ item.user.id }}">({{ 'Online' if is_online_recent else 'Offline' }})</span>
@@ -95,12 +94,11 @@
                             <a href="{{ url_for('dm.user_list', target_id=user.id) }}"
                                class="list-group-item list-group-item-action border-0 rounded mb-1 d-flex align-items-center justify-content-between py-2 px-1">
                                 <div class="d-flex align-items-center">
-                                    <img src="{{ user.profile_img_url or url_for('static', filename='photo/default_profile.png') }}"
+                                    <img src="{{ user.profile_img_url | profile_img }}"
                                          onerror="this.onerror=null; this.src='{{ default_svg }}';"
                                          class="rounded-circle me-2 flex-shrink-0" width="36" height="36" style="object-fit: cover;">
                                     <div>
                                         <div class="small fw-bold text-dark d-flex align-items-center">
-                                            <!-- 원 & 유저명 & (Online/Offline) -->
                                             <span class="status-dot {{ 'online' if is_online_all else 'offline' }}" id="left-all-dot-{{ user.id }}"></span>
                                             <span>{{ user.name or user.username }}</span>
                                             <span class="status-text" id="left-all-text-{{ user.id }}">({{ 'Online' if is_online_all else 'Offline' }})</span>
@@ -124,15 +122,13 @@
 
                 <!-- 상단 헤더 -->
                 <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between border-bottom">
-                    <!-- 모바일전용 '목록으로' 버튼 -->
                     <a href="{{ url_for('dm.user_list') }}" class="btn btn-outline-secondary btn-sm d-md-none">
                         <i class="bi bi-chevron-left"></i> 목록으로
                     </a>
 
-                    <!-- 대화 상대 프로필 및 이름 표시 -->
                     <div class="d-flex align-items-center">
                         {% if target_user %}
-                            <img src="{{ target_user.profile_img_url or url_for('static', filename='photo/default_profile.png') }}"
+                            <img src="{{ target_user.profile_img_url | profile_img }}"
                                  onerror="this.onerror=null; this.src='{{ default_svg }}';"
                                  class="rounded-circle me-2" width="36" height="36" style="object-fit: cover;">
                         {% endif %}
@@ -140,7 +136,6 @@
                             {% if target_name %}
                                 {% set is_self_target = (target_id|int == current_uid|int) %}
                                 {% set is_online_target = is_self_target or (target_user and target_user.is_online) %}
-                                <!-- 대화 상대 유저명 앞 원 및 뒤 (Online/Offline) -->
                                 <span class="status-dot {{ 'online' if is_online_target else 'offline' }}" id="chat-header-dot"></span>
                                 <span>{{ target_name }}</span>
                                 <span class="status-text" id="chat-header-text">({{ 'Online' if is_online_target else 'Offline' }})</span>
@@ -150,8 +145,14 @@
                         </h5>
                     </div>
 
-                    <!-- 모바일 정렬용 균형 레이아웃 -->
-                    <div class="d-md-none" style="width: 75px;"></div>
+                    <!-- 대화 나가기 버튼 -->
+                    {% if target_id %}
+                        <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="leaveConversation({{ target_id }})">
+                            <i class="bi bi-box-arrow-right me-1"></i> 대화 나가기
+                        </button>
+                    {% else %}
+                        <div class="d-md-none" style="width: 75px;"></div>
+                    {% endif %}
                 </div>
 
                 <!-- 채팅창 본문 -->
@@ -159,8 +160,7 @@
                     {% if target_id %}
                         <input type="hidden" id="sender_id" value="{{ current_uid if current_uid else 1 }}">
                         <input type="hidden" id="target_id" value="{{ target_id }}">
-                        <!-- 상대방 프로필 사진 경로 전달용 hidden input -->
-                        <input type="hidden" id="target_profile_img" value="{{ target_user.profile_img_url if target_user and target_user.profile_img_url else url_for('static', filename='photo/default_profile.png') }}">
+                        <input type="hidden" id="target_profile_img" value="{{ target_user.profile_img_url | profile_img if target_user else url_for('static', filename='photo/default_profile.png') }}">
 
                         <div id="chat-box" class="flex-grow-1 border rounded p-3 mb-3 bg-light overflow-auto" style="height: 480px;"></div>
 
@@ -189,11 +189,9 @@ const DEFAULT_SVG = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/
 const senderElem = document.getElementById('sender_id');
 const currentUserId = senderElem ? senderElem.value : "{{ current_uid }}";
 
-// SocketIO 접속 시 유저 ID 쿼리로 전달
 const socket = io({ query: { user_id: currentUserId } });
 let currentConvId = null;
 
-// 15초 주기 하트비트 발송
 setInterval(() => {
     if (currentUserId) {
         socket.emit('heartbeat', { user_id: currentUserId });
@@ -207,18 +205,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// 실시간 상태 변화 수신 이벤트
 socket.on('presence_change', (data) => {
     const userId = String(data.user_id);
-
-    // 본인의 상태 변경 이벤트는 무시하고 항상 온라인 상태 유지
     if (userId === String(currentUserId)) return;
 
     const isOnline = (data.status === 'online');
     const targetInput = document.getElementById('target_id');
     const currentTargetId = targetInput ? String(targetInput.value) : null;
 
-    // 1. 대화창 상단 헤더 상대방 상태 업데이트
     if (currentTargetId && userId === currentTargetId) {
         const headerDot = document.getElementById('chat-header-dot');
         const headerText = document.getElementById('chat-header-text');
@@ -228,7 +222,6 @@ socket.on('presence_change', (data) => {
         }
     }
 
-    // 2. 좌측 최근 대화 및 전체 유저 목록 상태 업데이트
     ['left-recent', 'left-all'].forEach(prefix => {
         const dot = document.getElementById(`${prefix}-dot-${userId}`);
         const text = document.getElementById(`${prefix}-text-${userId}`);
@@ -310,6 +303,32 @@ function sendMessage() {
     });
 
     textInput.value = '';
+}
+
+// 대화방 나가기 함수
+async function leaveConversation(targetId) {
+    if (!confirm("정말 이 대화방에서 나가지시겠습니까?\n나간 대화는 최근 대화 목록에서 제거됩니다.")) {
+        return;
+    }
+
+    try {
+        const res = await fetch('/dm/leave', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target_id: targetId })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            alert("대화방에서 나갔습니다.");
+            window.location.href = "{{ url_for('dm.user_list') }}";
+        } else {
+            alert(data.error || "대화방 나가기에 실패했습니다.");
+        }
+    } catch (error) {
+        console.error("대화 나가기 오류:", error);
+        alert("오류가 발생했습니다.");
+    }
 }
 
 socket.on('receive_message', function(msg) {
