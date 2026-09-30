@@ -439,38 +439,6 @@ def delete_comment(comment_id):
 
 
 # =========================================================
-# 댓글 수정
-# =========================================================
-
-@reels_bp.route(
-    '/comment/<int:comment_id>/edit',
-    methods=['POST']
-)
-def edit_comment(comment_id):
-
-    if 'user_id' not in session:
-        return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
-
-    comment = Comments.query.get_or_404(
-        comment_id
-    )
-
-    if comment.user_id != session['user_id']:
-        return jsonify({'success': False, 'message': '권한이 없습니다.'}), 403
-
-    form = CommentsForm()
-
-    if form.validate_on_submit():
-
-        comment.content = form.content.data
-
-        db.session.commit()
-
-        return jsonify({'success': True, 'content': comment.content})
-    return jsonify({'success': False, 'message': '댓글 내용을 확인해주세요.'}), 400
-
-
-# =========================================================
 # 좋아요
 # =========================================================
 
