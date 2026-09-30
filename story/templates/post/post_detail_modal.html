@@ -146,7 +146,7 @@
 
                     <!-- 댓글 입력 폼 -->
                     <div class="mt-auto comment-input-box p-2 border-top">
-                        <form id="detailCommentForm" action="" method="post" class="d-flex align-items-center" onsubmit="handleDetailCommentSubmit(event)">
+                        <form id="detailCommentForm" action="" method="post" class="d-flex align-items-center">
                             <input type="text" id="detailCommentInput" name="content" class="form-control comment-input me-2" placeholder="댓글 달기..." required autocomplete="off">
                             <button type="submit" class="btn btn-link text-primary fw-bold p-0 text-decoration-none small" style="width: 40px;">게시</button>
                         </form>
@@ -183,190 +183,152 @@
 </div>
 
 <script>
-    // 피드 페이지는 post_list.html에서 상세 모달 이벤트와 Bootstrap 인스턴스를
-    // 관리한다. 마이페이지에는 피드용 .btn-open-detail 버튼이 없으므로 여기서
-    // 마이페이지의 인라인 onclick 흐름에 맞춰 옵션 메뉴 동작을 연결한다.
-    // 이 include는 Bootstrap 스크립트보다 먼저 렌더링되므로 DOMContentLoaded까지
-    // 초기화를 미뤄야 bootstrap.Modal을 사용할 수 있다.
-    document.addEventListener('DOMContentLoaded', function () {
-    if (!document.querySelector('.btn-open-detail')) {
-        const postDetailModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('postDetailModal'));
-        const postOptionModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('postOptionModal'));
-        const deleteConfirmModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteConfirmModal'));
+(() => {
+    const currentUserId = {{ session.get('user_id', 0) }};
+    let activePostId = null;
+    let detailSwiper = null;
 
-    document.querySelectorAll('.btn-open-detail').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const postId = this.getAttribute('data-post-id');
-                currentActivePostId = postId;
-                const card = document.getElementById(`post-card-${postId}`);
+    const byId = (id) => document.getElementById(id);
+    const modal = (id) => bootstrap.Modal.getOrCreateInstance(byId(id));
+    const detailModal = () => modal('postDetailModal');
+    const optionModal = () => modal('postOptionModal');
+    const deleteModal = () => modal('deleteConfirmModal');
 
-                const postUserName = card.getAttribute('data-user-name');
-                const postUserImg = card.getAttribute('data-user-img');
+    function postCard(id) { return byId(`post-card-${id}`); }
+    function cardRaw(card, selector) { return card.querySelector(`.raw-post-data ${selector}`) || card.querySelector(selector); }
+    function setAvatar(imgId, iconId, src) {
+        const img = byId(imgId), icon = byId(iconId);
+        if (src) { img.src = src; img.classList.remove('d-none'); icon.classList.add('d-none'); }
+        else { img.classList.add('d-none'); icon.classList.remove('d-none'); }
+    }
 
-                document.getElementById('detailModalUser').textContent = postUserName;
-                document.getElementById('detailModalCaptionUser').textContent = postUserName;
-
-                // [본인 확인] 작성자와 로그인 사용자가 같을 때만 (...) 노출
-                const btnPostMoreOption = document.getElementById('btnPostMoreOption');
-                if (postUserName === currentUsername) {
-                    btnPostMoreOption.classList.remove('d-none');
-                } else {
-                    btnPostMoreOption.classList.add('d-none');
-                }
-
-                // 프로필 이미지 세팅
-                const modalUserImgElem = document.getElementById('detailModalUserImg');
-                const modalUserIconElem = document.getElementById('detailModalUserIcon');
-                const captionUserImgElem = document.getElementById('detailModalCaptionUserImg');
-                const captionUserIconElem = document.getElementById('detailModalCaptionUserIcon');
-
-                if (postUserImg) {
-                    modalUserImgElem.src = postUserImg;
-                    modalUserImgElem.classList.remove('d-none');
-                    modalUserIconElem.classList.add('d-none');
-
-                    captionUserImgElem.src = postUserImg;
-                    captionUserImgElem.classList.remove('d-none');
-                    captionUserIconElem.classList.add('d-none');
-                } else {
-                    modalUserImgElem.classList.add('d-none');
-                    modalUserIconElem.classList.remove('d-none');
-
-                    captionUserImgElem.classList.add('d-none');
-                    captionUserIconElem.classList.remove('d-none');
-                }
-
-                const caption = card.querySelector('.post-caption-text').textContent;
-                const rawImages = card.querySelector('.raw-images').textContent.trim();
-                const commentItems = card.querySelectorAll('.raw-comments .comment-item');
-
-                document.getElementById('detailCommentForm').setAttribute('data-post-id', postId);
-                document.getElementById('detailModalCaption').textContent = caption;
-                document.getElementById('detailModalCaption').classList.remove('d-none');
-                document.getElementById('captionEditBox').classList.add('d-none');
-
-                // 이미지 Swiper 반영
-                const wrapper = document.getElementById('modalDetailSwiperWrapper');
-                wrapper.innerHTML = '';
-
-                if (rawImages) {
-                    const imgList = rawImages.split(',');
-                    imgList.forEach(src => {
-                        const slide = document.createElement('div');
-                        slide.className = 'swiper-slide';
-                        slide.innerHTML = `<img src="${src}" alt="게시물 이미지">`;
-                        wrapper.appendChild(slide);
-                    });
-
-                    if (modalDetailSwiperInstance) modalDetailSwiperInstance.destroy();
-
-                    setTimeout(() => {
-                        const nextBtn = document.querySelector('#modalDetailSwiper .swiper-button-next');
-                        const prevBtn = document.querySelector('#modalDetailSwiper .swiper-button-prev');
-                        const pagination = document.querySelector('#modalDetailSwiper .swiper-pagination');
-
-                        const modalSwiperOptions = { observer: true, observeParents: true };
-
-                        if (imgList.length > 1) {
-                            modalSwiperOptions.navigation = { nextEl: '#modalDetailSwiper .swiper-button-next', prevEl: '#modalDetailSwiper .swiper-button-prev' };
-                            modalSwiperOptions.pagination = { el: '#modalDetailSwiper .swiper-pagination', clickable: true };
-                            if (nextBtn) nextBtn.style.display = '';
-                            if (prevBtn) prevBtn.style.display = '';
-                            if (pagination) pagination.style.display = '';
-                        } else {
-                            if (nextBtn) nextBtn.style.display = 'none';
-                            if (prevBtn) prevBtn.style.display = 'none';
-                            if (pagination) pagination.style.display = 'none';
-                        }
-
-                        modalDetailSwiperInstance = new Swiper('#modalDetailSwiper', modalSwiperOptions);
-                    }, 100);
-                }
-
-                renderModalComments(commentItems);
-                postDetailModal.show();
-            });
-        });
-
-        // 더보기 아이콘 클릭 -> 더보기 옵션 모달 열기
-        document.getElementById('btnPostMoreOption').addEventListener('click', function() {
-            postOptionModal.show();
-        });
-
-        // 옵션 모달 -> 삭제버튼 클릭
-        document.getElementById('btnOptDeletePost').addEventListener('click', function() {
-            postOptionModal.hide();
-            deleteConfirmModal.show();
-        });
-
-        // 최종 삭제 확인 -> AJAX 삭제 처리
-        document.getElementById('btnConfirmDeletePost').addEventListener('click', function() {
-            if (!currentActivePostId) return;
-
-            fetch(`/post/delete/${currentActivePostId}`, { method: 'POST' })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    deleteConfirmModal.hide();
-                    postDetailModal.hide();
-
-                    // DOM에서 삭제된 게시물 카드 제거
-                    const card = document.getElementById(`post-card-${currentActivePostId}`);
-                    if (card) (card.closest('.col-6, .col-md-4') || card).remove();
-                } else {
-                    alert(data.message || '삭제 실패');
-                }
-            });
-        });
-
-        // 옵션 모달 -> 수정버튼 클릭
-        document.getElementById('btnOptEditPost').addEventListener('click', function() {
-            postOptionModal.hide();
-            const currentCaption = document.getElementById('detailModalCaption').textContent;
-
-            document.getElementById('captionEditText').value = currentCaption;
-            document.getElementById('detailModalCaption').classList.add('d-none');
-            document.getElementById('captionEditBox').classList.remove('d-none');
-        });
-
-        // 문구 수정 저장 처리
-        document.getElementById('btnSaveCaptionEdit').addEventListener('click', function() {
-            const newCaption = document.getElementById('captionEditText').value;
-            const formData = new FormData();
-            formData.append('caption', newCaption);
-
-            fetch(`/post/edit/${currentActivePostId}`, {
-                method: 'POST',
-                body: formData
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById('detailModalCaption').textContent = data.caption;
-                    document.getElementById('detailModalCaption').classList.remove('d-none');
-                    document.getElementById('captionEditBox').classList.add('d-none');
-
-                    // 피드 메인 카드 문구도 업데이트
-                    const card = document.getElementById(`post-card-${currentActivePostId}`);
-                    if (card) {
-                        const captionText = card.querySelector('.post-caption-text');
-                        if (captionText) captionText.textContent = data.caption;
-                        const rawCaption = card.querySelector('.raw-caption');
-                        if (rawCaption) rawCaption.textContent = data.caption;
-                        const captionDisplay = card.parentElement.querySelector('.raw-caption-display');
-                        if (captionDisplay) captionDisplay.textContent = data.caption;
-                    }
-                } else {
-                    alert(data.message || '수정 실패');
-                }
-            });
-        });
-
-        // 문구 수정 취소
-        document.getElementById('btnCancelCaptionEdit').addEventListener('click', function() {
-            document.getElementById('detailModalCaption').classList.remove('d-none');
-            document.getElementById('captionEditBox').classList.add('d-none');
+    function renderComments(card) {
+        const list = byId('detailModalCommentList');
+        list.replaceChildren();
+        const items = cardRaw(card, '.raw-comments')?.querySelectorAll('.comment-item') || [];
+        if (!items.length) {
+            list.innerHTML = '<p class="text-muted small text-center my-4">아직 댓글이 없습니다.</p>';
+            return;
+        }
+        items.forEach(item => {
+            const id = item.dataset.commentId;
+            const name = item.dataset.userName || '';
+            const image = item.dataset.userImg || '';
+            const userId = Number(item.dataset.userId || 0);
+            const row = document.createElement('div');
+            row.className = 'd-flex mb-2 align-items-start justify-content-between comment-item';
+            row.id = `comment-item-${id || ''}`;
+            const content = document.createElement('div');
+            content.className = 'd-flex align-items-start gap-2 flex-grow-1 me-2';
+            if (image) {
+                const avatar = document.createElement('img'); avatar.src = image;
+                avatar.className = 'rounded-circle'; avatar.width = 28; avatar.height = 28; avatar.style.objectFit = 'cover'; content.append(avatar);
+            } else {
+                const avatar = document.createElement('i'); avatar.className = 'bi bi-person-circle fs-6 text-secondary'; content.append(avatar);
+            }
+            const body = document.createElement('div'); body.className = 'w-100';
+            const author = document.createElement('span'); author.className = 'fw-bold me-1 small'; author.textContent = name;
+            const text = document.createElement('span'); text.className = 'small comment-content-text'; text.textContent = item.textContent.trim();
+            body.append(author, text); content.append(body); row.append(content);
+            if (id && userId === currentUserId) {
+                const actions = document.createElement('div');
+                const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'btn btn-link btn-sm p-0'; edit.textContent = '수정'; edit.dataset.action = 'edit-comment'; edit.dataset.commentId = id;
+                actions.append(edit); row.append(actions);
+            }
+            list.append(row);
         });
     }
+
+    function openPostDetailModal(postId) {
+        activePostId = Number(postId);
+        const card = postCard(activePostId);
+        if (!card) return;
+        const userName = card.dataset.userName || '';
+        const userImage = card.dataset.userImg || '';
+        const userId = Number(card.dataset.userId || 0);
+        const captionNode = cardRaw(card, '.raw-caption') || card.querySelector('.post-caption-text');
+        const caption = captionNode?.textContent.trim() || '';
+        const images = cardRaw(card, '.raw-images')?.textContent.trim() || '';
+        byId('detailModalUser').textContent = userName;
+        byId('detailModalCaptionUser').textContent = userName;
+        byId('detailModalCaption').textContent = caption;
+        byId('detailModalCaption').classList.remove('d-none');
+        byId('captionEditBox').classList.add('d-none');
+        byId('captionEditText').value = caption;
+        byId('btnPostMoreOption').classList.toggle('d-none', userId !== currentUserId);
+        setAvatar('detailModalUserImg', 'detailModalUserIcon', userImage);
+        setAvatar('detailModalCaptionUserImg', 'detailModalCaptionUserIcon', userImage);
+        const wrapper = byId('modalDetailSwiperWrapper'); wrapper.replaceChildren();
+        const imageList = images ? images.split(',').map(x => x.trim()).filter(Boolean) : [];
+        imageList.forEach(src => {
+            const slide = document.createElement('div'); slide.className = 'swiper-slide';
+            const image = document.createElement('img'); image.src = src; image.alt = '게시물 이미지'; slide.append(image); wrapper.append(slide);
+        });
+        if (detailSwiper) detailSwiper.destroy(true, true);
+        detailSwiper = new Swiper('#modalDetailSwiper', {
+            observer: true, observeParents: true,
+            navigation: imageList.length > 1 ? { nextEl: '#modalDetailSwiper .swiper-button-next', prevEl: '#modalDetailSwiper .swiper-button-prev' } : undefined,
+            pagination: imageList.length > 1 ? { el: '#modalDetailSwiper .swiper-pagination', clickable: true } : undefined
+        });
+        document.querySelectorAll('#modalDetailSwiper .swiper-button-next, #modalDetailSwiper .swiper-button-prev, #modalDetailSwiper .swiper-pagination').forEach(el => { el.style.display = imageList.length > 1 ? '' : 'none'; });
+        const form = byId('detailCommentForm'); form.dataset.postId = activePostId;
+        renderComments(card);
+        detailModal().show();
+    }
+    window.openPostDetailModal = openPostDetailModal;
+
+    function updateCardCaption(card, caption) {
+        const raw = cardRaw(card, '.raw-caption'); if (raw) raw.textContent = caption;
+        const feed = card.querySelector('.post-caption-text'); if (feed) feed.textContent = caption;
+        const display = card.parentElement.querySelector('.raw-caption-display'); if (display) display.textContent = caption;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.btn-open-detail').forEach(button => button.addEventListener('click', () => openPostDetailModal(button.dataset.postId)));
+        byId('btnPostMoreOption').addEventListener('click', () => optionModal().show());
+        byId('btnOptDeletePost').addEventListener('click', () => { optionModal().hide(); deleteModal().show(); });
+        byId('btnOptEditPost').addEventListener('click', () => {
+            optionModal().hide(); byId('captionEditText').value = byId('detailModalCaption').textContent;
+            byId('detailModalCaption').classList.add('d-none'); byId('captionEditBox').classList.remove('d-none');
+        });
+        byId('btnCancelCaptionEdit').addEventListener('click', () => { byId('detailModalCaption').classList.remove('d-none'); byId('captionEditBox').classList.add('d-none'); });
+        byId('btnSaveCaptionEdit').addEventListener('click', async () => {
+            const body = new FormData(); body.append('caption', byId('captionEditText').value);
+            const response = await fetch(`/post/edit/${activePostId}`, { method: 'POST', body }); const data = await response.json();
+            if (!data.success) { alert(data.message || '수정 실패'); return; }
+            byId('detailModalCaption').textContent = data.caption; byId('detailModalCaption').classList.remove('d-none'); byId('captionEditBox').classList.add('d-none');
+            const card = postCard(activePostId); if (card) updateCardCaption(card, data.caption);
+        });
+        byId('btnConfirmDeletePost').addEventListener('click', async () => {
+            if (!activePostId) return;
+            const response = await fetch(`/post/delete/${activePostId}`, { method: 'POST' }); const data = await response.json();
+            if (!data.success) { alert(data.message || '삭제 실패'); return; }
+            deleteModal().hide(); detailModal().hide();
+            const card = postCard(activePostId); if (card) (card.closest('.col-6, .col-md-3') || card).remove();
+        });
+        byId('detailCommentForm').addEventListener('submit', async event => {
+            event.preventDefault();
+            const input = byId('detailCommentInput'); const content = input.value.trim(); if (!content || !activePostId) return;
+            const body = new FormData(); body.append('content', content);
+            const response = await fetch(`/post/comment/${activePostId}`, { method: 'POST', body }); const data = await response.json();
+            if (!data.success) { alert(data.message || '댓글 등록 실패'); return; }
+            const card = postCard(activePostId); const raw = cardRaw(card, '.raw-comments');
+            const item = document.createElement('div'); item.className = 'comment-item'; item.dataset.commentId = data.comment.id; item.dataset.userId = data.comment.user_id;
+            item.dataset.userName = data.comment.user_name; item.dataset.userImg = data.comment.profile_img_url; item.textContent = data.comment.content; raw.append(item);
+            card.querySelectorAll('.comment-count-text').forEach(el => el.textContent = data.comment_count);
+            input.value = ''; renderComments(card);
+        });
+        byId('detailModalCommentList').addEventListener('click', async event => {
+            const button = event.target.closest('[data-action="edit-comment"]'); if (!button) return;
+            const commentId = button.dataset.commentId; const row = button.closest('.comment-item');
+            const original = row.querySelector('.comment-content-text').textContent;
+            const next = prompt('댓글을 수정하세요.', original); if (next === null || !next.trim()) return;
+            const body = new FormData(); body.append('content', next.trim());
+            const response = await fetch(`/post/comment/edit/${commentId}`, { method: 'POST', body }); const data = await response.json();
+            if (!data.success) { alert(data.message || '댓글 수정 실패'); return; }
+            const raw = postCard(activePostId); const rawItem = raw.querySelector(`.raw-comments [data-comment-id="${commentId}"]`);
+            if (rawItem) rawItem.textContent = next.trim(); renderComments(raw);
+        });
     });
+})();
 </script>
