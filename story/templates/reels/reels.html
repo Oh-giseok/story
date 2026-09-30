@@ -1,3 +1,4 @@
+
 {% extends 'base.html' %}
 {% block title %}릴스 | Story{% endblock %}
 {% block head %}
@@ -5,6 +6,7 @@
 .reels-feed{max-width:520px;margin:auto}.reel-card{background:#fff;border:1px solid #dee2e6;border-radius:.6rem;overflow:hidden;margin-bottom:1.5rem}.reel-media{display:block;width:100%;aspect-ratio:1/1;background:#000;position:relative}.reel-media video{width:100%;height:100%;object-fit:contain}.reel-owner{min-width:0}.reel-owner img{width:36px;height:36px;object-fit:cover}.reel-owner-link{color:inherit;text-decoration:none}.reel-modal-dialog{max-width:1000px}.reel-modal-content{height:min(82vh,760px);overflow:hidden}.reel-modal-media{background:#000;min-height:0}.reel-modal-media video{width:100%;height:100%;max-height:82vh;object-fit:contain}.reel-comments{min-height:0;overflow:auto}.comment-row{overflow-wrap:anywhere}.ellipsis-menu{z-index:5}@media(max-width:767.98px){.reels-feed{padding:0 .5rem}.reel-modal-dialog{margin:0;max-width:none;height:100%}.reel-modal-content{height:100dvh;border:0;border-radius:0}.reel-modal-body{display:flex!important;flex-direction:column!important;padding:0!important}.reel-modal-media{height:48dvh;flex:none}.reel-modal-media video{max-height:48dvh}.reel-detail-panel{flex:1;min-height:0}.reel-comments{flex:1}.modal-header{padding:.7rem 1rem}}
 </style>
 {% endblock %}
+
 {% block content %}
 <div class="reels-feed">
  <header class="d-flex justify-content-between align-items-center mb-4"><h1 class="h3 mb-0">릴스</h1><a class="btn btn-primary" href="{{ url_for('reels.upload') }}">릴스 업로드</a></header>
@@ -18,7 +20,7 @@
    </a><time class="small text-secondary">{{ reel.created_at|time_ago }}</time>
   </div>
   <a href="{{ url_for('reels.detail_reel',reel_id=reel.id) }}" class="reel-media reel-open" data-reel-id="{{ reel.id }}" aria-label="릴스 상세 보기">
-   <video muted playsinline preload="metadata""><source src="{{ url_for('reels.uploaded_file',filename='videos/' + reel.video_url.replace('\\','/').split('/')[-1]) }}"></video>
+   <video muted playsinline loop preload="metadata" class="reel-video"><source src="{{ url_for('reels.uploaded_file',filename='videos/' + reel.video_url.replace('\\','/').split('/')[-1]) }}"></video>
   </a>
   <div class="p-3">
    <div class="d-flex gap-3 align-items-center mb-2"><button class="btn btn-link p-0 fs-3 text-decoration-none like-button" data-reel-id="{{ reel.id }}" aria-label="좋아요">{% if reel.id in liked_reels %}<span class="text-danger">♥</span>{% else %}♡{% endif %}</button><button class="btn btn-link p-0 fs-4 text-dark" data-reel-id="{{ reel.id }}" onclick="openReel({{ reel.id }})" aria-label="댓글"><i class="bi bi-chat"></i></button><span class="small">댓글 <span class="comment-count">{{ comments_by_reel.get(reel.id,[])|length }}</span></span></div>
@@ -27,40 +29,363 @@
    <button class="btn btn-link p-0 mt-2 text-secondary text-decoration-none reel-open" data-reel-id="{{ reel.id }}">댓글 {{ comments_by_reel.get(reel.id,[])|length }}개 모두 보기</button>
   </div>
  </article>
- {% else %}<div class="text-center text-secondary py-5">아직 등록된 릴스가 없습니다.</div>{% endfor %}
+ {% else %}
+ <div class="text-center text-secondary py-5">아직 등록된 릴스가 없습니다.</div>
+ {% endfor %}
 </div>
 
-<div class="modal fade" id="reelDetailModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered reel-modal-dialog"><div class="modal-content reel-modal-content"><div class="modal-body reel-modal-body d-flex p-0">
- <div class="col-md-7 reel-modal-media d-flex align-items-center justify-content-center"><video id="detailVideo" controls playsinline></video></div>
- <section class="col-md-5 d-flex flex-column reel-detail-panel">
-  <header class="modal-header"><a id="detailOwnerLink" class="reel-owner-link fw-semibold" href="{{ url_for('auth.mypage') }}"></a><div class="ms-auto d-flex align-items-center"><div class="dropdown" id="ownerMenu" hidden><button class="btn btn-link text-dark" data-bs-toggle="dropdown" aria-label="릴스 메뉴"><i class="bi bi-three-dots fs-5"></i></button><ul class="dropdown-menu dropdown-menu-end"><li><button class="dropdown-item" id="editReelButton">수정</button></li><li><button class="dropdown-item text-danger" id="deleteReelButton">삭제</button></li><li><button class="dropdown-item" data-bs-dismiss="modal">취소</button></li></ul></div><button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="닫기"></button></div></header>
-  <div class="reel-comments p-3" id="detailComments"></div>
-  <div class="border-top p-3"><button class="btn btn-link p-0 text-decoration-none like-button" id="detailLike">♡</button> <strong>좋아요 <span id="detailLikeCount">0</span>개</strong><div id="detailCaption" class="mt-2"></div></div>
-  <form id="commentForm" class="border-top p-3 d-flex gap-2"><input type="hidden" name="csrf_token" value="{{ form.csrf_token.current_token }}"><input class="form-control" name="content" maxlength="500" placeholder="댓글 달기..." required><button class="btn btn-link text-primary fw-semibold">게시</button></form>
- </section>
-</div></div></div></div>
-<div class="modal fade" id="confirmDeleteModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">릴스 삭제</h5><button class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button></div><div class="modal-body">정말 이 릴스를 삭제하시겠습니까?</div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">취소</button><button class="btn btn-danger" id="confirmDelete">삭제</button></div></div></div></div>
-<div class="modal fade" id="editReelModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form id="editReelForm" method="post" enctype="multipart/form-data"><div class="modal-header"><h5 class="modal-title">릴스 수정</h5><button class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button></div><div class="modal-body"><input type="hidden" name="csrf_token" value="{{ form.csrf_token.current_token }}"><label class="form-label">영상 (선택)</label><input class="form-control mb-3" type="file" name="video_url" accept="video/*"><label class="form-label">썸네일 (선택)</label><input class="form-control mb-3" type="file" name="thumbnail" accept="image/*"><label class="form-label">캡션</label><textarea class="form-control" name="caption" id="editCaption" rows="4" required></textarea></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button><button class="btn btn-primary">저장</button></div></form></div></div></div></div>
-<div class="modal fade" id="commentActionModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">댓글</h5><button class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button></div><div class="modal-body"><textarea id="editCommentText" class="form-control" rows="3"></textarea><div id="commentDeletePrompt" hidden>정말 삭제하시겠습니까?</div></div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">취소</button><button class="btn btn-primary" id="saveComment">수정</button><button class="btn btn-danger" id="confirmCommentDelete" hidden>삭제</button></div></div></div></div></div>
+<div class="modal fade" id="reelDetailModal" tabindex="-1" aria-hidden="true">
+ <div class="modal-dialog modal-dialog-centered reel-modal-dialog">
+  <div class="modal-content reel-modal-content">
+   <div class="modal-body reel-modal-body d-flex p-0">
+    <div class="col-md-7 reel-modal-media d-flex align-items-center justify-content-center">
+     <video id="detailVideo" controls playsinline></video>
+    </div>
+    <section class="col-md-5 d-flex flex-column reel-detail-panel">
+     <header class="modal-header">
+      <a id="detailOwnerLink" class="reel-owner-link d-flex align-items-center gap-2 fw-semibold" href="{{ url_for('auth.mypage') }}">
+       <img id="detailOwnerImage" class="rounded-circle" src="" alt="" width="36" height="36" style="object-fit: cover;">
+       <span id="detailOwnerName"></span>
+      </a>
+      <div class="ms-auto d-flex align-items-center">
+       <div class="dropdown" id="ownerMenu" hidden>
+        <button class="btn btn-link text-dark" data-bs-toggle="dropdown" aria-label="릴스 메뉴"><i class="bi bi-three-dots fs-5"></i></button>
+        <ul class="dropdown-menu dropdown-menu-end">
+         <li><button class="dropdown-item" id="editReelButton">수정</button></li>
+         <li><button class="dropdown-item text-danger" id="deleteReelButton">삭제</button></li>
+         <li><button class="dropdown-item" data-bs-dismiss="modal">취소</button></li>
+        </ul>
+       </div>
+       <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="닫기"></button>
+      </div>
+     </header>
+
+     <div class="reel-comments p-3" id="detailComments"></div>
+
+     <div class="border-top p-3">
+      <button class="btn btn-link p-0 text-decoration-none like-button" id="detailLike">♡</button>
+      <strong>좋아요 <span id="detailLikeCount">0</span>개</strong>
+      <div id="detailCaption" class="mt-2"></div>
+     </div>
+
+     <form id="commentForm" class="border-top p-3 d-flex gap-2">
+      <input type="hidden" name="csrf_token" value="{{ form.csrf_token.current_token }}">
+      <input class="form-control" name="content" maxlength="500" placeholder="댓글 달기..." required>
+      <button class="btn btn-link text-primary fw-semibold">게시</button>
+     </form>
+    </section>
+   </div>
+  </div>
+ </div>
+</div>
+
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1">
+ <div class="modal-dialog modal-dialog-centered modal-sm">
+  <div class="modal-content">
+   <div class="modal-header"><h5 class="modal-title">릴스 삭제</h5><button class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button></div>
+   <div class="modal-body">정말 이 릴스를 삭제하시겠습니까?</div>
+   <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">취소</button><button class="btn btn-danger" id="confirmDelete">삭제</button></div>
+  </div>
+ </div>
+</div>
+
+<div class="modal fade" id="editReelModal" tabindex="-1">
+ <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-content">
+   <form id="editReelForm" method="post" enctype="multipart/form-data">
+    <div class="modal-header"><h5 class="modal-title">릴스 수정</h5><button class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button></div>
+    <div class="modal-body">
+     <input type="hidden" name="csrf_token" value="{{ form.csrf_token.current_token }}">
+     <label class="form-label">영상 (선택)</label>
+     <input class="form-control mb-3" type="file" name="video_url" accept="video/*">
+     <label class="form-label">썸네일 (선택)</label>
+     <input class="form-control mb-3" type="file" name="thumbnail" accept="image/*">
+     <label class="form-label">캡션</label>
+     <textarea class="form-control" name="caption" id="editCaption" rows="4" required></textarea>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button><button class="btn btn-primary">저장</button></div>
+   </form>
+  </div>
+ </div>
+</div>
 {% endblock %}
+
 {% block script %}
 <script>
-const csrfToken={{ form.csrf_token.current_token|tojson }};let activeReel=null,activeComment=null,activeDetail=null;
+const csrfToken={{ form.csrf_token.current_token|tojson }};
+let activeReel=null,activeComment=null,activeDetail=null;
 const detailModal=new bootstrap.Modal(document.getElementById('reelDetailModal'));
-function syncCounts(id,likes,comments){const card=document.querySelector(`[data-reel-id="${id}"].reel-card`);if(card){card.querySelector('.like-count').textContent=likes;card.querySelectorAll('.comment-count').forEach(e=>e.textContent=comments);card.querySelectorAll('.reel-open').forEach(e=>{if(e.tagName==='BUTTON')e.textContent=`댓글 ${comments}개 모두 보기`})}document.getElementById('detailLikeCount').textContent=likes}
-function updateLikeUI(id,liked,count){document.querySelectorAll(`.like-button[data-reel-id="${id}"],#detailLike`).forEach(b=>{b.innerHTML=liked?'<span class="text-danger">♥</span>':'♡';b.setAttribute('aria-pressed',liked)});document.querySelectorAll(`[data-reel-id="${id}"].reel-card .like-count`).forEach(e=>e.textContent=count);document.getElementById('detailLikeCount').textContent=count}
-async function api(url,body={}){const response=await fetch(url,{method:'POST',headers:{'X-CSRFToken':csrfToken,'X-Requested-With':'XMLHttpRequest','Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(body)});const data=await response.json().catch(()=>({message:'요청을 처리하지 못했습니다.'}));if(!response.ok)throw Error(data.message||'요청 실패');return data}
-async function openReel(id){activeReel=id;try{const data=await fetch(`/reels/${id}/detail?fragment=1`).then(r=>r.json());activeDetail=data;document.getElementById('detailVideo').src=data.video;document.getElementById('detailOwnerLink').textContent=data.username;document.getElementById('detailOwnerLink').href=`{{ url_for('auth.mypage') }}${data.owner?'':'?user_id='+data.user_id}`;document.getElementById('detailCaption').textContent=data.caption;document.getElementById('ownerMenu').hidden=!data.owner;document.getElementById('editCaption').value=data.caption;updateLikeUI(id,data.liked,data.likes);renderComments(data);detailModal.show()}catch(e){alert(e.message)}}
-function renderComments(data){const box=document.getElementById('detailComments');box.replaceChildren();if(!data.comments.length){box.innerHTML='<div class="text-center text-secondary py-4" id="noComments">아직 댓글이 없습니다.</div>';return}for(const c of data.comments){const row=document.createElement('div');row.className='comment-row d-flex gap-2 mb-3';const text=document.createElement('div');text.className='flex-grow-1';const name=document.createElement('strong');name.textContent=c.username+' ';const content=document.createElement('span');content.textContent=c.content;text.append(name,content);row.append(text);if(c.user_id===data.current_user_id){const menu=document.createElement('div');menu.className='dropdown';menu.innerHTML='<button class="btn btn-sm btn-link text-secondary p-0" data-bs-toggle="dropdown" aria-label="댓글 메뉴"><i class="bi bi-three-dots-vertical"></i></button><ul class="dropdown-menu dropdown-menu-end"><li><button class="dropdown-item" data-action="edit">수정</button></li><li><button class="dropdown-item text-danger" data-action="delete">삭제</button></li><li><button class="dropdown-item" data-action="cancel">취소</button></li></ul>';menu.querySelector('[data-action="edit"]').onclick=()=>commentAction(c,'edit');menu.querySelector('[data-action="delete"]').onclick=()=>commentAction(c,'delete');menu.querySelector('[data-action="cancel"]').onclick=()=>{};row.append(menu)}box.append(row)} }
-function commentAction(c,mode){activeComment=c;const del=mode==='delete';document.getElementById('editCommentText').hidden=del;document.getElementById('commentDeletePrompt').hidden=!del;document.getElementById('saveComment').hidden=del;document.getElementById('confirmCommentDelete').hidden=!del;document.getElementById('editCommentText').value=c.content;new bootstrap.Modal(document.getElementById('commentActionModal')).show()}
-document.querySelectorAll('.reel-open').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();openReel(b.dataset.reelId)}));
-document.querySelectorAll('.like-button').forEach(b=>b.addEventListener('click',async()=>{const id=b.dataset.reelId||activeReel;try{const d=await api(`/reels/${id}/like`);updateLikeUI(id,d.liked,d.like_count);if(activeDetail&&Number(id)===Number(activeReel)){activeDetail.likes=d.like_count;activeDetail.liked=d.liked}}catch(e){alert(e.message)}}));
-document.getElementById('commentForm').addEventListener('submit',async e=>{e.preventDefault();const input=e.currentTarget.elements.content;try{await api(`/reels/${activeReel}/comment`,{content:input.value,csrf_token:csrfToken});input.value='';const data=await fetch(`/reels/${activeReel}/detail?fragment=1`).then(r=>r.json());activeDetail=data;renderComments(data);syncCounts(activeReel,data.likes,data.comments.length)}catch(e){alert(e.message)}});
-document.getElementById('saveComment').onclick=async()=>{try{const d=await api(`/reels/comment/${activeComment.id}/edit`,{content:document.getElementById('editCommentText').value,csrf_token:csrfToken});activeComment.content=d.content;activeDetail.comments.find(c=>c.id===activeComment.id).content=d.content;renderComments(activeDetail);bootstrap.Modal.getInstance(document.getElementById('commentActionModal')).hide()}catch(e){alert(e.message)}};
-document.getElementById('confirmCommentDelete').onclick=async()=>{try{await api(`/reels/comment/${activeComment.id}/delete`,{csrf_token:csrfToken});activeDetail.comments=activeDetail.comments.filter(c=>c.id!==activeComment.id);renderComments(activeDetail);syncCounts(activeReel,activeDetail.likes,activeDetail.comments.length);bootstrap.Modal.getInstance(document.getElementById('commentActionModal')).hide()}catch(e){alert(e.message)}};
-document.getElementById('editReelButton').onclick=()=>{document.getElementById('editReelForm').action=`/reels/${activeReel}/edit`;document.getElementById('reelDetailModal').addEventListener('hidden.bs.modal',()=>new bootstrap.Modal(document.getElementById('editReelModal')).show(),{once:true});bootstrap.Modal.getInstance(document.getElementById('reelDetailModal')).hide()};
-document.getElementById('deleteReelButton').onclick=()=>new bootstrap.Modal(document.getElementById('confirmDeleteModal')).show();
-document.getElementById('confirmDelete').onclick=async()=>{try{await api(`/reels/${activeReel}/delete`,{csrf_token:csrfToken});location.reload()}catch(e){alert(e.message)}};
-document.getElementById('reelDetailModal').addEventListener('hidden.bs.modal',()=>{const v=document.getElementById('detailVideo');v.pause();v.removeAttribute('src');v.load()});
+
+function syncCounts(id,likes,comments){
+    const card=document.querySelector(`[data-reel-id="${id}"].reel-card`);
+    if(card){
+        card.querySelector('.like-count').textContent=likes;
+        card.querySelectorAll('.comment-count').forEach(e=>e.textContent=comments);
+        card.querySelectorAll('.reel-open').forEach(e=>{
+            if(e.tagName==='BUTTON') e.textContent=`댓글 ${comments}개 모두 보기`;
+        });
+    }
+    document.getElementById('detailLikeCount').textContent=likes;
+}
+
+function updateLikeUI(id,liked,count){
+    document.querySelectorAll(`.like-button[data-reel-id="${id}"],#detailLike`).forEach(b=>{
+        b.innerHTML=liked?'<span class="text-danger">♥</span>':'♡';
+        b.setAttribute('aria-pressed',liked);
+    });
+    document.querySelectorAll(`[data-reel-id="${id}"].reel-card .like-count`).forEach(e=>e.textContent=count);
+    document.getElementById('detailLikeCount').textContent=count;
+}
+
+async function api(url,body={}){
+    const response=await fetch(url,{
+        method:'POST',
+        headers:{
+            'X-CSRFToken':csrfToken,
+            'X-Requested-With':'XMLHttpRequest',
+            'Content-Type':'application/x-www-form-urlencoded'
+        },
+        body:new URLSearchParams(body)
+    });
+    const data=await response.json().catch(()=>({message:'요청을 처리하지 못했습니다.'}));
+    if(!response.ok) throw Error(data.message||'요청 실패');
+    return data;
+}
+
+async function openReel(id){
+    activeReel=id;
+
+    document.querySelectorAll('.reel-video').forEach(video=>{
+        video.pause();
+    });
+
+    try{
+        const data=await fetch(`/reels/${id}/detail?fragment=1`).then(r=>r.json());
+        activeDetail=data;
+
+        const detailVideo=document.getElementById('detailVideo');
+
+        detailVideo.pause();
+        detailVideo.src=data.video;
+        detailVideo.muted=true;
+        detailVideo.setAttribute('muted','');
+        detailVideo.setAttribute('playsinline','');
+        detailVideo.load();
+
+        document.getElementById('detailOwnerName').textContent=data.username;
+
+        document.getElementById('detailOwnerLink').href=
+            `{{ url_for('auth.mypage') }}${data.owner ? '' : '?user_id=' + data.user_id}`;
+
+        const ownerImage=document.getElementById('detailOwnerImage');
+
+        if(data.profile){
+            ownerImage.src=`{{ url_for('static', filename='') }}${data.profile}`;
+            ownerImage.style.display='';
+        }else{
+            ownerImage.style.display='none';
+        }
+
+        document.getElementById('detailCaption').textContent=data.caption;
+        document.getElementById('ownerMenu').hidden=!data.owner;
+        document.getElementById('editCaption').value=data.caption;
+
+        updateLikeUI(id,data.liked,data.likes);
+        renderComments(data);
+
+        detailModal.show();
+
+        document.getElementById('reelDetailModal').addEventListener(
+            'shown.bs.modal',
+            function(){
+                detailVideo.play().catch(error=>{
+                    console.log('상세 영상 자동재생 실패:',error);
+                });
+            },
+            {once:true}
+        );
+    }catch(e){
+        alert(e.message);
+    }
+}
+
+function renderComments(data){
+    const box=document.getElementById('detailComments');
+    box.replaceChildren();
+
+    if(!data.comments.length){
+        box.innerHTML='<div class="text-center text-secondary py-4" id="noComments">아직 댓글이 없습니다.</div>';
+        return;
+    }
+
+    for(const c of data.comments){
+        const row=document.createElement('div');
+        row.className='comment-row d-flex gap-2 mb-3';
+
+        const text=document.createElement('div');
+        text.className='flex-grow-1';
+
+        const name=document.createElement('strong');
+        name.textContent=c.username+' ';
+
+        const content=document.createElement('span');
+        content.textContent=c.content;
+
+        text.append(name,content);
+        row.append(text);
+
+        if(c.user_id===data.current_user_id){
+            const menu=document.createElement('div');
+            menu.className='dropdown';
+
+            menu.innerHTML='<button class="btn btn-sm btn-link text-secondary p-0" data-bs-toggle="dropdown" aria-label="댓글 메뉴"><i class="bi bi-three-dots-vertical"></i></button><ul class="dropdown-menu dropdown-menu-end"><li><button class="dropdown-item text-danger" data-action="delete">삭제</button></li><li><button class="dropdown-item" data-action="cancel">취소</button></li></ul>';
+
+            menu.querySelector('[data-action="delete"]').onclick=()=>deleteComment(c);
+
+            row.append(menu);
+        }
+
+        box.append(row);
+    }
+}
+
+async function deleteComment(comment){
+    activeComment=comment;
+
+    if(!confirm('정말 삭제하시겠습니까?')){
+        return;
+    }
+
+    try{
+        await api(`/reels/comment/${comment.id}/delete`,{
+            csrf_token:csrfToken
+        });
+
+        activeDetail.comments=activeDetail.comments.filter(
+            c=>c.id!==comment.id
+        );
+
+        renderComments(activeDetail);
+
+        syncCounts(
+            activeReel,
+            activeDetail.likes,
+            activeDetail.comments.length
+        );
+    }catch(e){
+        alert(e.message);
+    }
+}
+
+document.querySelectorAll('.reel-open').forEach(b=>{
+    b.addEventListener('click',e=>{
+        e.preventDefault();
+        openReel(b.dataset.reelId);
+    });
+});
+
+document.querySelectorAll('.like-button').forEach(b=>{
+    b.addEventListener('click',async()=>{
+        const id=b.dataset.reelId||activeReel;
+
+        try{
+            const d=await api(`/reels/${id}/like`);
+            updateLikeUI(id,d.liked,d.like_count);
+
+            if(activeDetail&&Number(id)===Number(activeReel)){
+                activeDetail.likes=d.like_count;
+                activeDetail.liked=d.liked;
+            }
+        }catch(e){
+            alert(e.message);
+        }
+    });
+});
+
+document.getElementById('commentForm').addEventListener('submit',async e=>{
+    e.preventDefault();
+
+    const input=e.currentTarget.elements.content;
+
+    try{
+        await api(`/reels/${activeReel}/comment`,{
+            content:input.value,
+            csrf_token:csrfToken
+        });
+
+        input.value='';
+
+        const data=await fetch(`/reels/${activeReel}/detail?fragment=1`).then(r=>r.json());
+
+        activeDetail=data;
+        renderComments(data);
+        syncCounts(activeReel,data.likes,data.comments.length);
+    }catch(e){
+        alert(e.message);
+    }
+});
+
+document.getElementById('editReelButton').onclick=()=>{
+    document.getElementById('editReelForm').action=`/reels/${activeReel}/edit`;
+
+    document.getElementById('reelDetailModal').addEventListener(
+        'hidden.bs.modal',
+        ()=>new bootstrap.Modal(document.getElementById('editReelModal')).show(),
+        {once:true}
+    );
+
+    bootstrap.Modal.getInstance(
+        document.getElementById('reelDetailModal')
+    ).hide();
+};
+
+document.getElementById('deleteReelButton').onclick=()=>{
+    new bootstrap.Modal(document.getElementById('confirmDeleteModal')).show();
+};
+
+document.getElementById('confirmDelete').onclick=async()=>{
+    try{
+        await api(`/reels/${activeReel}/delete`,{
+            csrf_token:csrfToken
+        });
+
+        location.reload();
+    }catch(e){
+        alert(e.message);
+    }
+};
+
+document.getElementById('reelDetailModal').addEventListener(
+    'hidden.bs.modal',
+    ()=>{
+        const v=document.getElementById('detailVideo');
+        v.pause();
+        v.removeAttribute('src');
+        v.load();
+    }
+);
+
+const reelObserver=new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+        const video=entry.target;
+
+        if(entry.isIntersecting){
+            video.muted=true;
+
+            video.play().catch(error=>{
+                console.log('릴스 자동재생 실패:',error);
+            });
+        }else{
+            video.pause();
+        }
+    });
+},{
+    threshold:0.6
+});
+
+document.querySelectorAll('.reel-video').forEach(video=>{
+    reelObserver.observe(video);
+});
 </script>
 {% endblock %}
+```
