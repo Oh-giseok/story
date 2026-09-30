@@ -108,7 +108,6 @@ def signup():
             db.session.add(user)
             db.session.commit()
 
-            # 💡 main 블루프린트의 index 라우트로 리다이렉트
             return redirect(url_for('main.index'))
         else:
             flash('이미 존재하는 사용자입니다.')
@@ -135,8 +134,6 @@ def login():
             db.session.commit()
             error = '탈퇴 처리 기간이 지나 계정이 삭제되었습니다.'
         if error is None:
-            # A successful login restores inactive or pending accounts while the
-            # 10-day deletion deadline has not yet elapsed.
             user.status = 'active'
             user.deletion_requested_at = None
             user.last_activity_at = datetime.utcnow()
@@ -152,7 +149,6 @@ def login():
                 if not parsed_next_url.netloc and parsed_next_url.path.startswith('/'):
                     return redirect(next_url)
 
-            # 💡 main 블루프린트의 index 라우트로 리다이렉트
             return redirect(url_for('main.index'))
         flash(error)
     return render_template('auth/login.html', form=form)
@@ -160,7 +156,6 @@ def login():
 
 @bp.route('/find_info', methods=['GET', 'POST'])
 def find_info():
-    # Use Flask-WTF's CSRF validation for both recovery actions.
     from flask_wtf import FlaskForm
 
     form = FlaskForm()
@@ -205,16 +200,13 @@ def find_info():
 def logout():
     logout_user()
     session.clear()
-    # 💡 main 블루프린트의 index 라우트로 리다이렉트
     return redirect(url_for('main.index'))
 
 
-# 회원정보 수정
 @bp.route('/profile_edit', methods=['GET', 'POST'])
 def profile_edit():
     form = ProfileEditForm()
 
-    # 처음 페이지에 들어왔을 때 기존 정보 표시
     if request.method == 'GET':
         form.username.data = g.user.username
         form.name.data = g.user.name
@@ -223,8 +215,6 @@ def profile_edit():
         form.intro.data = g.user.intro
 
     if form.validate_on_submit():
-
-        # 입력한 값만 수정
         if form.username.data:
             user = User.query.filter(
                 User.username == form.username.data,
@@ -272,8 +262,6 @@ def profile_edit():
         db.session.commit()
 
         flash('회원정보가 수정되었습니다.')
-
-        # 💡 기존 post._list에서 main.index로 변경
         return redirect(url_for('main.index'))
 
     return render_template(
@@ -282,7 +270,6 @@ def profile_edit():
     )
 
 
-# 마이페이지
 @bp.route('/mypage')
 def mypage():
     from flask_wtf import FlaskForm
@@ -301,23 +288,20 @@ def mypage():
     ).all()} if reel_comments else {}
     stories = Story.query.filter_by(user_id=g.user.id).order_by(Story.create_date.desc()).all()
 
-    account_form = FlaskForm()
-
+    # account_form은 인스턴스 객체로 전달해야 하므로 괄호 없이 FlaskForm() 전달
     return render_template(
         'auth/mypage.html',
         user=g.user,
         posts=posts,
         reels=reels,
         stories=stories,
-        account_form=account_form
-                     ('auth/mypage.html', user=g.user, posts=posts, reels=reels, stories=stories,
         reel_comments_by_id=reel_comments_by_id,
         reel_comment_users=reel_comment_users,
         account_form=FlaskForm()
     )
 
 
-@bp.route('/deactivate', methods=['POST']))
+@bp.route('/deactivate', methods=['POST'])
 def deactivate():
     from flask_wtf import FlaskForm
     form = FlaskForm()

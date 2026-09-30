@@ -3,9 +3,6 @@
 {% block title %}메시지{% endblock %}
 
 {% block content %}
-<!-- 인라인 기본 프로필 SVG Data URI 정의 -->
-{% set default_svg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 16 16' fill='%236c757d'><path d='M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z'/><path fill-rule='evenodd' d='M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z'/></svg>" %}
-
 <style>
     /* 온라인/오프라인 표시 동그라미 스타일 */
     .status-dot {
@@ -50,12 +47,18 @@
                         {% for item in active_chat_users %}
                             {% set is_self_recent = (item.user.id == current_uid) %}
                             {% set is_online_recent = is_self_recent or item.user.is_online %}
+
                             <a href="{{ url_for('dm.user_list', target_id=item.user.id) }}"
                                class="list-group-item list-group-item-action border-0 rounded mb-1 d-flex justify-content-between align-items-center py-2 {% if target_id == item.user.id %}active bg-light text-dark fw-bold{% endif %}">
                                 <div class="d-flex align-items-center text-truncate">
-                                    <img src="{{ item.user.profile_img_url | profile_img }}"
-                                         onerror="this.onerror=null; this.src='{{ default_svg }}';"
-                                         class="rounded-circle me-2 flex-shrink-0" width="40" height="40" style="object-fit: cover;">
+                                    {% if item.user.profile_img_url %}
+                                        <img src="{{ item.user.profile_img_url | profile_img }}"
+                                             onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';"
+                                             class="rounded-circle me-2 flex-shrink-0" width="40" height="40" style="object-fit: cover;">
+                                        <i class="bi bi-person-circle text-secondary fs-3 me-2 flex-shrink-0" style="display: none;"></i>
+                                    {% else %}
+                                        <i class="bi bi-person-circle text-secondary fs-3 me-2 flex-shrink-0"></i>
+                                    {% endif %}
                                     <div class="text-truncate">
                                         <div class="small text-dark d-flex align-items-center">
                                             <span class="status-dot {{ 'online' if is_online_recent else 'offline' }}" id="left-recent-dot-{{ item.user.id }}"></span>
@@ -91,12 +94,18 @@
                         {% for user in all_users %}
                             {% set is_self_all = (user.id == current_uid) %}
                             {% set is_online_all = is_self_all or user.is_online %}
+
                             <a href="{{ url_for('dm.user_list', target_id=user.id) }}"
                                class="list-group-item list-group-item-action border-0 rounded mb-1 d-flex align-items-center justify-content-between py-2 px-1">
                                 <div class="d-flex align-items-center">
-                                    <img src="{{ user.profile_img_url | profile_img }}"
-                                         onerror="this.onerror=null; this.src='{{ default_svg }}';"
-                                         class="rounded-circle me-2 flex-shrink-0" width="36" height="36" style="object-fit: cover;">
+                                    {% if user.profile_img_url %}
+                                        <img src="{{ user.profile_img_url | profile_img }}"
+                                             onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';"
+                                             class="rounded-circle me-2 flex-shrink-0" width="36" height="36" style="object-fit: cover;">
+                                        <i class="bi bi-person-circle text-secondary fs-4 me-2 flex-shrink-0" style="display: none;"></i>
+                                    {% else %}
+                                        <i class="bi bi-person-circle text-secondary fs-4 me-2 flex-shrink-0"></i>
+                                    {% endif %}
                                     <div>
                                         <div class="small fw-bold text-dark d-flex align-items-center">
                                             <span class="status-dot {{ 'online' if is_online_all else 'offline' }}" id="left-all-dot-{{ user.id }}"></span>
@@ -128,9 +137,14 @@
 
                     <div class="d-flex align-items-center">
                         {% if target_user %}
-                            <img src="{{ target_user.profile_img_url | profile_img }}"
-                                 onerror="this.onerror=null; this.src='{{ default_svg }}';"
-                                 class="rounded-circle me-2" width="36" height="36" style="object-fit: cover;">
+                            {% if target_user.profile_img_url %}
+                                <img src="{{ target_user.profile_img_url | profile_img }}"
+                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';"
+                                     class="rounded-circle me-2" width="36" height="36" style="object-fit: cover;">
+                                <i class="bi bi-person-circle text-secondary fs-4 me-2" style="display: none;"></i>
+                            {% else %}
+                                <i class="bi bi-person-circle text-secondary fs-4 me-2"></i>
+                            {% endif %}
                         {% endif %}
                         <h5 class="mb-0 fw-bold d-flex align-items-center">
                             {% if target_name %}
@@ -160,7 +174,6 @@
                     {% if target_id %}
                         <input type="hidden" id="sender_id" value="{{ current_uid if current_uid else 1 }}">
                         <input type="hidden" id="target_id" value="{{ target_id }}">
-                        <input type="hidden" id="target_profile_img" value="{{ target_user.profile_img_url | profile_img if target_user else url_for('static', filename='photo/default_profile.png') }}">
 
                         <div id="chat-box" class="flex-grow-1 border rounded p-3 mb-3 bg-light overflow-auto" style="height: 480px;"></div>
 
@@ -184,8 +197,6 @@
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
-const DEFAULT_SVG = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 16 16' fill='%236c757d'><path d='M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z'/><path fill-rule='evenodd' d='M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z'/></svg>";
-
 const senderElem = document.getElementById('sender_id');
 const currentUserId = senderElem ? senderElem.value : "{{ current_uid }}";
 
@@ -353,8 +364,7 @@ function appendMessage(msg) {
     const chatBox = document.getElementById('chat-box');
     if (!chatBox) return;
 
-    const currentUserId = parseInt(document.getElementById('sender_id').value);
-    const targetProfileImg = document.getElementById('target_profile_img') ? document.getElementById('target_profile_img').value : '';
+    const currentUserId = parseInt(senderElem ? senderElem.value : 0);
     const isMe = msg.sender_id === currentUserId;
 
     const div = document.createElement('div');
@@ -368,9 +378,7 @@ function appendMessage(msg) {
         div.innerHTML = `${unreadBadge}<div class="p-2 rounded bg-primary text-white" style="max-width:70%;"><strong>나:</strong> ${escapeHtml(msg.text)} <br><small class="text-white-50" style="font-size:0.75rem;">${msg.created_at}</small></div>`;
     } else {
         div.innerHTML = `
-            <img src="${targetProfileImg}"
-                 onerror="this.onerror=null; this.src='${DEFAULT_SVG}';"
-                 class="rounded-circle me-2 flex-shrink-0 align-self-start" width="36" height="36" style="object-fit: cover;">
+            <i class="bi bi-person-circle text-secondary fs-4 me-2 flex-shrink-0 align-self-start"></i>
             <div class="p-2 rounded bg-white border" style="max-width:70%;">
                 <strong>상대방:</strong> ${escapeHtml(msg.text)} <br>
                 <small class="text-muted" style="font-size:0.75rem;">${msg.created_at}</small>
