@@ -127,9 +127,37 @@
     <section id="reels-content" class="row g-3 mt-2" hidden>
         {% for reel in reels %}
         <div class="col-6 col-md-3">
-            <img src="{{ reel.thumbnail_url if reel.thumbnail_url.startswith('http') else url_for('static', filename=reel.thumbnail_url.lstrip('/').removeprefix('static/')) }}"
-                 alt="릴스 썸네일" class="w-100 rounded" style="aspect-ratio: 1; object-fit: cover; cursor: pointer;">
-            {% if reels.caption %}<p class="small mt-1 mb-0">{{ reels.caption }}</p>{% endif %}
+            <div class="post-card position-relative overflow-hidden rounded" style="cursor: pointer;"
+                 onclick="openReelDetailModal({{ reel.id }})" id="reel-card-{{ reel.id }}"
+                 data-user-name="{{ reel.user_id == user.id and user.username or '' }}"
+                 data-user-img="{{ url_for('static', filename=user.profile_img_url) if user.profile_img_url else '' }}">
+                {% set thumbnail_img_url = reel.thumbnail_img_url or '' %}
+                {% set normalized_thumbnail_path = thumbnail_img_url.replace('\\', '/') %}
+                {% set thumbnail = normalized_thumbnail_path.split('/')[-1] %}
+                {% if thumbnail_img_url.startswith('http') %}
+                    {% set thumbnail_src = thumbnail_img_url %}
+                {% elif '/static/' in normalized_thumbnail_path %}
+                    {% set thumbnail_src = url_for('static', filename=normalized_thumbnail_path.split('/static/', 1)[1]) %}
+                {% else %}
+                    {% set thumbnail_src = url_for('reels.uploaded_file', filename='thumbnails/' + thumbnail) %}
+                {% endif %}
+                <img src="{{ thumbnail_src }}"
+                     alt="릴스 썸네일" class="w-100 rounded" style="aspect-ratio: 1; object-fit: cover;">
+                <div class="post-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center text-white bg-dark bg-opacity-25 opacity-0 hover-opacity-100 transition-all">
+                    <i class="bi bi-chat-fill me-2"></i> {{ reel_comments_by_id.get(reel.id, [])|length }}
+                </div>
+                <div class="d-none raw-reel-data">
+                    <div class="raw-caption">{{ reel.caption or '' }}</div>
+                    <div class="raw-video">{{ url_for('reels.uploaded_file', filename='videos/' + reel.video_url.replace('\\', '/').split('/')[-1]) }}</div>
+                    <div class="raw-comments">
+                        {% for comment in reel_comments_by_id.get(reel.id, []) %}
+                        {% set comment_user = reel_comment_users.get(comment.user_id) %}
+                        <div class="comment-item" data-user-name="{{ comment_user.username if comment_user else '' }}"
+                             data-user-img="{{ url_for('static', filename=comment_user.profile_img_url) if comment_user and comment_user.profile_img_url else '' }}">{{ comment.content }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
         </div>
         {% else %}<p class="text-muted text-center py-4">등록한 릴스가 없습니다.</p>{% endfor %}
     </section>
@@ -162,6 +190,5 @@
         selectedButton.classList.add('border-bottom', 'border-dark', 'fw-bold');
         selectedButton.setAttribute('aria-selected', 'true');
     }
-
 </script>
 {% endblock %}

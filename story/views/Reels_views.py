@@ -393,12 +393,18 @@ def add_comment(reel_id):
 
         # AJAX 요청이면 JSON으로 응답
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            user = User.query.get(comment.user_id)
             return jsonify({
                 'success': True,
                 'comment_id': comment.id,
                 'content': comment.content,
                 'user_id': comment.user_id,
-                'username': User.query.get(comment.user_id).username
+                'username': user.username if user else '',
+                'comment': {
+                    'user_name': user.username if user else '',
+                    'profile_img_url': url_for('static', filename=user.profile_img_url) if user and user.profile_img_url else '',
+                    'content': comment.content,
+                },
             })
 
     # AJAX 요청인데 폼 검증에 실패한 경우
