@@ -1,75 +1,124 @@
 {% extends 'base.html' %}
 
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='story/story_style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='story/story_style.css') }}">
 {% endblock %}
 
 {% block content %}
 
-<div class="container my-3">
-    <!-- 스토리 제목 -->
-    <h2 class="border-bottom py-2">{{ story.user.username }}님의 스토리</h2>
+    <!-- 인스타 스타일 전체 스토리 Wrapper  -->
+    <div class="story-viewer-wrapper">
 
-    <!-- 스토리 카드 본문 -->
-    <div class="story-detail-card">
-
-        <!-- 작성자 정보 -->
-        <div class="story-detail-user">
-
-            <div class="story-detail-profile">
-                {% if story.media_url %}
-                <img src="{{ url_for('static', filename=story.media_url) }}"
-                     alt="스토리 이미지">
+        <!-- 이전 스토리 대기 카드 -->
+        {% if prev_story %}
+            <a href="{{ url_for('story.detail', story_id=prev_story.id) }}" class="story-adjacent-card prev-card">
+                {% if prev_story.media_url %}
+                    <img src="{{ url_for('static', filename=prev_story.media_url) }}" alt="이전 스토리 이미지"
+                         class="adjacent-img">
+                {% else %}
+                    <p>이전 스토리</p>
                 {% endif %}
+            </a>
+        {% else %}
+            <div class="story-adjacent-card prev-card" style="visibility: hidden;"></div>
+        {% endif %}
+
+        <!-- 가운데 현재 스토리 박스 -->
+        <div class="story-viewer">
+
+            <!-- 상단 스토리 게이지 바 영역 -->
+            <div class="story-progress-bar-container">
+                <div class="story-progress-bar-track">
+                    <div class="story-progress-bar-fill"></div>
+                </div>
             </div>
 
-            <div>
-                <div class="story-detail-username">
-                    {{ story.user.username }}
+            <!-- 스토리 닫기 -->
+            <a href="{{ url_for('story.story_list') }}" class="story-viewer-close">×</a>
+
+            <!-- 작성자 정보 -->
+            <div class="story-viewer-user">
+
+                {% if story.user.profile_img_url %}
+                    <img src="{{ url_for('static', filename=story.user.profile_img_url) }}"
+                         alt="프로필 이미지"
+                         class="story-viewer-profile">
+                {% else %}
+                    <div class="story-viewer-profile-default">
+                        <i class="bi bi-person-fill"></i>
+                    </div>
+                {% endif %}
+
+                <div style="display: flex; align-items: center; gap: 6px;">
+                        <!-- 1. 작성자 아이디 -->
+                        <span class="story-viewer-username" style="font-size: 14px; font-weight: 600; color: #ffffff;">
+                            {{ story.user.username }}
+                        </span>
+
+                        <!-- 인증 배지  -->
+                        {% if story.user.username == 'test1' %}
+                            <i class="bi bi-check-circle-fill"
+                               style="color: #ffffff; border-radius: 50%; padding: 1px; font-size: 11px;
+                               display: inline-flex; align-items: center; justify-content: center; width: 14px;
+                               height: 14px; flex-shrink: 0;"></i>
+                        {% endif %}
+
+                        <!-- 3. 작성 시간  -->
+                        <span class="story-viewer-time"
+                               style="font-size: 12px; color: #ffffff; margin-left: 0px ;
+                               display: block; opacity: 0.85;">
+
+                            {{ story.create_date | time_ago }}
+                        </span>
+                    </div>
+
                 </div>
 
-                <div class="story-detail-time">
-                    {{ story.create_date | time_ago }}
+            <!-- 스토리 이미지 -->
+            {% if story.media_url %}
+                <div class="story-viewer-image">
+                    <img src="{{ url_for('static', filename=story.media_url) }}"
+                         alt="스토리 이미지">
                 </div>
-            </div>
+            {% endif %}
+
+            <!-- 스토리 문구 -->
+            {% if story.caption %}
+                <div class="story-viewer-caption">
+                    {{ story.caption }}
+                </div>
+            {% endif %}
+
+            <!-- 수정/삭제 -->
+            {% if g.user and g.user.id == story.user_id %}
+                <div class="story-viewer-buttons">
+
+                    <a href="{{ url_for('story.modify', story_id=story.id) }}"
+                       class="btn btn-sm btn-primary">수정</a>
+
+                    <a href="{{ url_for('story.delete', story_id=story.id) }}"
+                       class="btn btn-sm btn-danger"
+                       onclick="return confirm('정말 삭제하시겠습니까?');">삭제</a>
+
+                </div>
+            {% endif %}
 
         </div>
 
-        <!-- 스토리 이미지 -->
-        {% if story.media_url %}
-        <div class="story-detail-image">
-            <img src="{{ url_for('static', filename=story.media_url) }}"
-                 alt="스토리 이미지">
-        </div>
+        <!-- 다음 스토리 대기 카드 -->
+        {% if next_story %}
+            <a href="{{ url_for('story.detail', story_id=next_story.id) }}" class="story-adjacent-card next-card">
+                {% if next_story.media_url %}
+                    <img src="{{ url_for('static', filename=next_story.media_url) }}" alt="다음 스토리 이미지"
+                         class="adjacent-img">
+                {% else %}
+                    <p>다음 스토리</p>
+                {% endif %}
+            </a>
+        {% else %}
+            <div class="story-adjacent-card next-card" style="visibility: hidden;"></div>
         {% endif %}
-
-        <!-- 스토리 내용 -->
-        {% if story.caption %}
-        <div class="story-detail-caption">
-            {{ story.caption }}
-        </div>
-        {% endif %}
-
-        <!-- 수정 버튼 -->
-        {% if g.user and g.user.id == story.user_id %}
-        <div class="story-detail-buttons">
-            <a href="{{ url_for('story.modify', story_id=story.id) }}"
-               class="btn btn-sm btn-primary">수정</a>
-
-            <!-- 삭제 버튼 -->
-            <a href="{{ url_for('story.delete', story_id=story.id) }}"
-               class="btn btn-sm btn-danger"
-               onclick="return confirm('정말 삭제하시겠습니까?');">삭제</a>
-        </div>
-        {% endif %}
-
-        <!-- 목록으로 이동 버튼 -->
-        <div class="story-detail-list">
-            <a href="{{ url_for('story.story_list') }}"
-               class="btn btn-sm btn-outline-secondary">목록으로</a>
-        </div>
 
     </div>
 
-</div>
 {% endblock %}

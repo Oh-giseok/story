@@ -1,42 +1,42 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container my-3">
+    <div class="container my-3">
 
-    <h5 class="my-3 border-bottom pb-2">
-        {% if story %}스토리 수정{% else %}새 스토리 업로드{% endif %}
-    </h5>
+        <h5 class="my-3 border-bottom pb-2">
+            {% if story %}스토리 수정{% else %}새 스토리 업로드{% endif %}
+        </h5>
 
-    <form method="post" class="my-3" novalidate enctype="multipart/form-data">
+        <form method="post" class="my-3" novalidate enctype="multipart/form-data">
 
-        <!-- 브라우저에 있는 csrf_token 확인 -->
-        {{ form.csrf_token }}
-        {% include 'form_errors.html' %}
+            <!-- 브라우저에 있는 csrf_token 확인 -->
+            {{ form.csrf_token }}
+            {% include 'form_errors.html' %}
 
-        <!-- 1. 스토리 이미지 선택 필드  -->
-        {{ form.image.label }}
+            <!-- 1. 스토리 이미지 선택 필드  -->
+            {{ form.image.label }}
 
-        {% if story and story.media_url %}
-        <div class="mb-3">
-            <img src="{{ url_for('static', filename=story.media_url) }}"
-                 alt="현재 스토리 이미지"
-                 style="max-width: 300px; height: auto;"
-                 class="img-thumbnail">
-        </div>
-        {% endif %}
+            {% if story and story.media_url %}
+                <div class="mb-3">
+                    <img src="{{ url_for('static', filename=story.media_url) }}"
+                         alt="현재 스토리 이미지"
+                         style="max-width: 300px; height: auto;"
+                         class="img-thumbnail">
+                </div>
+            {% endif %}
 
-        {{ form.image(class="form-control mb-3") }}
+            {{ form.image(class="form-control mb-3") }}
 
-        <!-- 2. 한 줄 설명 입력 필드  -->
-        {{ form.caption.label }}
-        {{ form.caption(class="form-control mb-3", rows="3") }}
+            <!-- 2. 한 줄 설명 입력 필드  -->
+            {{ form.caption.label }}
+            {{ form.caption(class="form-control mb-3", rows="3") }}
 
-        <!-- 3. 저장하기 버튼 -->
-        {{ form.submit(
+            <!-- 3. 저장하기 버튼 -->
+            {{ form.submit(
             class='btn btn-primary my-3',
             value='수정하기' if story else '스토리 등록'
         ) }}
 
-    </form>
-</div>
+        </form>
+    </div>
 {% endblock %}

@@ -25,7 +25,23 @@ def detail(story_id):
     if story.expires_at <= datetime.now():
         return redirect(url_for('story.story_list'))
 
-    return render_template('story/story_detail.html', story=story)
+    # 현재 유효한 모든 스토리 목록을 가져옵니다 (목록 정렬 기준과 동일하게 세팅)
+    now = datetime.now()
+    active_stories = Story.query.filter(Story.expires_at > now).order_by(Story.create_date.desc()).all()
+
+    prev_story = None
+    next_story = None
+
+    # 전체 목록을 돌면서 현재 스토리의 앞, 뒤에 있는 스토리를 찾습니다.
+    for i, s in enumerate(active_stories):
+        if s.id == story_id:
+            if i > 0:
+                prev_story = active_stories[i - 1]  # 리스트 상에서 이전에 위치한 스토리
+            if i < len(active_stories) - 1:
+                next_story = active_stories[i + 1]  # 리스트 상에서 다음에 위치한 스토리
+            break
+
+    return render_template('story/story_detail.html', story=story, prev_story=prev_story, next_story=next_story)
 
 
 # 스토리 생성/업로드 기능 (배우신 이미지 저장 로직 반영!)
