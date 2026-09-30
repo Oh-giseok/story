@@ -120,9 +120,37 @@
     <section id="reels-content" class="row g-3 mt-2" hidden>
         {% for reel in reels %}
         <div class="col-6 col-md-3">
-            <img src="{{ reel.thumbnail_url if reel.thumbnail_url.startswith('http') else url_for('static', filename=reel.thumbnail_url.lstrip('/').removeprefix('static/')) }}"
-                 alt="릴스 썸네일" class="w-100 rounded" style="aspect-ratio: 1; object-fit: cover; cursor: pointer;">
-            {% if reels.caption %}<p class="small mt-1 mb-0">{{ reels.caption }}</p>{% endif %}
+            <div class="post-card position-relative overflow-hidden rounded" style="cursor: pointer;"
+                 onclick="openReelDetailModal({{ reel.id }})" id="reel-card-{{ reel.id }}"
+                 data-user-name="{{ reel.user_id == user.id and user.username or '' }}"
+                 data-user-img="{{ url_for('static', filename=user.profile_img_url) if user.profile_img_url else '' }}">
+                {% set thumbnail_img_url = reel.thumbnail_img_url or '' %}
+                {% set normalized_thumbnail_path = thumbnail_img_url.replace('\\', '/') %}
+                {% set thumbnail = normalized_thumbnail_path.split('/')[-1] %}
+                {% if thumbnail_img_url.startswith('http') %}
+                    {% set thumbnail_src = thumbnail_img_url %}
+                {% elif '/static/' in normalized_thumbnail_path %}
+                    {% set thumbnail_src = url_for('static', filename=normalized_thumbnail_path.split('/static/', 1)[1]) %}
+                {% else %}
+                    {% set thumbnail_src = url_for('reels.uploaded_file', filename='thumbnails/' + thumbnail) %}
+                {% endif %}
+                <img src="{{ thumbnail_src }}"
+                     alt="릴스 썸네일" class="w-100 rounded" style="aspect-ratio: 1; object-fit: cover;">
+                <div class="post-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center text-white bg-dark bg-opacity-25 opacity-0 hover-opacity-100 transition-all">
+                    <i class="bi bi-chat-fill me-2"></i> {{ reel_comments_by_id.get(reel.id, [])|length }}
+                </div>
+                <div class="d-none raw-reel-data">
+                    <div class="raw-caption">{{ reel.caption or '' }}</div>
+                    <div class="raw-video">{{ url_for('reels.uploaded_file', filename='videos/' + reel.video_url.replace('\\', '/').split('/')[-1]) }}</div>
+                    <div class="raw-comments">
+                        {% for comment in reel_comments_by_id.get(reel.id, []) %}
+                        {% set comment_user = reel_comment_users.get(comment.user_id) %}
+                        <div class="comment-item" data-user-name="{{ comment_user.username if comment_user else '' }}"
+                             data-user-img="{{ url_for('static', filename=comment_user.profile_img_url) if comment_user and comment_user.profile_img_url else '' }}">{{ comment.content }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
         </div>
         {% else %}<p class="text-muted text-center py-4">등록한 릴스가 없습니다.</p>{% endfor %}
     </section>
@@ -131,7 +159,6 @@
         {% for story in stories %}
         <div class="col-6 col-md-3">
             {% if story.media_url %}<img src="{{ url_for('static', filename=story.media_url) }}" alt="스토리" class="w-100 rounded" style="aspect-ratio: 1; object-fit: cover;">{% endif %}
-            {% if story.caption %}<p class="small mt-1 mb-0">{{ story.caption }}</p>{% endif %}
         </div>
         {% else %}<p class="text-muted text-center py-4">등록한 스토리가 없습니다.</p>{% endfor %}
     </section>
@@ -145,9 +172,11 @@
 <script>
     let detailSwiperInstance = null;
     let currentActivePostId = null;
+    let currentActiveContentType = 'post';
 
     // 1. 모달 데이터 채우기 및 열기
     function openPostDetailModal(postId) {
+        currentActiveContentType = 'post';
         currentActivePostId = postId;
         const postCard = document.getElementById(`post-card-${postId}`);
         if (!postCard) return;
@@ -158,6 +187,8 @@
         const rawData = postCard.querySelector('.raw-post-data');
         const caption = rawData ? rawData.querySelector('.raw-caption').textContent : '';
         const rawImages = rawData ? rawData.querySelector('.raw-images').textContent.trim() : '';
+
+        document.getElementById('detailModalCaption').classList.remove('d-none');
 
         const commentForm = document.getElementById('detailCommentForm');
         if (commentForm) {
@@ -223,6 +254,35 @@
         }, { once: true });
     }
 
+    function openReelDetailModal(reelId) {
+        const reelCard = document.getElementById(`reel-card-${reelId}`);
+        if (!reelCard) return;
+        currentActivePostId = reelId;
+        currentActiveContentType = 'reel';
+        const rawData = reelCard.querySelector('.raw-reel-data');
+        const userName = reelCard.dataset.userName || '';
+        const userImg = reelCard.dataset.userImg || '';
+        const videoUrl = rawData.querySelector('.raw-video').textContent.trim();
+        document.getElementById('detailModalUser').textContent = userName;
+        document.getElementById('detailModalCaptionUser').textContent = userName;
+        document.getElementById('detailModalCaption').textContent = rawData.querySelector('.raw-caption').textContent;
+        const userImgEl = document.getElementById('detailModalUserImg');
+        const capUserImgEl = document.getElementById('detailModalCaptionUserImg');
+        const userIconEl = document.getElementById('detailModalUserIcon');
+        const capUserIconEl = document.getElementById('detailModalCaptionUserIcon');
+        [userImgEl, capUserImgEl].forEach(el => { if (userImg) { el.src = userImg; el.classList.remove('d-none'); } else el.classList.add('d-none'); });
+        userIconEl.classList.toggle('d-none', !!userImg);
+        capUserIconEl.classList.toggle('d-none', !!userImg);
+        const wrapper = document.getElementById('modalDetailSwiperWrapper');
+        wrapper.innerHTML = `<div class="swiper-slide"><video src="${videoUrl}" controls autoplay playsinline style="max-width:100%;max-height:100%"></video></div>`;
+        if (detailSwiperInstance) detailSwiperInstance.destroy(true, true);
+        detailSwiperInstance = new Swiper('#modalDetailSwiper', { loop: false });
+        renderComments(rawData);
+        const form = document.getElementById('detailCommentForm');
+        form.action = `{{ url_for('reels.add_comment', reel_id=0) }}`.replace('/0/', `/${reelId}/`);
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('postDetailModal')).show();
+    }
+
     // 댓글 목록 렌더링 함수
     function renderComments(rawData) {
         const commentListEl = document.getElementById('detailModalCommentList');
@@ -259,10 +319,13 @@
 
         if (!content || !currentActivePostId) return;
 
-        fetch(`/post/comment/${currentActivePostId}`, {
+        const commentUrl = currentActiveContentType === 'reel'
+            ? `/reels/${currentActivePostId}/comment`
+            : `/post/comment/${currentActivePostId}`;
+        fetch(commentUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({ 'content': content })
+            body: new URLSearchParams({ 'content': content }),
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' }
         })
         .then(response => response.json())
         .then(data => {
@@ -271,15 +334,17 @@
                 const commentListEl = document.getElementById('detailModalCommentList');
                 const commentEl = document.createElement('div');
                 commentEl.className = 'd-flex mb-2 align-items-start';
+                const commentData = data.comment || { user_name: '', content, profile_img_url: '' };
                 commentEl.innerHTML = `
-                    ${data.comment.profile_img_url
-                        ? `<img src="${data.comment.profile_img_url}" class="rounded-circle me-2" width="28" height="28" style="object-fit:cover;">`
+                    ${commentData.profile_img_url
+                        ? `<img src="${commentData.profile_img_url}" class="rounded-circle me-2" width="28" height="28" style="object-fit:cover;">`
                         : `<i class="bi bi-person-circle fs-6 me-2 text-secondary"></i>`}
                     <div>
-                        <span class="fw-bold me-1 small">${data.comment.user_name}</span>
-                        <span class="small">${data.comment.content}</span>
+                        <span class="fw-bold me-1 small">${commentData.user_name}</span>
+                        <span class="small"></span>
                     </div>
                 `;
+                commentEl.querySelector('.small:last-child').textContent = commentData.content;
                 commentListEl.appendChild(commentEl);
                 commentInput.value = ''; // 입력창 초기화
             } else {

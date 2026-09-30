@@ -292,17 +292,31 @@ def mypage():
 
     posts = Post.query.filter_by(user_id=g.user.id).order_by(Post.created_at.desc()).all()
     reels = Reels.query.filter_by(user_id=g.user.id).order_by(Reels.created_at.desc()).all()
+    reel_comments = Comments.query.filter(Comments.reel_id.in_([reel.id for reel in reels])).all() if reels else []
+    reel_comments_by_id = {}
+    for comment in reel_comments:
+        reel_comments_by_id.setdefault(comment.reel_id, []).append(comment)
+    reel_comment_users = {user.id: user for user in User.query.filter(
+        User.id.in_({comment.user_id for comment in reel_comments})
+    ).all()} if reel_comments else {}
     stories = Story.query.filter_by(user_id=g.user.id).order_by(Story.create_date.desc()).all()
 
     account_form = FlaskForm()
 
     return render_template(
+<<<<<<< HEAD
         'auth/mypage.html',
         user=g.user,
         posts=posts,
         reels=reels,
         stories=stories,
         account_form=account_form
+=======
+        'auth/mypage.html', user=g.user, posts=posts, reels=reels, stories=stories,
+        reel_comments_by_id=reel_comments_by_id,
+        reel_comment_users=reel_comment_users,
+        account_form=FlaskForm()
+>>>>>>> develop
     )
 
 
