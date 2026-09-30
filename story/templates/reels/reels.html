@@ -13,6 +13,269 @@
 .createReelModal .modal-dialog.caption-step{max-width:850px}
 .createReelModal .modal-dialog.caption-step .modal-content{width:100%;margin:0 auto}
 .createReelModal .modal-title{padding-left: 32px}
+/* =========================
+   릴스 기본 레이아웃
+   ========================= */
+
+.reels-feed {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.reel-card {
+    background: transparent;
+    border: 0;
+    margin-bottom: 40px;
+}
+
+.reel-layout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+}
+
+
+/* 왼쪽 회원정보 + 캡션 */
+
+.reel-info {
+    width: 260px;
+    flex: 0 0 260px;
+    align-self: center;
+}
+
+.reel-owner-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    color: inherit;
+    text-decoration: none;
+
+    margin-bottom: 16px;
+}
+
+.reel-owner-profile {
+    width: 42px;
+    height: 42px;
+    object-fit: cover;
+}
+
+.reel-owner-profile-icon {
+    font-size: 42px;
+    color: #adb5bd;
+}
+
+.reel-owner-name {
+    font-size: 15px;
+}
+
+.reel-caption {
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.reel-created-at {
+    display: block;
+    margin-top: 10px;
+
+    font-size: 12px;
+    color: #8b8b8b;
+}
+
+
+/* 가운데 릴스 프레임 */
+
+.reel-media {
+    display: block;
+
+    width: 360px;
+    height: 640px;
+
+    flex: 0 0 360px;
+
+    position: relative;
+
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+
+    text-decoration: none;
+
+}
+
+
+.reel-media video {
+    width: 100%;
+    height: 100%;
+
+    object-fit: contain;
+}
+
+
+/* 좋아요 / 댓글 */
+
+.reel-actions {
+    width: 60px;
+    flex: 0 0 60px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+
+}
+
+.reel-actions button {
+    color: #222;
+}
+
+.reel-actions .like-button {
+    color: #dc3545;
+}
+
+.reel-actions .like-count-text,
+.reel-actions .comment-count-text {
+    font-size: 13px;
+    font-weight: 600;
+
+    margin-bottom: 14px;
+}
+.reel-caption-wrap {
+    position: relative;
+}
+
+.reel-caption {
+    font-size: 14px;
+    line-height: 1.5;
+
+    overflow: hidden;
+
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* 캡션 더보기 버튼 */
+.reel-caption-more {
+    display: none;
+
+    padding: 0;
+    margin-top: 4px;
+
+    border: 0;
+    background: none;
+
+    color: #777;
+    font-size: 18px;
+    line-height: 1;
+
+    cursor: pointer;
+}
+
+/* 한 화면에 하나의 릴스 */
+body:has(.reels-feed) { overflow: hidden; }
+body:has(.reels-feed) main.py-4 { padding-top: 0 !important; padding-bottom: 0 !important; }
+.reels-feed {
+    width: 100%;
+    max-width: none;
+    height: calc(100dvh - 60px);
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scroll-snap-type: y mandatory;
+    scrollbar-width: none;
+}
+.reels-feed::-webkit-scrollbar { display: none; }
+.reel-card {
+    width: 100%;
+    height: 100%;
+    min-height: 480px;
+    margin: 0;
+    padding: 16px 24px;
+    display: grid;
+    place-items: center;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+}
+.reel-layout {
+    width: min(100%, 1040px);
+    height: 100%;
+    max-height: 720px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(16px, 3vw, 48px);
+}
+.reel-info, .reel-actions { transform: none; }
+.reel-info { width: auto; min-width: 0; flex: initial; }
+.reel-media {
+    width: min(360px, calc((100dvh - 100px) * 9 / 16));
+    height: auto;
+    aspect-ratio: 9 / 16;
+    flex: initial;
+    justify-self: center;
+    transform: none;
+}
+.reel-actions { width: auto; flex: initial; justify-self: start; }
+.reel-video { display: block; object-fit: contain; }
+.reel-caption { -webkit-line-clamp: 4; }
+.reel-detail-close { transform: none !important; }
+
+@media (min-width: 768px) and (max-width: 1100px) {
+    .reel-card { padding-inline: 16px; }
+    .reel-layout { grid-template-columns: minmax(130px, 1fr) minmax(300px, 360px) minmax(44px, .35fr); gap: 20px; }
+    .reel-media { width: min(100%, 360px, calc((100dvh - 100px) * 9 / 16)); height: auto; max-height: calc(100dvh - 100px); }
+    .reel-info { max-width: 250px; }
+}
+
+@media (max-width: 767.98px) {
+    body { padding-bottom: 60px !important; }
+    .reels-feed { height: calc(100dvh - 60px); }
+    .reel-card { min-height: 100%; height: 100%; padding: 8px 12px; }
+    .reel-layout {
+        width: min(100%, 430px);
+        max-height: none;
+        height: 100%;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-rows: minmax(0, 1fr) auto;
+        align-content: center;
+        align-items: end;
+        gap: 10px 12px;
+    }
+    .reel-media {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        width: min(100%, calc((100dvh - 220px) * 9 / 16));
+        height: auto;
+        max-height: calc(100dvh - 220px);
+        aspect-ratio: 9 / 16;
+        border-radius: 12px;
+        justify-self: center;
+    }
+    .reel-info { grid-column: 1; grid-row: 2; align-self: center; }
+    .reel-owner-info { margin-bottom: 6px; }
+    .reel-owner-profile { width: 34px; height: 34px; }
+    .reel-owner-profile-icon { font-size: 34px; }
+    .reel-caption { font-size: 13px; -webkit-line-clamp: 2; }
+    .reel-created-at { margin-top: 4px; }
+    .reel-actions {
+        grid-column: 2; grid-row: 2;
+        flex-direction: row; gap: 8px;
+        align-self: center; justify-self: end;
+    }
+    .reel-actions .like-count-text, .reel-actions .comment-count-text { margin: 0 4px 0 -6px; }
+    .reel-actions .bi { font-size: 1.25rem !important; }
+}
+
+@media (max-height: 650px) and (max-width: 767.98px) {
+    .reel-media { width: min(100%, calc((100dvh - 170px) * 9 / 16)); max-height: calc(100dvh - 170px); }
+}
 </style>
 {% endblock %}
 
@@ -21,29 +284,117 @@
  {% for reel in reels %}
  {% set owner=users.get(reel.user_id) %}
  <article class="reel-card" id="reel-{{ reel.id }}" data-reel-id="{{ reel.id }}">
-  <div class="d-flex align-items-center justify-content-between p-3">
-   <a class="reel-owner reel-owner-link d-flex align-items-center gap-2" href="{{ url_for('auth.mypage') }}{% if owner and owner.id != current_user_id %}?user_id={{ owner.id }}{% endif %}">
-    {% if owner and owner.profile_img_url %}<img class="rounded-circle" src="{{ url_for('static',filename=owner.profile_img_url) }}" alt="">{% else %}<i class="bi bi-person-circle fs-3 text-secondary"></i>{% endif %}
-    <strong>{{ owner.username if owner else '회원' }}</strong>
-   </a><time class="small text-secondary">{{ reel.created_at|time_ago }}</time>
-  </div>
-  <a href="{{ url_for('reels.detail_reel',reel_id=reel.id) }}" class="reel-media reel-open" data-reel-id="{{ reel.id }}" aria-label="릴스 상세 보기">
-   <video muted playsinline loop preload="metadata" class="reel-video"><source src="{{ url_for('reels.uploaded_file',filename='videos/' + reel.video_url.replace('\\','/').split('/')[-1]) }}"></video>
-  </a>
-  <div class="p-3">
-   <div class="d-flex align-items-center mb-2">
-    <button type="button" class="btn btn-link text-danger p-0 me-3 border-0 like-button" data-reel-id="{{ reel.id }}" aria-label="좋아요" aria-pressed="{{ 'true' if reel.id in liked_reels else 'false' }}">
-     {% if reel.id in liked_reels %}<i class="bi bi-heart-fill fs-5"></i>{% else %}<i class="bi bi-heart text-dark fs-5"></i>{% endif %}
+
+    <div class="reel-layout">
+
+        <!-- 왼쪽 : 회원 정보 + 캡션 -->
+        <div class="reel-info">
+
+            <a
+                class="reel-owner-link reel-owner-info"
+                href="{{ url_for('auth.mypage') }}{% if owner and owner.id != current_user_id %}?user_id={{ owner.id }}{% endif %}"
+            >
+                {% if owner and owner.profile_img_url %}
+                    <img
+                        class="reel-owner-profile rounded-circle"
+                        src="{{ url_for('static', filename=owner.profile_img_url) }}"
+                        alt=""
+                    >
+                {% else %}
+                    <i class="bi bi-person-circle reel-owner-profile-icon"></i>
+                {% endif %}
+
+                <strong class="reel-owner-name">
+                    {{ owner.username if owner else '회원' }}
+                </strong>
+            </a>
+
+            <div class="reel-caption-wrap">
+
+    <div class="reel-caption">
+        {{ reel.caption }}
+    </div>
+
+    <button
+        type="button"
+        class="reel-caption-more reel-open"
+        data-reel-id="{{ reel.id }}"
+    >
+        ⋯
     </button>
-    <button type="button" class="btn btn-link text-dark p-0 border-0 d-flex align-items-center reel-open" data-reel-id="{{ reel.id }}" aria-label="댓글">
-     <i class="bi bi-chat fs-5 me-1" aria-hidden="true"></i><span class="fw-bold small comment-count-text">{{ comments_by_reel.get(reel.id,[])|length }}</span>
-    </button>
-   </div>
-   <p class="fw-bold mb-1 small">좋아요 <span class="like-count-text">{{ like_counts.get(reel.id,0) }}</span>개</p>
-   <div class="mt-1 overflow-hidden"><a class="reel-owner-link fw-semibold" href="{{ url_for('auth.mypage') }}{% if owner and owner.id != current_user_id %}?user_id={{ owner.id }}{% endif %}">{{ owner.username if owner else '회원' }}</a> {{ reel.caption }}</div>
-   <button type="button" class="btn btn-link p-0 mt-2 text-secondary text-decoration-none reel-open-all reel-open" data-reel-id="{{ reel.id }}">댓글 <span class="comment-count-text">{{ comments_by_reel.get(reel.id,[])|length }}</span>개 모두 보기</button>
-  </div>
- </article>
+
+</div>
+
+            <time class="reel-created-at">
+                {{ reel.created_at|time_ago }}
+            </time>
+
+        </div>
+
+
+        <!-- 가운데 : 릴스 영상 프레임 -->
+        <a
+            href="{{ url_for('reels.detail_reel', reel_id=reel.id) }}"
+            class="reel-media reel-open"
+            data-reel-id="{{ reel.id }}"
+            aria-label="릴스 상세 보기"
+        >
+            <video
+                muted
+                playsinline
+                preload="metadata"
+                class="reel-video"
+            >
+                <source
+                    src="{{ url_for(
+                        'reels.uploaded_file',
+                        filename='videos/' + reel.video_url.replace('\\','/').split('/')[-1]
+                    ) }}"
+                >
+            </video>
+        </a>
+
+
+        <!-- 좋아요 / 댓글 영역 -->
+        <div class="reel-actions">
+
+            <button
+                type="button"
+                class="btn btn-link p-0 border-0 like-button"
+                data-reel-id="{{ reel.id }}"
+                aria-label="좋아요"
+                aria-pressed="{{ 'true' if reel.id in liked_reels else 'false' }}"
+            >
+                {% if reel.id in liked_reels %}
+                    <i class="bi bi-heart-fill fs-4"></i>
+                {% else %}
+                    <i class="bi bi-heart fs-4"></i>
+                {% endif %}
+            </button>
+
+            <span class="like-count-text">
+                {{ like_counts.get(reel.id, 0) }}
+            </span>
+
+
+            <button
+                type="button"
+                class="btn btn-link text-dark p-0 border-0 reel-open"
+                data-reel-id="{{ reel.id }}"
+                aria-label="댓글"
+            >
+                <i class="bi bi-chat fs-4"></i>
+            </button>
+
+            <span class="comment-count-text">
+                {{ comments_by_reel.get(reel.id, [])|length }}
+            </span>
+
+        </div>
+
+    </div>
+
+</article>
  {% else %}
  <div class="text-center text-secondary py-5">아직 등록된 릴스가 없습니다.</div>
  {% endfor %}
@@ -58,7 +409,7 @@
 
 <div class="modal fade" id="reelDetailModal" tabindex="-1" aria-hidden="true">
  <div class="modal-dialog modal-dialog-centered reel-modal-dialog">
-  <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 reel-detail-close" data-bs-dismiss="modal" aria-label="닫기" style="z-index:1070;transform:translate(150%,-50%);cursor:pointer;pointer-events:auto;"></button>
+  <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 reel-detail-close" data-bs-dismiss="modal" aria-label="닫기" style="z-index:1070;cursor:pointer;pointer-events:auto;"></button>
   <div class="modal-content reel-modal-content">
    <div class="modal-body reel-modal-body row g-0 h-100 p-0">
     <div class="col-md-7 reel-modal-media d-flex align-items-center justify-content-center">
@@ -159,6 +510,9 @@
 <script>
 const csrfToken={{ form.csrf_token.current_token|tojson }};
 let activeReel=null,activeComment=null,activeDetail=null;
+const reelsFeed=document.querySelector('.reels-feed');
+const reelCards=[...document.querySelectorAll('.reel-card')];
+let activeCardIndex=0, reelTransitioning=false, transitionTimer=null;
 const detailModal=new bootstrap.Modal(document.getElementById('reelDetailModal'));
 const reelCommentOptionModal=bootstrap.Modal.getOrCreateInstance(document.getElementById('reelCommentOptionModal'));
 const reelOwnerOptionModal=bootstrap.Modal.getOrCreateInstance(document.getElementById('reelOwnerOptionModal'));
@@ -200,6 +554,7 @@ async function openReel(id){
 
     document.querySelectorAll('.reel-video').forEach(video=>{
         video.pause();
+        video.currentTime=0;
     });
 
     try{
@@ -446,26 +801,89 @@ document.getElementById('reelDetailModal').addEventListener(
 );
 
 
-const reelObserver=new IntersectionObserver((entries)=>{
-    entries.forEach(entry=>{
-        const video=entry.target;
-
-        if(entry.isIntersecting){
-            video.muted=true;
-
-            video.play().catch(error=>{
-                console.log('릴스 자동재생 실패:',error);
+function activateReelCard(index){
+    activeCardIndex=index;
+    reelCards.forEach((card,i)=>{
+        const video=card.querySelector('.reel-video');
+        if(!video)return;
+        if(i===index){
+            document.querySelectorAll('.reel-video').forEach(other=>{
+                if(other!==video){other.pause();other.currentTime=0;}
             });
+            video.muted=true;
+            video.currentTime=0;
+            video.play().catch(()=>{});
         }else{
             video.pause();
+            video.currentTime=0;
         }
     });
+}
+
+function moveReel(direction){
+    if(reelTransitioning||!reelCards.length||document.getElementById('reelDetailModal').classList.contains('show'))return;
+    const nextIndex=Math.max(0,Math.min(reelCards.length-1,activeCardIndex+direction));
+    if(nextIndex===activeCardIndex)return;
+    reelTransitioning=true;
+    activeCardIndex=nextIndex;
+    reelCards[nextIndex].scrollIntoView({behavior:'smooth',block:'start'});
+    activateReelCard(nextIndex);
+    clearTimeout(transitionTimer);
+    transitionTimer=setTimeout(()=>{reelTransitioning=false;},450);
+}
+
+const reelObserver=new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+        if(!entry.isIntersecting)return;
+        const index=reelCards.indexOf(entry.target);
+        if(index>=0&&!reelTransitioning&&index!==activeCardIndex)activateReelCard(index);
+    });
 },{
-    threshold:0.6
+    threshold:0.75
 });
 
-document.querySelectorAll('.reel-video').forEach(video=>{
-    reelObserver.observe(video);
+reelCards.forEach(card=>{
+    reelObserver.observe(card);
+    const video=card.querySelector('.reel-video');
+    video?.addEventListener('ended',()=>{
+        if(reelCards[activeCardIndex]===card)moveReel(1);
+    });
+});
+
+if(reelCards.length)activateReelCard(0);
+
+reelsFeed?.addEventListener('wheel',event=>{
+    if(Math.abs(event.deltaY)<20)return;
+    event.preventDefault();
+    moveReel(event.deltaY>0?1:-1);
+},{passive:false});
+
+document.addEventListener('keydown',event=>{
+    if(event.key!=='ArrowDown'&&event.key!=='ArrowUp')return;
+    if(document.getElementById('reelDetailModal').classList.contains('show'))return;
+    if(event.target.closest('input,textarea,select,[contenteditable="true"]'))return;
+    event.preventDefault();
+    moveReel(event.key==='ArrowDown'?1:-1);
+});
+
+let touchStartY=null;
+reelsFeed?.addEventListener('touchstart',event=>{touchStartY=event.changedTouches[0].clientY;},{passive:true});
+reelsFeed?.addEventListener('touchend',event=>{
+    if(touchStartY===null)return;
+    const delta=touchStartY-event.changedTouches[0].clientY;
+    if(Math.abs(delta)>45)moveReel(delta>0?1:-1);
+    touchStartY=null;
+},{passive:true});
+
+document.querySelectorAll('.reel-caption-wrap').forEach(wrap => {
+    const caption = wrap.querySelector('.reel-caption');
+    const moreButton = wrap.querySelector('.reel-caption-more');
+
+    if (!caption || !moreButton) return;
+
+    if (caption.scrollHeight > caption.clientHeight + 1) {
+        moreButton.style.display = 'inline-block';
+    }
 });
 </script>
 {% endblock %}

@@ -1,6 +1,5 @@
-<!-- Swiper 라이브러리 CDN -->
+<!-- Swiper 스타일은 게시물 페이지에서 공통으로 불러옵니다. -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
-<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 
 <!-- 공통 모달 전용 CSS -->
 <style>
@@ -288,15 +287,29 @@
             }
             wrapper.append(slide);
         });
-        if (detailSwiper) detailSwiper.destroy(true, true);
-        detailSwiper = new Swiper('#modalDetailSwiper', {
-            observer: true, observeParents: true,
-            navigation: imageList.length > 1 ? { nextEl: '#modalDetailSwiper .swiper-button-next', prevEl: '#modalDetailSwiper .swiper-button-prev' } : undefined,
-            pagination: imageList.length > 1 ? { el: '#modalDetailSwiper .swiper-pagination', clickable: true } : undefined
-        });
+        if (detailSwiper) {
+            detailSwiper.destroy(true, true);
+            detailSwiper = null;
+        }
         document.querySelectorAll('#modalDetailSwiper .swiper-button-next, #modalDetailSwiper .swiper-button-prev, #modalDetailSwiper .swiper-pagination').forEach(el => { el.style.display = imageList.length > 1 ? '' : 'none'; });
         const form = byId('detailCommentForm'); form.dataset.postId = activePostId;
         renderComments(card);
+
+        const modalElement = byId('postDetailModal');
+        if (imageList.length) {
+            const initializeDetailSwiper = () => {
+                detailSwiper = new Swiper('#modalDetailSwiper', {
+                    observer: true,
+                    observeParents: true,
+                    navigation: imageList.length > 1 ? { nextEl: '#modalDetailSwiper .swiper-button-next', prevEl: '#modalDetailSwiper .swiper-button-prev' } : false,
+                    pagination: imageList.length > 1 ? { el: '#modalDetailSwiper .swiper-pagination', clickable: true } : false
+                });
+                detailSwiper.update();
+            };
+
+            if (modalElement.classList.contains('show')) initializeDetailSwiper();
+            else modalElement.addEventListener('shown.bs.modal', initializeDetailSwiper, { once: true });
+        }
         detailModal().show();
     }
     window.openPostDetailModal = openPostDetailModal;

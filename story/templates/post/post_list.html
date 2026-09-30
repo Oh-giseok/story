@@ -3,6 +3,7 @@
 {% block head %}
 <!-- Swiper.js CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+<link rel="stylesheet" href="{{ url_for('static', filename='story/story_style.css') }}">
 
 <style>
     .modal-content { border-radius: 12px; overflow: hidden; }
@@ -112,17 +113,18 @@
 </script>
 
 <!-- 상단 헤더 -->
-<div class="bg-white border-bottom mb-4 py-2 sticky-top" style="top: 0; z-index: 1020;">
-    <div class="container d-flex justify-content-between align-items-center" style="max-width: 500px">
-        <h4 class="fw-bold m-0">Story</h4>
-        <button class="btn btn-outline-dark btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#createPostModal">
-            <i class="bi bi-plus-square me-1"></i> 만들기
-        </button>
-    </div>
-</div>
+{#<div class="bg-white border-bottom mb-4 py-2 sticky-top" style="top: 0; z-index: 1020;">#}
+{#    <div class="container d-flex justify-content-between align-items-center" style="max-width: 500px">#}
+{#        <h4 class="fw-bold m-0">Story</h4>#}
+{#        <button class="btn btn-outline-dark btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#createPostModal">#}
+{#            <i class="bi bi-plus-square me-1"></i> 만들기#}
+{#        </button>#}
+{#    </div>#}
+{#</div>#}
 
 <!-- 피드 목록 -->
 <div class="container py-2" style="max-width: 500px">
+    {% include 'story/_story_strip.html' %}
     {% for post in posts %}
     <div class="card shadow-sm mb-4" id="post-card-{{ post.id }}"
          data-user-name="{{ post.user.username }}"
@@ -211,56 +213,6 @@
 <!-- 공통 상세보기 및 삭제/수정 모달 불러오기 -->
 {% include 'post/post_detail_modal.html' %}
 
-<!-- 만들기 모달 (post_list 전용) -->
-<div class="modal fade" id="createPostModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
-            <form action="{{ url_for('post._create') }}" method="post" enctype="multipart/form-data" id="postForm">
-                <div class="modal-header py-2 d-flex justify-content-between align-items-center">
-                    <button type="button" class="btn btn-sm btn-link text-dark p-0 d-none" id="btnBack"><i class="bi bi-arrow-left fs-4"></i></button>
-                    <h6 class="modal-title fw-bold mx-auto">새 게시물 만들기</h6>
-                    <button type="submit" class="btn btn-sm btn-link text-primary fw-bold text-decoration-none p-0 d-none" id="btnSubmit">공유하기</button>
-                    <button type="button" class="btn-close ms-2" id="btnCloseModal" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-
-                <div class="modal-body p-0" id="step1">
-                    <div class="upload-box text-center p-4" id="dropArea">
-                        <i class="bi bi-images display-1 text-secondary mb-3"></i>
-                        <h5>사진과 동영상을 여기에 끌어다 놓으세요</h5>
-                        <input type="file" name="media_file" id="fileInput" accept="image/*" multiple class="d-none" required>
-                        <button type="button" class="btn btn-primary fw-bold mt-3" onclick="document.getElementById('fileInput').click()">컴퓨터에서 선택</button>
-                    </div>
-                </div>
-
-                <!-- 업로드 후 캡션 입력 및 미리보기용 Step 2 영역 -->
-                <div class="modal-body p-0 d-none" id="step2">
-                    <div class="row g-0">
-                        <div class="col-md-7 bg-black d-flex align-items-center justify-content-center" style="min-height: 400px;">
-                            <div class="swiper modal-feed-swiper" id="uploadPreviewSwiper">
-                                <div class="swiper-wrapper" id="uploadPreviewWrapper"></div>
-                                <div class="swiper-pagination"></div>
-                                <div class="swiper-button-prev"></div>
-                                <div class="swiper-button-next"></div>
-                            </div>
-                        </div>
-                        <div class="col-md-5 d-flex flex-column p-3 border-start">
-                            <div class="d-flex align-items-center mb-3">
-                                {% if g.user and g.user.profile_img_url %}
-                                <img src="{{ url_for('static', filename=g.user.profile_img_url) }}" alt="프로필" class="rounded-circle me-2" width="32" height="32" style="object-fit: cover;">
-                                {% else %}
-                                <i class="bi bi-person-circle fs-4 me-2 text-secondary"></i>
-                                {% endif %}
-                                <span class="fw-bold">{{ g.user.username if g.user else '' }}</span>
-                            </div>
-                            <textarea name="caption" class="form-control border-0 shadow-none flex-grow-1" rows="5" placeholder="문구 입력..."></textarea>
-                        </div>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <!-- 삭제 확인 모달 -->
 <div class="modal fade confirm-modal" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
@@ -277,7 +229,6 @@
 {% endblock %}
 
 {% block script %}
-<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         // 1. 피드 Swiper 초기화
@@ -312,104 +263,6 @@
                 });
             });
         });
-
-        // 3. 새 게시물 만들기 모달 스텝 제어 및 미리보기 로직
-        const fileInput = document.getElementById('fileInput');
-        const step1 = document.getElementById('step1');
-        const step2 = document.getElementById('step2');
-        const btnBack = document.getElementById('btnBack');
-        const btnSubmit = document.getElementById('btnSubmit');
-        const dropArea = document.getElementById('dropArea');
-        let uploadPreviewSwiperInstance = null;
-
-        if (fileInput) {
-            fileInput.addEventListener('change', function(e) {
-                handleFiles(this.files);
-            });
-        }
-
-        if (dropArea) {
-            ['dragenter', 'dragover'].forEach(eventName => {
-                dropArea.addEventListener(eventName, (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    dropArea.classList.add('bg-light');
-                }, false);
-            });
-
-            ['dragleave', 'drop'].forEach(eventName => {
-                dropArea.addEventListener(eventName, (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    dropArea.classList.remove('bg-light');
-                }, false);
-            });
-
-            dropArea.addEventListener('drop', (e) => {
-                const dt = e.dataTransfer;
-                const files = dt.files;
-                if (files.length > 0 && fileInput) {
-                    fileInput.files = files;
-                    handleFiles(files);
-                }
-            });
-        }
-
-        function handleFiles(files) {
-            if (!files || files.length === 0) return;
-
-            const wrapper = document.getElementById('uploadPreviewWrapper');
-            if (wrapper) {
-                wrapper.innerHTML = '';
-                Array.from(files).forEach(file => {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const slide = document.createElement('div');
-                        slide.className = 'swiper-slide';
-                        slide.innerHTML = `<img src="${e.target.result}" alt="미리보기 이미지" style="max-height: 400px; width: 100%; object-fit: contain;">`;
-                        wrapper.appendChild(slide);
-
-                        if (uploadPreviewSwiperInstance) uploadPreviewSwiperInstance.destroy();
-                        setTimeout(() => {
-                            uploadPreviewSwiperInstance = new Swiper('#uploadPreviewSwiper', {
-                                observer: true,
-                                observeParents: true,
-                                navigation: files.length > 1 ? { nextEl: '#uploadPreviewSwiper .swiper-button-next', prevEl: '#uploadPreviewSwiper .swiper-button-prev' } : false,
-                                pagination: files.length > 1 ? { el: '#uploadPreviewSwiper .swiper-pagination', clickable: true } : false
-                            });
-                        }, 100);
-                    }
-                    reader.readAsDataURL(file);
-                });
-            }
-
-            if (step1) step1.classList.add('d-none');
-            if (step2) step2.classList.remove('d-none');
-            if (btnBack) btnBack.classList.remove('d-none');
-            if (btnSubmit) btnSubmit.classList.remove('d-none');
-        }
-
-        if (btnBack) {
-            btnBack.addEventListener('click', function() {
-                if (step2) step2.classList.add('d-none');
-                if (step1) step1.classList.remove('d-none');
-                if (btnBack) btnBack.classList.add('d-none');
-                if (btnSubmit) btnSubmit.classList.add('d-none');
-                if (fileInput) fileInput.value = '';
-            });
-        }
-
-        // 모달 닫힐 때 초기화
-        const createPostModalElem = document.getElementById('createPostModal');
-        if (createPostModalElem) {
-            createPostModalElem.addEventListener('hidden.bs.modal', function() {
-                if (step2) step2.classList.add('d-none');
-                if (step1) step1.classList.remove('d-none');
-                if (btnBack) btnBack.classList.add('d-none');
-                if (btnSubmit) btnSubmit.classList.add('d-none');
-                if (fileInput) fileInput.value = '';
-            });
-        }
 
     });
 </script>
