@@ -1,0 +1,50 @@
+<!-- 만들기 모달 (post_list 전용) -->
+<div class="modal fade" id="createPostModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <form action="{{ url_for('post._create') }}" method="post" enctype="multipart/form-data" id="postForm">
+                <div class="modal-header py-2 d-flex justify-content-between align-items-center">
+                    <button type="button" class="btn btn-sm btn-link text-dark p-0 d-none" id="btnBack"><i class="bi bi-arrow-left fs-4"></i></button>
+                    <h6 class="modal-title fw-bold mx-auto">새 게시물 만들기</h6>
+                    <button type="submit" class="btn btn-sm btn-link text-primary fw-bold text-decoration-none p-0 d-none" id="btnSubmit">공유하기</button>
+                    <button type="button" class="btn-close ms-2" id="btnCloseModal" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body p-0" id="step1">
+                    <div class="upload-box text-center p-4" id="dropArea">
+                        <i class="bi bi-images display-1 text-secondary mb-3"></i>
+                        <h5>사진과 동영상을 여기에 끌어다 놓으세요</h5>
+                        <input type="file" name="media_file" id="fileInput" accept="image/*,video/mp4,video/quicktime,video/webm" multiple class="d-none" required>
+                        <button type="button" class="btn btn-primary fw-bold mt-3" onclick="document.getElementById('fileInput').click()">컴퓨터에서 선택</button>
+                    </div>
+                </div>
+
+                <!-- 업로드 후 캡션 입력 및 미리보기용 Step 2 영역 -->
+                <div class="modal-body p-0 d-none" id="step2">
+                    <div class="row g-0">
+                        <div class="col-md-7 bg-black d-flex align-items-center justify-content-center" style="min-height: 400px;">
+                            <div class="swiper modal-feed-swiper" id="uploadPreviewSwiper">
+                                <div class="swiper-wrapper" id="uploadPreviewWrapper"></div>
+                                <div class="swiper-pagination"></div>
+                                <div class="swiper-button-prev"></div>
+                                <div class="swiper-button-next"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-5 d-flex flex-column p-3 border-start">
+                            <div class="d-flex align-items-center mb-3">
+                                {% if g.user and g.user.profile_img_url %}
+                                <img src="{{ url_for('static', filename=g.user.profile_img_url) }}" alt="프로필" class="rounded-circle me-2" width="32" height="32" style="object-fit: cover;">
+                                {% else %}
+                                <i class="bi bi-person-circle fs-4 me-2 text-secondary"></i>
+                                {% endif %}
+                                <span class="fw-bold">{{ g.user.username if g.user else '' }}</span>
+                            </div>
+                            <textarea name="caption" class="form-control border-0 shadow-none flex-grow-1" rows="5" placeholder="문구 입력..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
