@@ -1,3 +1,4 @@
+from datetime import datetime
 from flask import Blueprint, render_template, session, g
 from flask_login import current_user
 from story import db
@@ -30,7 +31,7 @@ def index():
     # 3. 스토리 및 게시글 데이터 조회
     stories = []
     try:
-        stories = Story.query.order_by(Story.id.desc()).all()
+        stories = Story.query.filter(Story.expires_at > datetime.now()).order_by(Story.create_date.desc()).all()
     except Exception:
         pass
 
@@ -43,7 +44,7 @@ def index():
     return render_template(
         'post/post_list.html',
         posts=posts,
-        stories=stories,
+        story_list=stories,
         active_chat_users=active_chat_users
     )
     return redirect(url_for('story_list'))
