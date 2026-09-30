@@ -21,23 +21,29 @@ def handle_send_message(data):
     if not conv_id or not sender_id or not text:
         return
 
-    # 1. 새 메시지 저장
-    new_msg = Message(
-        conversation_id=conv_id,
-        sender_id=sender_id,
-        text=text,
-        img_url=img_url
-    )
-    db.session.add(new_msg)
-    db.session.commit()  # ID 생성을 위해 commit 먼저 수행
+    try:
+        # 1. 새 메시지 저장
+        new_msg = Message(
+            conversation_id=conv_id,
+            sender_id=sender_id,
+            text=text,
+            img_url=img_url
+        )
+        db.session.add(new_msg)
+        db.session.commit()  # ID 생성을 위해 commit 먼저 수행
 
-    # 2. 보낸 사람의 읽음 처리 등록
-    read_record = MessageRead(message_id=new_msg.id, user_id=sender_id)
-    db.session.add(read_record)
-    db.session.commit()
+        # 2. 보낸 사람의 읽음 처리 중복 체크 및 등록
+        already_read = MessageRead.query.filter_by(message_id=new_msg.id, user_id=sender_id).first()
+        if not already_read:
+            read_record = MessageRead(message_id=new_msg.id, user_id=sender_id)
+            db.session.add(read_record)
+            db.session.commit()
 
-    # 3. 방에 있는 모든 클라이언트에게 메시지 전송
-    emit('receive_message', new_msg.to_dict(), to=str(conv_id))
+        # 3. 방에 있는 모든 클라이언트에게 메시지 전송
+        emit('receive_message', new_msg.to_dict(), to=str(conv_id))
+    except Exception as e:
+        db.session.rollback()
+        print(f"[send_message error] {e}")
 
 
 @socketio.on('mark_read')
@@ -60,5 +66,9 @@ def handle_mark_read(data):
                 updated = True
 
     if updated:
-        db.session.commit()
-        emit('update_read_status', {'conversation_id': conv_id}, to=str(conv_id))
+        try:
+            db.session.commit()
+            emit('update_read_status', {'conversation_id': conv_id}, to=str(conv_id))
+        except Exception as e:
+            db.session.rollback()
+            print(f"[mark_read error] {e}")
