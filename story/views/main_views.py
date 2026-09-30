@@ -41,7 +41,7 @@ def index():
         pass
 
     return render_template(
-        'index.html',
+        'post/post_list.html',
         posts=posts,
         stories=stories,
         active_chat_users=active_chat_users

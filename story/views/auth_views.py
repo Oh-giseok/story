@@ -205,6 +205,8 @@ def logout():
 
 @bp.route('/profile_edit', methods=['GET', 'POST'])
 def profile_edit():
+    from flask_wtf import FlaskForm
+
     form = ProfileEditForm()
 
     if request.method == 'GET':
@@ -266,7 +268,8 @@ def profile_edit():
 
     return render_template(
         'auth/profile_edit.html',
-        form=form
+        form=form,
+        account_form=FlaskForm()
     )
 
 
@@ -307,7 +310,7 @@ def deactivate():
     form = FlaskForm()
     if not form.validate_on_submit():
         flash('요청이 만료되었습니다. 다시 시도해 주세요.')
-        return redirect(url_for('auth.mypage'))
+        return redirect(url_for('auth.profile_edit'))
     if g.user is None:
         return redirect(url_for('auth.login'))
     g.user.status = 'inactive'
@@ -325,7 +328,7 @@ def request_account_deletion():
     form = FlaskForm()
     if not form.validate_on_submit():
         flash('요청이 만료되었습니다. 다시 시도해 주세요.')
-        return redirect(url_for('auth.mypage'))
+        return redirect(url_for('auth.profile_edit'))
     if g.user is None:
         return redirect(url_for('auth.login'))
     g.user.status = 'deletion_pending'

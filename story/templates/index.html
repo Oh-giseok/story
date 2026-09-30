@@ -13,13 +13,19 @@
         margin-right: 5px;
         flex-shrink: 0;
     }
-    .status-dot.online { background-color: #28a745; }
-    .status-dot.offline { background-color: #6c757d; }
 
-    /* 화면 우측 상단 구석에 완벽하게 고정되는 임시 네비게이션 바 */
+    .status-dot.online {
+        background-color: #28a745;
+    }
+
+    .status-dot.offline {
+        background-color: #6c757d;
+    }
+
+    /* 화면 우측 상단 임시 네비게이션 */
     .temp-top-nav {
         position: fixed;
-        top: 75px; /* 브라우저 상단 네비게이션바 아래 */
+        top: 75px;
         right: 25px;
         z-index: 1080;
         background: rgba(255, 255, 255, 0.95);
@@ -34,24 +40,21 @@
 
     /* 전체 메인 컨테이너 */
     .main-wrapper {
-        display: flex;
-        max-width: 1100px;
-        margin: 0 auto;
-        gap: 24px;
-        position: relative;
-    }
-
-    /* 1. 좌측 DM 사이드바 */
-    .left-dm-sidebar {
-        width: 280px;
-        flex-shrink: 0;
-    }
-
-    /* 2. 중앙 메인 피드 영역 */
-    .center-feed-area {
-        flex-grow: 1;
-        max-width: 680px;
         width: 100%;
+        max-width: 100%;
+        margin: 0 auto;
+        display: flex;
+        justify-content: center;
+        position: relative;
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+
+    /* 중앙 피드 영역 */
+    .center-feed-area {
+        width: 100%;
+        max-width: 800px;
+        margin: 0 auto;
     }
 
     /* 스토리 가로 스크롤 영역 */
@@ -66,14 +69,17 @@
         margin-bottom: 20px;
         -webkit-overflow-scrolling: touch;
     }
+
     .story-container::-webkit-scrollbar {
         display: none;
     }
+
     .story-item {
         flex-shrink: 0;
         width: 64px;
         text-align: center;
     }
+
     .story-avatar {
         width: 60px;
         height: 60px;
@@ -83,150 +89,234 @@
         object-fit: cover;
     }
 
+    /* POST 영역 */
+    .post-feed {
+        width: 100%;
+    }
+
     /* 포스트 카드 */
     .post-card {
+        width: 100%;
         background: #fff;
         border: 1px solid #dee2e6;
         border-radius: 12px;
         margin-bottom: 20px;
     }
 
+    /* 이미지 반응형 */
+    .post-card img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    /* 태블릿 */
     @media (max-width: 992px) {
         .temp-top-nav {
             position: static;
-            margin-bottom: 15px;
+            margin: 15px auto;
             justify-content: center;
+            width: fit-content;
             box-shadow: none;
         }
-        .left-dm-sidebar {
-            display: none !important;
-        }
-        .center-feed-area {
-            max-width: 100%;
-        }
+
         .main-wrapper {
             padding-left: 12px;
             padding-right: 12px;
-            flex-direction: column;
+        }
+
+        .center-feed-area {
+            max-width: 800px;
+        }
+    }
+
+    /* 모바일 */
+    @media (max-width: 576px) {
+        .main-wrapper {
+            padding-left: 8px;
+            padding-right: 8px;
+        }
+
+        .center-feed-area {
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .post-card {
+            border-radius: 10px;
+            padding: 12px !important;
+        }
+
+        .story-container {
+            padding: 12px;
+            gap: 12px;
+            border-radius: 10px;
+        }
+
+        .story-item {
+            width: 58px;
+        }
+
+        .story-avatar {
+            width: 54px;
+            height: 54px;
+        }
+
+        .temp-top-nav {
+            width: calc(100% - 20px);
+            overflow-x: auto;
+            justify-content: flex-start;
+        }
+
+        .temp-top-nav span {
+            display: none;
         }
     }
 </style>
-
-<!-- [임시 우측 상단 고정 네비게이션 버튼 영역] -->
-<div class="temp-top-nav">
-    <span class="small text-muted fw-bold me-1">빠른 이동:</span>
-    <a href="{{ url_for('auth.mypage') }}" class="btn btn-sm btn-outline-success">
-        <i class="bi bi-house-door"></i> 마이페이지
-    </a>
-    <a href="{{ url_for('auth.profile_edit') }}" class="btn btn-sm btn-outline-primary">
-        <i class="bi bi-person"></i> 프로필 수정
-    </a>
-    <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-danger">
-        <i class="bi bi-box-arrow-right"></i> 로그아웃
-    </a>
-</div>
-
 <div class="main-wrapper py-3">
 
-    <!-- 1. 좌측 DM 최근 대화 목록 -->
-    <aside class="left-dm-sidebar">
-        <div class="card shadow-sm border-0 rounded-3">
-            <div class="card-header bg-white fw-bold py-3 border-bottom d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-chat-dots text-primary me-1"></i> 최근 대화</span>
-            </div>
-
-            <div class="list-group list-group-flush overflow-auto" style="max-height: 650px;">
-                {% if active_chat_users and active_chat_users|length > 0 %}
-                    {% for item in active_chat_users %}
-                        {% set target_user = item.user %}
-                        {% set is_online = target_user.is_online if target_user.is_online is defined else False %}
-
-                        <!-- 클릭 시 대화 상대의 target_id 파라미터와 함께 DM 채팅 페이지로 이동 -->
-                        <a href="{{ url_for('dm.user_list', target_id=target_user.id) }}" class="list-group-item list-group-item-action d-flex align-items-center py-2 px-3 border-0">
-                            {% if target_user.profile_img_url %}
-                                <img src="{{ target_user.profile_img_url | profile_img }}"
-                                     class="rounded-circle me-2 flex-shrink-0" width="40" height="40" style="object-fit: cover;">
-                            {% else %}
-                                <i class="bi bi-person-circle fs-3 text-secondary me-2 flex-shrink-0"></i>
-                            {% endif %}
-
-                            <div class="text-truncate" style="width: 100%;">
-                                <div class="small fw-bold text-dark d-flex align-items-center justify-content-between">
-                                    <span class="text-truncate">
-                                        <span class="status-dot {{ 'online' if is_online else 'offline' }}"></span>
-                                        {{ target_user.username or target_user.name }}
-                                    </span>
-                                    <small class="text-muted fw-normal fs-7 ms-1">({{ 'Online' if is_online else 'Offline' }})</small>
-                                </div>
-                                <small class="text-muted d-block text-truncate mt-1" style="font-size:0.75rem;">
-                                    {{ item.last_message.text if item.last_message else '대화 없음' }}
-                                </small>
-                            </div>
-                        </a>
-                    {% endfor %}
-                {% else %}
-                    <div class="p-4 text-muted small text-center">진행 중인 대화가 없습니다.</div>
-                {% endif %}
-            </div>
-        </div>
-    </aside>
-
-    <!-- 2. 중앙 메인 피드 영역 -->
+    <!-- 중앙 메인 피드 영역 -->
     <main class="center-feed-area">
 
         <!-- (1) 상단 STORY 영역 -->
         <section class="story-container shadow-sm">
+
             {% for story in stories %}
                 <div class="story-item">
                     <a href="#" class="text-decoration-none text-dark d-block">
+
                         {% if story.user and story.user.profile_img_url %}
-                            <img src="{{ story.user.profile_img_url | profile_img }}" class="story-avatar mb-1">
+                            <img
+                                src="{{ story.user.profile_img_url | profile_img }}"
+                                class="story-avatar mb-1"
+                                alt="스토리"
+                            >
                         {% else %}
                             <i class="bi bi-person-circle fs-1 text-secondary mb-1"></i>
                         {% endif %}
-                        <div class="small text-truncate" style="font-size: 0.72rem;">{{ story.user.username if story.user else '익명' }}</div>
+
+                        <div
+                            class="small text-truncate"
+                            style="font-size: 0.72rem;"
+                        >
+                            {{ story.user.username if story.user else '익명' }}
+                        </div>
+
                     </a>
                 </div>
+
             {% else %}
-                <div class="text-muted small py-2 px-2">등록된 스토리가 없습니다.</div>
+
+                <div class="text-muted small py-2 px-2">
+                    등록된 스토리가 없습니다.
+                </div>
+
             {% endfor %}
+
         </section>
+
 
         <!-- (2) 중앙 POST 피드 영역 -->
         <section class="post-feed">
+
             {% for post in posts %}
+
                 {% set author = post.user or post.author %}
+
                 <article class="post-card p-3 shadow-sm">
+
+                    <!-- 작성자 -->
                     <div class="d-flex align-items-center mb-3">
+
                         {% if author and author.profile_img_url %}
-                            <img src="{{ author.profile_img_url | profile_img }}" class="rounded-circle me-2" width="38" height="38" style="object-fit: cover;">
+
+                            <img
+                                src="{{ author.profile_img_url | profile_img }}"
+                                class="rounded-circle me-2"
+                                width="38"
+                                height="38"
+                                style="object-fit: cover;"
+                                alt="프로필"
+                            >
+
                         {% else %}
+
                             <i class="bi bi-person-circle fs-3 text-secondary me-2"></i>
+
                         {% endif %}
+
                         <div>
-                            <div class="fw-bold text-dark small">{{ (author.name or author.username) if author else '사용자' }}</div>
-                            <small class="text-muted" style="font-size: 0.7rem;">@{{ author.username if author else '' }}</small>
+
+                            <div class="fw-bold text-dark small">
+                                {{ (author.name or author.username) if author else '사용자' }}
+                            </div>
+
+                            <small
+                                class="text-muted"
+                                style="font-size: 0.7rem;"
+                            >
+                                @{{ author.username if author else '' }}
+                            </small>
+
                         </div>
+
                     </div>
 
+
+                    <!-- 게시물 이미지 -->
                     {% if post.image_url or post.media_url %}
+
                         <div class="mb-3 overflow-hidden rounded">
-                            <img src="{{ post.image_url or post.media_url }}" class="img-fluid w-100" style="max-height: 500px; object-fit: cover;">
+
+                            <img
+                                src="{{ post.image_url or post.media_url }}"
+                                class="img-fluid w-100"
+                                style="max-height: 500px; object-fit: cover;"
+                                alt="게시물 이미지"
+                            >
+
                         </div>
+
                     {% endif %}
 
-                    <p class="mb-2 text-secondary" style="line-height: 1.5;">{{ post.content or post.caption }}</p>
-                    <small class="text-muted d-block" style="font-size: 0.72rem;">{{ post.created_at.strftime('%Y-%m-%d %H:%M') if post.created_at else '' }}</small>
+
+                    <!-- 게시물 내용 -->
+                    <p
+                        class="mb-2 text-secondary"
+                        style="line-height: 1.5;"
+                    >
+                        {{ post.content or post.caption }}
+                    </p>
+
+
+                    <!-- 작성 시간 -->
+                    <small
+                        class="text-muted d-block"
+                        style="font-size: 0.72rem;"
+                    >
+                        {{ post.created_at.strftime('%Y-%m-%d %H:%M')
+                           if post.created_at else '' }}
+                    </small>
+
                 </article>
+
             {% else %}
+
                 <div class="card p-5 text-center text-muted shadow-sm border-0">
+
                     <i class="bi bi-card-text display-4 mb-3 text-secondary"></i>
-                    <p class="mb-0">게시글이 없습니다. 첫 번째 포스트를 등록해 보세요!</p>
+
+                    <p class="mb-0">
+                        게시글이 없습니다. 첫 번째 포스트를 등록해 보세요!
+                    </p>
+
                 </div>
+
             {% endfor %}
+
         </section>
 
     </main>
 
 </div>
+
 {% endblock %}

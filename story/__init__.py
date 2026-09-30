@@ -62,6 +62,11 @@ def create_app():
             return url_for('static', filename=img_url)
         return url_for('static', filename='profile/' + img_url)
 
+    @app.context_processor
+    def inject_global_csrf_token():
+        from flask_wtf.csrf import generate_csrf
+        return {'global_csrf_token': generate_csrf}
+
     # 모델 로드
     from . import models
 
