@@ -9,10 +9,6 @@
 .reel-owner-option-modal .modal-content{border-radius:16px;text-align:center}.reel-owner-option-modal .btn-action{width:100%;padding:12px;font-weight:600;border-top:1px solid #dee2e6;border-radius:0}.reel-owner-option-modal .btn-action:first-of-type{border-top:0}
 .reel-delete-confirm-modal .modal-dialog{max-width:560px}.reel-delete-confirm-modal .modal-content{border-radius:24px;overflow:hidden}.reel-delete-confirm-modal .btn-action{width:100%;padding:12px;border:0;border-top:1px solid #dee2e6;border-radius:0}.reel-delete-confirm-modal .btn-action:first-of-type{border-top:0}
 .reel-comment-input-box{border-top:1px solid #efefef}.reel-comment-input{border:0;font-size:.9rem}.reel-comment-input:focus{outline:0;box-shadow:none}
-.createReelModal .modal-content{width:80%; margin: 0 auto}
-.createReelModal .modal-dialog.caption-step{max-width:850px}
-.createReelModal .modal-dialog.caption-step .modal-content{width:100%;margin:0 auto}
-.createReelModal .modal-title{padding-left: 32px}
 </style>
 {% endblock %}
 
@@ -47,13 +43,6 @@
  {% else %}
  <div class="text-center text-secondary py-5">아직 등록된 릴스가 없습니다.</div>
  {% endfor %}
-</div>
-
-
-    </div>
-   </form>
-  </div>
- </div>
 </div>
 
 <div class="modal fade" id="reelDetailModal" tabindex="-1" aria-hidden="true">
@@ -444,7 +433,6 @@ document.getElementById('reelDetailModal').addEventListener(
         v.load();
     }
 );
-
 
 const reelObserver=new IntersectionObserver((entries)=>{
     entries.forEach(entry=>{
