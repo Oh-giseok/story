@@ -14,6 +14,19 @@
     <link
         rel="stylesheet"
         href="{{ url_for('static', filename='story_style.css') }}">
+    <style>
+        .auth-primary-btn {
+            border-color: #222;
+            background-color: #222;
+            color: #fff;
+        }
+        .auth-primary-btn:hover,
+        .auth-primary-btn:focus-visible {
+            border-color: #000;
+            background-color: #000;
+            color: #fff;
+        }
+    </style>
     {% block head %}{% endblock %}
 </head>
 
@@ -26,7 +39,8 @@
             <!-- 로고 -->
             <a class="navbar-brand fw-bold"
                href="{{ url_for('post._list') }}">
-                Story
+                <img src="{{ url_for('static', filename='story_logo.png') }}"
+                     alt="Story" height="36">
             </a>
             <!-- 모바일 메뉴 버튼 -->
             <button
