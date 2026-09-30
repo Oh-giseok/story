@@ -50,7 +50,6 @@ def _create():
 
         media_url = ','.join(saved_urls) if saved_urls else None
 
-<<<<<<< HEAD
         post = Post(
             user_id=user_id,
             caption=caption,
@@ -58,7 +57,6 @@ def _create():
         )
         db.session.add(post)
         db.session.commit()
-=======
     # DB 저장 (현재 로그인 유저 ID로 저장)
     post = Post(
         user_id=user_id,
@@ -67,7 +65,6 @@ def _create():
     )
     db.session.add(post)
     db.session.commit()
->>>>>>> develop
 
         return redirect(url_for('post._list'))
 

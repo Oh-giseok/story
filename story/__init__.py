@@ -1,9 +1,6 @@
 import os
-<<<<<<< HEAD
 from datetime import datetime
-=======
 from datetime import datetime, timedelta
->>>>>>> develop
 from flask import Flask, redirect, render_template, url_for, g, session
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy

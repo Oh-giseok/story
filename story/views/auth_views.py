@@ -8,16 +8,13 @@ from flask_login import login_user, logout_user
 from sqlalchemy import or_
 
 from story import db
-<<<<<<< HEAD
 from story.forms import UserCreateForm, UserLoginForm, ProfileEditForm
 from story.models import User, Post, Reels, Story
-=======
 from story.forms import UserCreateForm,UserLoginForm,ProfileEditForm
 from story.models import (
     User, Post, Reels, Story, Conversation, Message, MessageRead,
     PostLike, PostComment, Reels_Likes, Comments, StoryLikes,
 )
->>>>>>> develop
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -298,14 +295,10 @@ def mypage():
     reels = Reels.query.filter_by(user_id=g.user.id).order_by(Reels.created_at.desc()).all()
     stories = Story.query.filter_by(user_id=g.user.id).order_by(Story.create_date.desc()).all()
 
-    return render_template(
-<<<<<<< HEAD
+    return (render_template(
         'auth/mypage.html', user=g.user, posts=posts, reels=reels, stories=stories
     )
-=======
-        'auth/mypage.html', user=g.user, posts=posts, reels=reels, stories=stories,
-        account_form=FlaskForm()
-    )
+            ('auth/mypage.html', user=g.user, posts=posts, reels=reels, stories=stories, account_form=FlaskForm()))
 
 
 @bp.route('/deactivate', methods=['POST'])
@@ -343,4 +336,3 @@ def request_account_deletion():
     session.clear()
     flash('탈퇴가 신청되었습니다. 10일 이내에 다시 로그인하면 탈퇴 신청이 취소됩니다.')
     return redirect(url_for('auth.login'))
->>>>>>> develop

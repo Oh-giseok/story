@@ -9,7 +9,6 @@ bp = Blueprint('main', __name__)
 
 @bp.route('/')
 def index():
-<<<<<<< HEAD
     # 1. 로그인 유저 ID 확인 (Flask-Login 및 세션 안전 대응)
     current_uid = None
     if current_user.is_authenticated:
@@ -47,6 +46,4 @@ def index():
         stories=stories,
         active_chat_users=active_chat_users
     )
-=======
     return redirect(url_for('story_list'))
->>>>>>> develop
