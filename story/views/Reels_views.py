@@ -17,6 +17,7 @@ from ..models import Reels, Comments, Reels_Likes, User
 from ..forms import ReelsForm, CommentsForm, ReelsEditForm
 from flask import current_app as currunt_app
 from .. import db
+from werkzeug.utils import secure_filename
 
 
 def get_video_duration(video_path):
@@ -27,7 +28,7 @@ def get_video_duration(video_path):
 
     video.release()
 
-    return frame_count / fps
+    return frame_count / fps if fps else 0
 
 
 reels_bp = Blueprint(
@@ -103,15 +104,10 @@ def upload():
 
         video = form.video_url.data
 
-        video_filename = (
-            f"{uuid.uuid4().hex}_{video.filename}"
-        )
-
-        video_path = os.path.join(
-            currunt_app.config['UPLOAD_FOLDER'],
-            'videos',
-            video_filename
-        )
+        videos_folder = os.path.join(currunt_app.config['UPLOAD_FOLDER'], 'videos')
+        os.makedirs(videos_folder, exist_ok=True)
+        video_filename = f"{uuid.uuid4().hex}_{secure_filename(video.filename)}"
+        video_path = os.path.join(videos_folder, video_filename)
 
         video.save(video_path)
 
@@ -121,15 +117,10 @@ def upload():
 
         thumbnail = form.thumbnail.data
 
-        thumbnail_filename = (
-            f"{uuid.uuid4().hex}_{thumbnail.filename}"
-        )
-
-        thumbnail_path = os.path.join(
-            currunt_app.config['UPLOAD_FOLDER'],
-            'thumbnails',
-            thumbnail_filename
-        )
+        thumbnails_folder = os.path.join(currunt_app.config['UPLOAD_FOLDER'], 'thumbnails')
+        os.makedirs(thumbnails_folder, exist_ok=True)
+        thumbnail_filename = f"{uuid.uuid4().hex}_{secure_filename(thumbnail.filename)}"
+        thumbnail_path = os.path.join(thumbnails_folder, thumbnail_filename)
 
         thumbnail.save(thumbnail_path)
 
@@ -601,6 +592,10 @@ def detail_reel(reel_id):
 
     if request.args.get('fragment') == '1':
         from ..models import User
+        comment_users = {
+            user.id: user
+            for user in User.query.filter(User.id.in_([comment.user_id for comment in comments])).all()
+        }
         return jsonify({
             'id': reel.id,
             'user_id': reel.user_id,
@@ -613,7 +608,14 @@ def detail_reel(reel_id):
             'liked': reel.id in liked_reels,
             'likes': like_counts.get(reel.id, 0),
             'current_user_id': user_id,
-            'comments': [{'id': c.id, 'user_id': c.user_id, 'username': User.query.get(c.user_id).username, 'content': c.content} for c in comments],
+            'comments': [{
+                'id': c.id,
+                'user_id': c.user_id,
+                'username': comment_users[c.user_id].username,
+                'profile': url_for('static', filename=comment_users[c.user_id].profile_img_url)
+                    if comment_users[c.user_id].profile_img_url else '',
+                'content': c.content
+            } for c in comments],
             'owner': reel.user_id == user_id
         })
     return redirect(url_for('reels.reels') + '#reel-' + str(reel.id))

@@ -1,6 +1,7 @@
 import os
+import uuid
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify, session, g
+from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify, session, g, flash
 from werkzeug.utils import secure_filename
 from story import db
 from story.models import Post, User, PostLike, PostComment
@@ -10,10 +11,13 @@ bp = Blueprint('post', __name__, url_prefix='/post')
 
 # 공통 유저 ID 추출 함수 (g.user 또는 session 활용)
 def get_current_user_id():
+    # 1. g.user 객체가 있는 경우 (Flask 로그인 전처리 공통 객체 사용 시)
     if hasattr(g, 'user') and g.user:
         return g.user.id
+    # 2. session에 user_id가 직접 들어있는 경우
     if 'user_id' in session:
         return session['user_id']
+    # 3. 예외 상황 처리 (로그인 정보가 없을 때 기본값 지정 혹은 None)
     return None
 
 
@@ -24,45 +28,56 @@ def _list():
     return render_template('post/post_list.html', posts=posts)
 
 
-# 2. 게시물 등록 (GET: 업로드 폼 / POST: 업로드 처리)
+# 2. 게시물 등록 처리
 @bp.route('/create', methods=['GET', 'POST'])
 def _create():
     user_id = get_current_user_id()
     if not user_id:
-        return redirect(url_for('auth.login'))
+        # 로그인하지 않은 유저인 경우 로그인 페이지 등으로 이동 또는 에러 처리
+        return redirect(url_for('auth.login'))  # 사용하시는 로그인 라우트명으로 맞추어 사용해주세요.
 
-    if request.method == 'POST':
-        caption = request.form.get('caption')
-        media_files = request.files.getlist('media_file')
-        saved_urls = []
+    if request.method == 'GET':
+        return render_template('post/post_form.html')
 
-        if media_files:
-            today = datetime.now().strftime('%Y%m%d')
-            upload_folder = os.path.join(current_app.root_path, 'static/photo', today)
-            os.makedirs(upload_folder, exist_ok=True)
+    caption = request.form.get('caption')
+    media_files = request.files.getlist('media_file')
+    saved_urls = []
 
-            for file in media_files:
-                if file and file.filename != '':
-                    filename = secure_filename(file.filename)
-                    file_path = os.path.join(upload_folder, filename)
-                    file.save(file_path)
-                    saved_urls.append(f'/static/photo/{today}/{filename}')
-
-        media_url = ','.join(saved_urls) if saved_urls else None
-
-        # DB 저장 (현재 로그인 유저 ID로 저장)
-        post = Post(
-            user_id=user_id,
-            caption=caption,
-            media_url=media_url
-        )
-        db.session.add(post)
-        db.session.commit()
-
+    media_files = [file for file in media_files if file and file.filename]
+    if not media_files:
+        flash('사진이나 동영상을 선택해주세요.')
         return redirect(url_for('post._list'))
 
-    # GET 요청 시 포스트 업로드 작성 페이지 렌더링
-    return render_template('post/post_form.html')
+    allowed_extensions = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'webm'}
+    for file in media_files:
+        extension = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+        if extension not in allowed_extensions:
+            flash('지원하지 않는 사진 또는 동영상 형식입니다.')
+            return redirect(url_for('post._list'))
+
+    today = datetime.now().strftime('%Y%m%d')
+    upload_folder = os.path.join(current_app.root_path, 'static/photo', today)
+    os.makedirs(upload_folder, exist_ok=True)
+
+    for file in media_files:
+        safe_name = secure_filename(file.filename).replace(',', '_')
+        filename = f"{uuid.uuid4().hex}_{safe_name}"
+        file_path = os.path.join(upload_folder, filename)
+        file.save(file_path)
+        saved_urls.append(f'/static/photo/{today}/{filename}')
+
+    media_url = ','.join(saved_urls) if saved_urls else None
+
+    # DB 저장 (현재 로그인 유저 ID로 저장)
+    post = Post(
+        user_id=user_id,
+        caption=caption,
+        media_url=media_url
+    )
+    db.session.add(post)
+    db.session.commit()
+
+    return redirect(url_for('post._list'))
 
 
 # 3. 좋아요 토글
@@ -83,6 +98,7 @@ def like(post_id):
         liked = True
 
     db.session.commit()
+
     like_count = PostLike.query.filter_by(post_id=post_id).count()
 
     return jsonify({
@@ -159,6 +175,28 @@ def edit_comment(comment_id):
     return jsonify({'success': True, 'message': '댓글이 수정되었습니다.'})
 
 
+@bp.route('/comment/delete/<int:comment_id>', methods=['POST'])
+def delete_comment(comment_id):
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
+
+    comment_obj = PostComment.query.get_or_404(comment_id)
+    if comment_obj.user_id != user_id:
+        return jsonify({'success': False, 'message': '삭제 권한이 없습니다.'}), 403
+
+    post_id = comment_obj.post_id
+    db.session.delete(comment_obj)
+    db.session.commit()
+
+    comment_count = PostComment.query.filter_by(post_id=post_id).count()
+    return jsonify({
+        'success': True,
+        'message': '댓글이 삭제되었습니다.',
+        'comment_count': comment_count
+    })
+
+
 # 6. 게시물 삭제 기능 [신규 추가]
 @bp.route('/delete/<int:post_id>', methods=['POST'])
 def delete_post(post_id):
@@ -172,7 +210,7 @@ def delete_post(post_id):
     if post.user_id != user_id:
         return jsonify({'success': False, 'message': '삭제 권한이 없습니다.'}), 403
 
-    # 해당 게시물의 댓글 및 좋아요도 함께 연쇄 삭제
+    # 해당 게시물의 댓글 및 좋아요도 함께 연쇄 삭제 (ORMB/relationship 캐스케이드가 설정되지 않은 경우를 대비)
     PostLike.query.filter_by(post_id=post_id).delete()
     PostComment.query.filter_by(post_id=post_id).delete()
 

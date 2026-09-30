@@ -4,6 +4,11 @@
 마이페이지
 {% endblock %}
 
+{% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js" defer></script>
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <h5 class="my-3 border-bottom pb-2">My Page</h5>
@@ -64,6 +69,7 @@
                  style="cursor: pointer;"
                  onclick="openPostDetailModal({{ post.id }})"
                  id="post-card-{{ post.id }}"
+                 data-user-id="{{ post.user_id }}"
                  data-user-name="{{ post.user.username }}"
                  data-user-img="{{ url_for('static', filename=post.user.profile_img_url) if post.user.profile_img_url else '' }}">
 
@@ -71,7 +77,11 @@
 
                 {% if img_url %}
                     {% set first_img = img_url.split(',')[0] %}
-                    {% if first_img.startswith('http') %}
+                    {% if first_img.lower().endswith(('.mp4', '.mov', '.webm')) %}
+                        <div class="w-100 rounded bg-dark text-white d-flex align-items-center justify-content-center" style="aspect-ratio: 1;">
+                            <i class="bi bi-play-circle fs-1" aria-label="동영상 게시물"></i>
+                        </div>
+                    {% elif first_img.startswith('http') %}
                         <img src="{{ first_img }}" alt="게시물" class="w-100 rounded" style="aspect-ratio: 1; object-fit: cover;">
                     {% else %}
                         {% set clean_path = first_img.replace('/static/', '').replace('static/', '') %}
@@ -97,6 +107,7 @@
                         {% for comment in post.comments %}
                         <div class="comment-item"
                              data-comment-id="{{ comment.id }}"
+                             data-user-id="{{ comment.user_id }}"
                              data-user-name="{{ comment.user.username }}"
                              data-user-img="{{ url_for('static', filename=comment.user.profile_img_url) if comment.user.profile_img_url else '' }}">
                             {{ comment.content }}
@@ -107,9 +118,9 @@
             </div>
 
             {% if post.caption %}
-                <p class="small mt-1 mb-0 text-truncate" style="cursor: pointer;" onclick="openPostDetailModal({{ post.id }})">
-                    {{ post.caption }}
-                </p>
+{#                <p class="small mt-1 mb-0 text-truncate raw-caption-display" style="cursor: pointer;" onclick="openPostDetailModal({{ post.id }})">#}
+{#                    {{ post.caption }}#}
+{#                </p>#}
             {% endif %}
         </div>
         {% else %}
@@ -159,6 +170,7 @@
         {% for story in stories %}
         <div class="col-6 col-md-3">
             {% if story.media_url %}<img src="{{ url_for('static', filename=story.media_url) }}" alt="스토리" class="w-100 rounded" style="aspect-ratio: 1; object-fit: cover;">{% endif %}
+            {% if story.caption %}<p class="small mt-1 mb-0">{{ story.caption }}</p>{% endif %}
         </div>
         {% else %}<p class="text-muted text-center py-4">등록한 스토리가 없습니다.</p>{% endfor %}
     </section>
@@ -170,191 +182,7 @@
 
 {% block script %}
 <script>
-    let detailSwiperInstance = null;
-    let currentActivePostId = null;
-    let currentActiveContentType = 'post';
-
-    // 1. 모달 데이터 채우기 및 열기
-    function openPostDetailModal(postId) {
-        currentActiveContentType = 'post';
-        currentActivePostId = postId;
-        const postCard = document.getElementById(`post-card-${postId}`);
-        if (!postCard) return;
-
-        const userName = postCard.dataset.userName || '';
-        const userImg = postCard.dataset.userImg || '';
-
-        const rawData = postCard.querySelector('.raw-post-data');
-        const caption = rawData ? rawData.querySelector('.raw-caption').textContent : '';
-        const rawImages = rawData ? rawData.querySelector('.raw-images').textContent.trim() : '';
-
-        document.getElementById('detailModalCaption').classList.remove('d-none');
-
-        const commentForm = document.getElementById('detailCommentForm');
-        if (commentForm) {
-            // 블루프린트명('post') + 함수명('comment')
-            let baseUrl = "{{ url_for('post.comment', post_id=0) }}";
-            commentForm.action = baseUrl.replace('/0', '/' + postId);
-        }
-
-        // 유저 정보 세팅
-        document.getElementById('detailModalUser').textContent = userName;
-        document.getElementById('detailModalCaptionUser').textContent = userName;
-        document.getElementById('detailModalCaption').textContent = caption;
-
-        // 프로필 이미지 세팅
-        const userImgEl = document.getElementById('detailModalUserImg');
-        const userIconEl = document.getElementById('detailModalUserIcon');
-        const capUserImgEl = document.getElementById('detailModalCaptionUserImg');
-        const capUserIconEl = document.getElementById('detailModalCaptionUserIcon');
-
-        if (userImg) {
-            userImgEl.src = userImg; userImgEl.classList.remove('d-none');
-            userIconEl.classList.add('d-none');
-            capUserImgEl.src = userImg; capUserImgEl.classList.remove('d-none');
-            capUserIconEl.classList.add('d-none');
-        } else {
-            userImgEl.classList.add('d-none');
-            userIconEl.classList.remove('d-none');
-            capUserImgEl.classList.add('d-none');
-            capUserIconEl.classList.remove('d-none');
-        }
-
-        // Swiper 이미지 슬라이드 세팅
-        const swiperWrapper = document.getElementById('modalDetailSwiperWrapper');
-        swiperWrapper.innerHTML = '';
-        if (rawImages) {
-            const images = rawImages.split(',');
-            images.forEach(img => {
-                const slide = document.createElement('div');
-                slide.className = 'swiper-slide';
-                slide.innerHTML = `<img src="${img.trim()}" alt="피드 이미지">`;
-                swiperWrapper.appendChild(slide);
-            });
-        }
-
-        // Swiper 인스턴스 초기화
-        if (detailSwiperInstance) detailSwiperInstance.destroy(true, true);
-        detailSwiperInstance = new Swiper('#modalDetailSwiper', {
-            loop: false,
-            pagination: { el: '#modalDetailSwiper .swiper-pagination', clickable: true },
-            navigation: { nextEl: '#modalDetailSwiper .swiper-button-next', prevEl: '#modalDetailSwiper .swiper-button-prev' },
-        });
-
-        // 댓글 목록 세팅
-        renderComments(rawData);
-
-        // 모달 띄우기 및 크기 업데이트
-        const modalEl = document.getElementById('postDetailModal');
-        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-        modal.show();
-
-        modalEl.addEventListener('shown.bs.modal', function () {
-            if (detailSwiperInstance) detailSwiperInstance.update();
-        }, { once: true });
-    }
-
-    function openReelDetailModal(reelId) {
-        const reelCard = document.getElementById(`reel-card-${reelId}`);
-        if (!reelCard) return;
-        currentActivePostId = reelId;
-        currentActiveContentType = 'reel';
-        const rawData = reelCard.querySelector('.raw-reel-data');
-        const userName = reelCard.dataset.userName || '';
-        const userImg = reelCard.dataset.userImg || '';
-        const videoUrl = rawData.querySelector('.raw-video').textContent.trim();
-        document.getElementById('detailModalUser').textContent = userName;
-        document.getElementById('detailModalCaptionUser').textContent = userName;
-        document.getElementById('detailModalCaption').textContent = rawData.querySelector('.raw-caption').textContent;
-        const userImgEl = document.getElementById('detailModalUserImg');
-        const capUserImgEl = document.getElementById('detailModalCaptionUserImg');
-        const userIconEl = document.getElementById('detailModalUserIcon');
-        const capUserIconEl = document.getElementById('detailModalCaptionUserIcon');
-        [userImgEl, capUserImgEl].forEach(el => { if (userImg) { el.src = userImg; el.classList.remove('d-none'); } else el.classList.add('d-none'); });
-        userIconEl.classList.toggle('d-none', !!userImg);
-        capUserIconEl.classList.toggle('d-none', !!userImg);
-        const wrapper = document.getElementById('modalDetailSwiperWrapper');
-        wrapper.innerHTML = `<div class="swiper-slide"><video src="${videoUrl}" controls autoplay playsinline style="max-width:100%;max-height:100%"></video></div>`;
-        if (detailSwiperInstance) detailSwiperInstance.destroy(true, true);
-        detailSwiperInstance = new Swiper('#modalDetailSwiper', { loop: false });
-        renderComments(rawData);
-        const form = document.getElementById('detailCommentForm');
-        form.action = `{{ url_for('reels.add_comment', reel_id=0) }}`.replace('/0/', `/${reelId}/`);
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('postDetailModal')).show();
-    }
-
-    // 댓글 목록 렌더링 함수
-    function renderComments(rawData) {
-        const commentListEl = document.getElementById('detailModalCommentList');
-        commentListEl.innerHTML = '';
-        if (rawData) {
-            const comments = rawData.querySelectorAll('.raw-comments .comment-item');
-            comments.forEach(c => {
-                const cUser = c.dataset.userName;
-                const cImg = c.dataset.userImg;
-                const cText = c.textContent.trim();
-
-                const commentEl = document.createElement('div');
-                commentEl.className = 'd-flex mb-2 align-items-start';
-                commentEl.innerHTML = `
-                    ${cImg
-                        ? `<img src="${cImg}" class="rounded-circle me-2" width="28" height="28" style="object-fit:cover;">`
-                        : `<i class="bi bi-person-circle fs-6 me-2 text-secondary"></i>`}
-                    <div>
-                        <span class="fw-bold me-1 small">${cUser}</span>
-                        <span class="small">${cText}</span>
-                    </div>
-                `;
-                commentListEl.appendChild(commentEl);
-            });
-        }
-    }
-
-    // 2. 모달 내 댓글 전송 처리 (비동기 처리/일반 전송)
-    function handleDetailCommentSubmit(e) {
-        e.preventDefault(); // 폼 기본 제출(페이지 이동) 방지
-
-        const commentInput = document.getElementById('detailCommentInput');
-        const content = commentInput.value.trim();
-
-        if (!content || !currentActivePostId) return;
-
-        const commentUrl = currentActiveContentType === 'reel'
-            ? `/reels/${currentActivePostId}/comment`
-            : `/post/comment/${currentActivePostId}`;
-        fetch(commentUrl, {
-            method: 'POST',
-            body: new URLSearchParams({ 'content': content }),
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // UI에 새 댓글 즉시 추가
-                const commentListEl = document.getElementById('detailModalCommentList');
-                const commentEl = document.createElement('div');
-                commentEl.className = 'd-flex mb-2 align-items-start';
-                const commentData = data.comment || { user_name: '', content, profile_img_url: '' };
-                commentEl.innerHTML = `
-                    ${commentData.profile_img_url
-                        ? `<img src="${commentData.profile_img_url}" class="rounded-circle me-2" width="28" height="28" style="object-fit:cover;">`
-                        : `<i class="bi bi-person-circle fs-6 me-2 text-secondary"></i>`}
-                    <div>
-                        <span class="fw-bold me-1 small">${commentData.user_name}</span>
-                        <span class="small"></span>
-                    </div>
-                `;
-                commentEl.querySelector('.small:last-child').textContent = commentData.content;
-                commentListEl.appendChild(commentEl);
-                commentInput.value = ''; // 입력창 초기화
-            } else {
-                alert(data.message || '댓글 등록 실패');
-            }
-        })
-        .catch(err => console.error(err));
-    }
-
-    // 3. 탭 전환 (POST / REELS / STORY)
+    // 9. 탭 전환 (POST / REELS / STORY)
     function showPosts(type, selectedButton) {
         ['posts', 'reels', 'stories'].forEach((name) => {
             document.getElementById(`${name}-content`).hidden = name !== type;
