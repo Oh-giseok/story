@@ -4,7 +4,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify, session, g, flash
 from werkzeug.utils import secure_filename
 from story import db
-from story.models import Post, User, PostLike, PostComment
+from story.models import Post, User, PostLike, PostComment, Story
 
 # /post 경로로 들어오는 요청들을 처리할 블루프린트 생성
 bp = Blueprint('post', __name__, url_prefix='/post')
@@ -25,7 +25,8 @@ def get_current_user_id():
 @bp.route('/')
 def _list():
     posts = Post.query.order_by(Post.created_at.desc()).all()
-    return render_template('post/post_list.html', posts=posts)
+    story_list = Story.query.filter(Story.expires_at > datetime.now()).order_by(Story.create_date.desc()).all()
+    return render_template('post/post_list.html', posts=posts, story_list=story_list)
 
 
 # 2. 게시물 등록 처리
