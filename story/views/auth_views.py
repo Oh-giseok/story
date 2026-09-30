@@ -10,14 +10,12 @@ from sqlalchemy import or_
 from story import db
 from story.forms import UserCreateForm, UserLoginForm, ProfileEditForm
 from story.models import User, Post, Reels, Story
-from story.forms import UserCreateForm,UserLoginForm,ProfileEditForm
 from story.models import (
-    User, Post, Reels, Story, Conversation, Message, MessageRead,
+    Conversation, Message, MessageRead,
     PostLike, PostComment, Reels_Likes, Comments, StoryLikes,
 )
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
-
 
 
 def permanently_delete_user(user):
@@ -62,6 +60,7 @@ def permanently_delete_user(user):
     if story_ids:
         Story.query.filter(Story.id.in_(story_ids)).delete(synchronize_session=False)
     db.session.delete(user)
+
 
 @bp.before_app_request
 def load_loggend_in_user():
@@ -128,9 +127,9 @@ def login():
         elif not check_password_hash(user.password_hash, form.password.data):
             error = '비밀번호가 올바르지 않습니다'
         elif (
-            user.status == 'deletion_pending'
-            and user.deletion_requested_at
-            and user.deletion_requested_at <= datetime.utcnow() - timedelta(days=10)
+                user.status == 'deletion_pending'
+                and user.deletion_requested_at
+                and user.deletion_requested_at <= datetime.utcnow() - timedelta(days=10)
         ):
             permanently_delete_user(user)
             db.session.commit()
@@ -157,7 +156,6 @@ def login():
             return redirect(url_for('main.index'))
         flash(error)
     return render_template('auth/login.html', form=form)
-
 
 
 @bp.route('/find_info', methods=['GET', 'POST'])
@@ -201,6 +199,7 @@ def find_info():
                 flash('올바르지 않은 요청입니다.')
 
     return render_template('auth/find_info.html', form=form, found_username=found_username)
+
 
 @bp.route('/logout')
 def logout():
@@ -295,10 +294,16 @@ def mypage():
     reels = Reels.query.filter_by(user_id=g.user.id).order_by(Reels.created_at.desc()).all()
     stories = Story.query.filter_by(user_id=g.user.id).order_by(Story.create_date.desc()).all()
 
-    return (render_template(
-        'auth/mypage.html', user=g.user, posts=posts, reels=reels, stories=stories
+    account_form = FlaskForm()
+
+    return render_template(
+        'auth/mypage.html',
+        user=g.user,
+        posts=posts,
+        reels=reels,
+        stories=stories,
+        account_form=account_form
     )
-            ('auth/mypage.html', user=g.user, posts=posts, reels=reels, stories=stories, account_form=FlaskForm()))
 
 
 @bp.route('/deactivate', methods=['POST'])

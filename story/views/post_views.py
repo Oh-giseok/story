@@ -50,6 +50,7 @@ def _create():
 
         media_url = ','.join(saved_urls) if saved_urls else None
 
+        # DB 저장 (현재 로그인 유저 ID로 저장)
         post = Post(
             user_id=user_id,
             caption=caption,
@@ -57,14 +58,6 @@ def _create():
         )
         db.session.add(post)
         db.session.commit()
-    # DB 저장 (현재 로그인 유저 ID로 저장)
-    post = Post(
-        user_id=user_id,
-        caption=caption,
-        media_url=media_url
-    )
-    db.session.add(post)
-    db.session.commit()
 
         return redirect(url_for('post._list'))
 
@@ -179,7 +172,7 @@ def delete_post(post_id):
     if post.user_id != user_id:
         return jsonify({'success': False, 'message': '삭제 권한이 없습니다.'}), 403
 
-    # 해당 게시물의 댓글 및 좋아요도 함께 연쇄 삭제 (ORMB/relationship 캐스케이드가 설정되지 않은 경우를 대비)
+    # 해당 게시물의 댓글 및 좋아요도 함께 연쇄 삭제
     PostLike.query.filter_by(post_id=post_id).delete()
     PostComment.query.filter_by(post_id=post_id).delete()
 
