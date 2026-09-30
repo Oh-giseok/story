@@ -2,8 +2,8 @@ import os
 import cv2
 import uuid
 
-from flask import Blueprint, render_template, send_from_directory, redirect, url_for, session
-from ..models import Reels, Comments, Reels_Likes
+from flask import Blueprint, render_template, send_from_directory, redirect, url_for, session, request, jsonify
+from ..models import Reels, Comments, Reels_Likes, User
 from ..forms import ReelsForm, CommentsForm , ReelsEditForm
 from flask import current_app as currunt_app
 from .. import db
@@ -227,6 +227,17 @@ def add_comment(reel_id):
 
         db.session.add(comment)
         db.session.commit()
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            user = User.query.get(session['user_id'])
+            return jsonify({
+                'success': True,
+                'comment': {
+                    'user_name': user.username if user else '',
+                    'profile_img_url': url_for('static', filename=user.profile_img_url) if user and user.profile_img_url else '',
+                    'content': comment.content,
+                },
+            })
 
     return redirect(url_for('reels.reels'))
 

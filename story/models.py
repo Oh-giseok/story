@@ -138,6 +138,15 @@ class Reels(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
+    @property
+    def thumbnail_img_url(self):
+        """Backward-compatible descriptive name for the stored reel thumbnail path."""
+        return self.thumbnail_url
+
+    @thumbnail_img_url.setter
+    def thumbnail_img_url(self, value):
+        self.thumbnail_url = value
+
 
 class Reels_Likes(db.Model):
     __tablename__ = 'reel_likes'
