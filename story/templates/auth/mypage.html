@@ -64,6 +64,7 @@
                  style="cursor: pointer;"
                  onclick="openPostDetailModal({{ post.id }})"
                  id="post-card-{{ post.id }}"
+                 data-user-id="{{ post.user_id }}"
                  data-user-name="{{ post.user.username }}"
                  data-user-img="{{ url_for('static', filename=post.user.profile_img_url) if post.user.profile_img_url else '' }}">
 
@@ -97,6 +98,7 @@
                         {% for comment in post.comments %}
                         <div class="comment-item"
                              data-comment-id="{{ comment.id }}"
+                             data-user-id="{{ comment.user_id }}"
                              data-user-name="{{ comment.user.username }}"
                              data-user-img="{{ url_for('static', filename=comment.user.profile_img_url) if comment.user.profile_img_url else '' }}">
                             {{ comment.content }}
@@ -107,9 +109,9 @@
             </div>
 
             {% if post.caption %}
-                <p class="small mt-1 mb-0 text-truncate" style="cursor: pointer;" onclick="openPostDetailModal({{ post.id }})">
-                    {{ post.caption }}
-                </p>
+{#                <p class="small mt-1 mb-0 text-truncate raw-caption-display" style="cursor: pointer;" onclick="openPostDetailModal({{ post.id }})">#}
+{#                    {{ post.caption }}#}
+{#                </p>#}
             {% endif %}
         </div>
         {% else %}
@@ -145,6 +147,7 @@
 <script>
     let detailSwiperInstance = null;
     let currentActivePostId = null;
+    const currentUserId = {{ session.get('user_id', 0) }}; // 현재 로그인된 user_id
 
     // 1. 모달 데이터 채우기 및 열기
     function openPostDetailModal(postId) {
@@ -152,6 +155,7 @@
         const postCard = document.getElementById(`post-card-${postId}`);
         if (!postCard) return;
 
+        const postUserId = parseInt(postCard.dataset.userId || '0');
         const userName = postCard.dataset.userName || '';
         const userImg = postCard.dataset.userImg || '';
 
@@ -161,15 +165,30 @@
 
         const commentForm = document.getElementById('detailCommentForm');
         if (commentForm) {
-            // 블루프린트명('post') + 함수명('comment')
             let baseUrl = "{{ url_for('post.comment', post_id=0) }}";
             commentForm.action = baseUrl.replace('/0', '/' + postId);
         }
+
+        // [게시물 메뉴 노출 제어] 로그인 유저가 게시물 작성자인 경우 ··· 옵션 버튼 노출
+        const ownerMenu = document.getElementById('detailModalOwnerMenu');
+        if (ownerMenu) {
+            if (currentUserId && currentUserId === postUserId) {
+                ownerMenu.classList.remove('d-none');
+            } else {
+                ownerMenu.classList.add('d-none');
+            }
+        }
+
+        // 게시물 수정 폼 초기화 (수정 창 닫고 기본 보기로)
+        toggleEditPostForm(false);
 
         // 유저 정보 세팅
         document.getElementById('detailModalUser').textContent = userName;
         document.getElementById('detailModalCaptionUser').textContent = userName;
         document.getElementById('detailModalCaption').textContent = caption;
+
+        const editInput = document.getElementById('editPostCaptionInput');
+        if (editInput) editInput.value = caption;
 
         // 프로필 이미지 세팅
         const userImgEl = document.getElementById('detailModalUserImg');
@@ -210,7 +229,7 @@
             navigation: { nextEl: '#modalDetailSwiper .swiper-button-next', prevEl: '#modalDetailSwiper .swiper-button-prev' },
         });
 
-        // 댓글 목록 세팅
+        // 댓글 목록 세팅 (내 댓글 수정 버튼 생성 포함)
         renderComments(rawData);
 
         // 모달 띄우기 및 크기 업데이트
@@ -223,36 +242,185 @@
         }, { once: true });
     }
 
-    // 댓글 목록 렌더링 함수
+    // 2. 댓글 목록 렌더링 함수 (본인 댓글 수정 기능 포함)
     function renderComments(rawData) {
         const commentListEl = document.getElementById('detailModalCommentList');
+        if (!commentListEl) return;
         commentListEl.innerHTML = '';
-        if (rawData) {
-            const comments = rawData.querySelectorAll('.raw-comments .comment-item');
-            comments.forEach(c => {
-                const cUser = c.dataset.userName;
-                const cImg = c.dataset.userImg;
-                const cText = c.textContent.trim();
 
-                const commentEl = document.createElement('div');
-                commentEl.className = 'd-flex mb-2 align-items-start';
-                commentEl.innerHTML = `
+        if (!rawData) return;
+        const comments = rawData.querySelectorAll('.raw-comments .comment-item');
+
+        comments.forEach(c => {
+            const commentId = c.dataset.commentId;
+            const commentUserId = parseInt(c.dataset.userId || '0');
+            const cUser = c.dataset.userName;
+            const cImg = c.dataset.userImg;
+            const cText = c.textContent.trim();
+
+            const isMyComment = (currentUserId && currentUserId === commentUserId);
+
+            const commentEl = document.createElement('div');
+            commentEl.className = 'd-flex mb-2 align-items-start justify-content-between comment-item';
+            commentEl.id = `comment-item-${commentId}`;
+
+            commentEl.innerHTML = `
+                <div class="d-flex align-items-start gap-2 flex-grow-1 me-2">
                     ${cImg
-                        ? `<img src="${cImg}" class="rounded-circle me-2" width="28" height="28" style="object-fit:cover;">`
-                        : `<i class="bi bi-person-circle fs-6 me-2 text-secondary"></i>`}
-                    <div>
+                        ? `<img src="${cImg}" class="rounded-circle" width="28" height="28" style="object-fit:cover;">`
+                        : `<i class="bi bi-person-circle fs-6 text-secondary"></i>`}
+                    <div class="w-100">
                         <span class="fw-bold me-1 small">${cUser}</span>
-                        <span class="small">${cText}</span>
+                        <span class="small comment-content-text">${cText}</span>
+
+                        <!-- 댓글 수정 폼 (기본 숨김) -->
+                        <div class="comment-edit-form d-none mt-1">
+                            <input type="text" class="form-control form-control-sm comment-edit-input mb-1" value="${cText}">
+                            <div class="d-flex gap-1 justify-content-end">
+                                <button type="button" class="btn btn-sm btn-secondary py-0 px-2" onclick="toggleEditComment('${commentId}', false)">취소</button>
+                                <button type="button" class="btn btn-sm btn-primary py-0 px-2" onclick="submitEditComment('${commentId}')">수정</button>
+                            </div>
+                        </div>
                     </div>
-                `;
-                commentListEl.appendChild(commentEl);
-            });
+                </div>
+                ${isMyComment ? `
+                    <a href="javascript:void(0)" class="btn-edit-comment text-muted small ms-1" onclick="toggleEditComment('${commentId}', true)">수정</a>
+                ` : ''}
+            `;
+            commentListEl.appendChild(commentEl);
+        });
+    }
+
+    // 3. 댓글 수정 입력창 토글 (수정 / 취소)
+    function toggleEditComment(commentId, showEdit) {
+        const commentEl = document.getElementById(`comment-item-${commentId}`);
+        if (!commentEl) return;
+
+        const contentText = commentEl.querySelector('.comment-content-text');
+        const editForm = commentEl.querySelector('.comment-edit-form');
+        const editBtn = commentEl.querySelector('.btn-edit-comment');
+
+        if (showEdit) {
+            contentText.classList.add('d-none');
+            editForm.classList.remove('d-none');
+            if (editBtn) editBtn.classList.add('d-none');
+        } else {
+            contentText.classList.remove('d-none');
+            editForm.classList.add('d-none');
+            if (editBtn) editBtn.classList.remove('d-none');
         }
     }
 
-    // 2. 모달 내 댓글 전송 처리 (비동기 처리/일반 전송)
+    // 4. 댓글 수정 비동기 전송
+    function submitEditComment(commentId) {
+        const commentEl = document.getElementById(`comment-item-${commentId}`);
+        if (!commentEl) return;
+
+        const inputEl = commentEl.querySelector('.comment-edit-input');
+        const newContent = inputEl.value.trim();
+
+        if (!newContent) {
+            alert('내용을 입력해주세요.');
+            return;
+        }
+
+        fetch(`/post/comment/edit/${commentId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ 'content': newContent })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                commentEl.querySelector('.comment-content-text').textContent = newContent;
+                toggleEditComment(commentId, false);
+
+                // 카드 속 hidden 댓글 데이터 업데이트
+                const rawCommentNode = document.querySelector(`.comment-item[data-comment-id="${commentId}"]`);
+                if (rawCommentNode) {
+                    rawCommentNode.textContent = newContent;
+                }
+            } else {
+                alert(data.message || '댓글 수정에 실패했습니다.');
+            }
+        })
+        .catch(err => console.error(err));
+    }
+
+    // 5. 게시물 본문 수정 입력창 토글 (수정 / 취소)
+    function toggleEditPostForm(showEdit) {
+        const viewSection = document.getElementById('postCaptionViewSection');
+        const editSection = document.getElementById('postCaptionEditSection');
+        if (!viewSection || !editSection) return;
+
+        if (showEdit) {
+            viewSection.classList.add('d-none');
+            editSection.classList.remove('d-none');
+        } else {
+            viewSection.classList.remove('d-none');
+            editSection.classList.add('d-none');
+        }
+    }
+
+    // 6. 게시물 본문 수정 비동기 전송
+    function submitEditPost() {
+        const newCaption = document.getElementById('editPostCaptionInput').value;
+        if (!currentActivePostId) return;
+
+        fetch(`/post/edit/${currentActivePostId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ 'caption': newCaption })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('detailModalCaption').textContent = data.caption;
+                toggleEditPostForm(false);
+
+                // 마이페이지 카드 내부 캡션 및 하단 문구 업데이트
+                const postCard = document.getElementById(`post-card-${currentActivePostId}`);
+                if (postCard) {
+                    const rawCaption = postCard.querySelector('.raw-caption');
+                    if (rawCaption) rawCaption.textContent = data.caption;
+
+                    const displayCaption = postCard.parentElement.querySelector('.raw-caption-display');
+                    if (displayCaption) displayCaption.textContent = data.caption;
+                }
+                alert('게시물이 수정되었습니다.');
+            } else {
+                alert(data.message || '수정에 실패했습니다.');
+            }
+        })
+        .catch(err => console.error(err));
+    }
+
+    // 7. 게시물 삭제 비동기 전송
+    function deletePostFromModal() {
+        if (!currentActivePostId || !confirm('정말 이 게시물을 삭제하시겠습니까?')) return;
+
+        fetch(`/post/delete/${currentActivePostId}`, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const modalEl = document.getElementById('postDetailModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+
+                // 마이페이지 카드 제거
+                const postCardContainer = document.getElementById(`post-card-${currentActivePostId}`)?.parentElement;
+                if (postCardContainer) postCardContainer.remove();
+                alert('게시물이 삭제되었습니다.');
+            } else {
+                alert(data.message || '삭제에 실패했습니다.');
+            }
+        })
+        .catch(err => console.error(err));
+    }
+
+    // 8. 모달 내 새 댓글 작성 전송 처리 (비동기)
     function handleDetailCommentSubmit(e) {
-        e.preventDefault(); // 폼 기본 제출(페이지 이동) 방지
+        e.preventDefault();
 
         const commentInput = document.getElementById('detailCommentInput');
         const content = commentInput.value.trim();
@@ -267,21 +435,33 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // UI에 새 댓글 즉시 추가
                 const commentListEl = document.getElementById('detailModalCommentList');
                 const commentEl = document.createElement('div');
-                commentEl.className = 'd-flex mb-2 align-items-start';
+                commentEl.className = 'd-flex mb-2 align-items-start justify-content-between comment-item';
+                commentEl.id = `comment-item-${data.comment.id}`;
+
                 commentEl.innerHTML = `
-                    ${data.comment.profile_img_url
-                        ? `<img src="${data.comment.profile_img_url}" class="rounded-circle me-2" width="28" height="28" style="object-fit:cover;">`
-                        : `<i class="bi bi-person-circle fs-6 me-2 text-secondary"></i>`}
-                    <div>
-                        <span class="fw-bold me-1 small">${data.comment.user_name}</span>
-                        <span class="small">${data.comment.content}</span>
+                    <div class="d-flex align-items-start gap-2 flex-grow-1 me-2">
+                        ${data.comment.profile_img_url
+                            ? `<img src="${data.comment.profile_img_url}" class="rounded-circle" width="28" height="28" style="object-fit:cover;">`
+                            : `<i class="bi bi-person-circle fs-6 text-secondary"></i>`}
+                        <div class="w-100">
+                            <span class="fw-bold me-1 small">${data.comment.user_name}</span>
+                            <span class="small comment-content-text">${data.comment.content}</span>
+
+                            <div class="comment-edit-form d-none mt-1">
+                                <input type="text" class="form-control form-control-sm comment-edit-input mb-1" value="${data.comment.content}">
+                                <div class="d-flex gap-1 justify-content-end">
+                                    <button type="button" class="btn btn-sm btn-secondary py-0 px-2" onclick="toggleEditComment('${data.comment.id}', false)">취소</button>
+                                    <button type="button" class="btn btn-sm btn-primary py-0 px-2" onclick="submitEditComment('${data.comment.id}')">수정</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
+                    <a href="javascript:void(0)" class="btn-edit-comment text-muted small ms-1" onclick="toggleEditComment('${data.comment.id}', true)">수정</a>
                 `;
                 commentListEl.appendChild(commentEl);
-                commentInput.value = ''; // 입력창 초기화
+                commentInput.value = '';
             } else {
                 alert(data.message || '댓글 등록 실패');
             }
@@ -289,7 +469,7 @@
         .catch(err => console.error(err));
     }
 
-    // 3. 탭 전환 (POST / REELS / STORY)
+    // 9. 탭 전환 (POST / REELS / STORY)
     function showPosts(type, selectedButton) {
         ['posts', 'reels', 'stories'].forEach((name) => {
             document.getElementById(`${name}-content`).hidden = name !== type;
@@ -301,5 +481,6 @@
         selectedButton.classList.add('border-bottom', 'border-dark', 'fw-bold');
         selectedButton.setAttribute('aria-selected', 'true');
     }
+
 </script>
 {% endblock %}

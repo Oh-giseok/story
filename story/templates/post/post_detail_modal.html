@@ -116,7 +116,7 @@
                         </div>
 
                         <!-- 더보기(...) 아이콘 버튼 -->
-                        <button type="button" class="btn btn-link text-dark p-0 border-0 d-none" id="btnPostMoreOption">
+                        <button type="button" class="btn btn-link text-dark p-0 border-0" id="btnPostMoreOption">
                             <i class="bi bi-three-dots fs-5"></i>
                         </button>
                     </div>
@@ -181,3 +181,192 @@
         </div>
     </div>
 </div>
+
+<script>
+    // 피드 페이지는 post_list.html에서 상세 모달 이벤트와 Bootstrap 인스턴스를
+    // 관리한다. 마이페이지에는 피드용 .btn-open-detail 버튼이 없으므로 여기서
+    // 마이페이지의 인라인 onclick 흐름에 맞춰 옵션 메뉴 동작을 연결한다.
+    // 이 include는 Bootstrap 스크립트보다 먼저 렌더링되므로 DOMContentLoaded까지
+    // 초기화를 미뤄야 bootstrap.Modal을 사용할 수 있다.
+    document.addEventListener('DOMContentLoaded', function () {
+    if (!document.querySelector('.btn-open-detail')) {
+        const postDetailModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('postDetailModal'));
+        const postOptionModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('postOptionModal'));
+        const deleteConfirmModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteConfirmModal'));
+
+    document.querySelectorAll('.btn-open-detail').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const postId = this.getAttribute('data-post-id');
+                currentActivePostId = postId;
+                const card = document.getElementById(`post-card-${postId}`);
+
+                const postUserName = card.getAttribute('data-user-name');
+                const postUserImg = card.getAttribute('data-user-img');
+
+                document.getElementById('detailModalUser').textContent = postUserName;
+                document.getElementById('detailModalCaptionUser').textContent = postUserName;
+
+                // [본인 확인] 작성자와 로그인 사용자가 같을 때만 (...) 노출
+                const btnPostMoreOption = document.getElementById('btnPostMoreOption');
+                if (postUserName === currentUsername) {
+                    btnPostMoreOption.classList.remove('d-none');
+                } else {
+                    btnPostMoreOption.classList.add('d-none');
+                }
+
+                // 프로필 이미지 세팅
+                const modalUserImgElem = document.getElementById('detailModalUserImg');
+                const modalUserIconElem = document.getElementById('detailModalUserIcon');
+                const captionUserImgElem = document.getElementById('detailModalCaptionUserImg');
+                const captionUserIconElem = document.getElementById('detailModalCaptionUserIcon');
+
+                if (postUserImg) {
+                    modalUserImgElem.src = postUserImg;
+                    modalUserImgElem.classList.remove('d-none');
+                    modalUserIconElem.classList.add('d-none');
+
+                    captionUserImgElem.src = postUserImg;
+                    captionUserImgElem.classList.remove('d-none');
+                    captionUserIconElem.classList.add('d-none');
+                } else {
+                    modalUserImgElem.classList.add('d-none');
+                    modalUserIconElem.classList.remove('d-none');
+
+                    captionUserImgElem.classList.add('d-none');
+                    captionUserIconElem.classList.remove('d-none');
+                }
+
+                const caption = card.querySelector('.post-caption-text').textContent;
+                const rawImages = card.querySelector('.raw-images').textContent.trim();
+                const commentItems = card.querySelectorAll('.raw-comments .comment-item');
+
+                document.getElementById('detailCommentForm').setAttribute('data-post-id', postId);
+                document.getElementById('detailModalCaption').textContent = caption;
+                document.getElementById('detailModalCaption').classList.remove('d-none');
+                document.getElementById('captionEditBox').classList.add('d-none');
+
+                // 이미지 Swiper 반영
+                const wrapper = document.getElementById('modalDetailSwiperWrapper');
+                wrapper.innerHTML = '';
+
+                if (rawImages) {
+                    const imgList = rawImages.split(',');
+                    imgList.forEach(src => {
+                        const slide = document.createElement('div');
+                        slide.className = 'swiper-slide';
+                        slide.innerHTML = `<img src="${src}" alt="게시물 이미지">`;
+                        wrapper.appendChild(slide);
+                    });
+
+                    if (modalDetailSwiperInstance) modalDetailSwiperInstance.destroy();
+
+                    setTimeout(() => {
+                        const nextBtn = document.querySelector('#modalDetailSwiper .swiper-button-next');
+                        const prevBtn = document.querySelector('#modalDetailSwiper .swiper-button-prev');
+                        const pagination = document.querySelector('#modalDetailSwiper .swiper-pagination');
+
+                        const modalSwiperOptions = { observer: true, observeParents: true };
+
+                        if (imgList.length > 1) {
+                            modalSwiperOptions.navigation = { nextEl: '#modalDetailSwiper .swiper-button-next', prevEl: '#modalDetailSwiper .swiper-button-prev' };
+                            modalSwiperOptions.pagination = { el: '#modalDetailSwiper .swiper-pagination', clickable: true };
+                            if (nextBtn) nextBtn.style.display = '';
+                            if (prevBtn) prevBtn.style.display = '';
+                            if (pagination) pagination.style.display = '';
+                        } else {
+                            if (nextBtn) nextBtn.style.display = 'none';
+                            if (prevBtn) prevBtn.style.display = 'none';
+                            if (pagination) pagination.style.display = 'none';
+                        }
+
+                        modalDetailSwiperInstance = new Swiper('#modalDetailSwiper', modalSwiperOptions);
+                    }, 100);
+                }
+
+                renderModalComments(commentItems);
+                postDetailModal.show();
+            });
+        });
+
+        // 더보기 아이콘 클릭 -> 더보기 옵션 모달 열기
+        document.getElementById('btnPostMoreOption').addEventListener('click', function() {
+            postOptionModal.show();
+        });
+
+        // 옵션 모달 -> 삭제버튼 클릭
+        document.getElementById('btnOptDeletePost').addEventListener('click', function() {
+            postOptionModal.hide();
+            deleteConfirmModal.show();
+        });
+
+        // 최종 삭제 확인 -> AJAX 삭제 처리
+        document.getElementById('btnConfirmDeletePost').addEventListener('click', function() {
+            if (!currentActivePostId) return;
+
+            fetch(`/post/delete/${currentActivePostId}`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    deleteConfirmModal.hide();
+                    postDetailModal.hide();
+
+                    // DOM에서 삭제된 게시물 카드 제거
+                    const card = document.getElementById(`post-card-${currentActivePostId}`);
+                    if (card) (card.closest('.col-6, .col-md-4') || card).remove();
+                } else {
+                    alert(data.message || '삭제 실패');
+                }
+            });
+        });
+
+        // 옵션 모달 -> 수정버튼 클릭
+        document.getElementById('btnOptEditPost').addEventListener('click', function() {
+            postOptionModal.hide();
+            const currentCaption = document.getElementById('detailModalCaption').textContent;
+
+            document.getElementById('captionEditText').value = currentCaption;
+            document.getElementById('detailModalCaption').classList.add('d-none');
+            document.getElementById('captionEditBox').classList.remove('d-none');
+        });
+
+        // 문구 수정 저장 처리
+        document.getElementById('btnSaveCaptionEdit').addEventListener('click', function() {
+            const newCaption = document.getElementById('captionEditText').value;
+            const formData = new FormData();
+            formData.append('caption', newCaption);
+
+            fetch(`/post/edit/${currentActivePostId}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('detailModalCaption').textContent = data.caption;
+                    document.getElementById('detailModalCaption').classList.remove('d-none');
+                    document.getElementById('captionEditBox').classList.add('d-none');
+
+                    // 피드 메인 카드 문구도 업데이트
+                    const card = document.getElementById(`post-card-${currentActivePostId}`);
+                    if (card) {
+                        const captionText = card.querySelector('.post-caption-text');
+                        if (captionText) captionText.textContent = data.caption;
+                        const rawCaption = card.querySelector('.raw-caption');
+                        if (rawCaption) rawCaption.textContent = data.caption;
+                        const captionDisplay = card.parentElement.querySelector('.raw-caption-display');
+                        if (captionDisplay) captionDisplay.textContent = data.caption;
+                    }
+                } else {
+                    alert(data.message || '수정 실패');
+                }
+            });
+        });
+
+        // 문구 수정 취소
+        document.getElementById('btnCancelCaptionEdit').addEventListener('click', function() {
+            document.getElementById('detailModalCaption').classList.remove('d-none');
+            document.getElementById('captionEditBox').classList.add('d-none');
+        });
+    }
+    });
+</script>
