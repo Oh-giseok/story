@@ -42,7 +42,6 @@
     width: 260px;
     flex: 0 0 260px;
     align-self: center;
-    transform: translate(-100px, 260px);
 }
 
 .reel-owner-info {
@@ -105,7 +104,6 @@
 
     text-decoration: none;
 
-    transform: translateX(-100px);
 }
 
 
@@ -127,7 +125,6 @@
     flex-direction: column;
     align-items: center;
     gap: 6px;
-    transform: translate(-100px, 250px);
 
 }
 
@@ -179,6 +176,105 @@
     line-height: 1;
 
     cursor: pointer;
+}
+
+/* 한 화면에 하나의 릴스 */
+body:has(.reels-feed) { overflow: hidden; }
+body:has(.reels-feed) main.py-4 { padding-top: 0 !important; padding-bottom: 0 !important; }
+.reels-feed {
+    width: 100%;
+    max-width: none;
+    height: calc(100dvh - 60px);
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scroll-snap-type: y mandatory;
+    scrollbar-width: none;
+}
+.reels-feed::-webkit-scrollbar { display: none; }
+.reel-card {
+    width: 100%;
+    height: 100%;
+    min-height: 480px;
+    margin: 0;
+    padding: 16px 24px;
+    display: grid;
+    place-items: center;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+}
+.reel-layout {
+    width: min(100%, 1040px);
+    height: 100%;
+    max-height: 720px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(16px, 3vw, 48px);
+}
+.reel-info, .reel-actions { transform: none; }
+.reel-info { width: auto; min-width: 0; flex: initial; }
+.reel-media {
+    width: min(360px, calc((100dvh - 100px) * 9 / 16));
+    height: auto;
+    aspect-ratio: 9 / 16;
+    flex: initial;
+    justify-self: center;
+    transform: none;
+}
+.reel-actions { width: auto; flex: initial; justify-self: start; }
+.reel-video { display: block; object-fit: contain; }
+.reel-caption { -webkit-line-clamp: 4; }
+.reel-detail-close { transform: none !important; }
+
+@media (min-width: 768px) and (max-width: 1100px) {
+    .reel-card { padding-inline: 16px; }
+    .reel-layout { grid-template-columns: minmax(130px, 1fr) minmax(300px, 360px) minmax(44px, .35fr); gap: 20px; }
+    .reel-media { width: min(100%, 360px, calc((100dvh - 100px) * 9 / 16)); height: auto; max-height: calc(100dvh - 100px); }
+    .reel-info { max-width: 250px; }
+}
+
+@media (max-width: 767.98px) {
+    body { padding-bottom: 60px !important; }
+    .reels-feed { height: calc(100dvh - 60px); }
+    .reel-card { min-height: 100%; height: 100%; padding: 8px 12px; }
+    .reel-layout {
+        width: min(100%, 430px);
+        max-height: none;
+        height: 100%;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-rows: minmax(0, 1fr) auto;
+        align-content: center;
+        align-items: end;
+        gap: 10px 12px;
+    }
+    .reel-media {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        width: min(100%, calc((100dvh - 220px) * 9 / 16));
+        height: auto;
+        max-height: calc(100dvh - 220px);
+        aspect-ratio: 9 / 16;
+        border-radius: 12px;
+        justify-self: center;
+    }
+    .reel-info { grid-column: 1; grid-row: 2; align-self: center; }
+    .reel-owner-info { margin-bottom: 6px; }
+    .reel-owner-profile { width: 34px; height: 34px; }
+    .reel-owner-profile-icon { font-size: 34px; }
+    .reel-caption { font-size: 13px; -webkit-line-clamp: 2; }
+    .reel-created-at { margin-top: 4px; }
+    .reel-actions {
+        grid-column: 2; grid-row: 2;
+        flex-direction: row; gap: 8px;
+        align-self: center; justify-self: end;
+    }
+    .reel-actions .like-count-text, .reel-actions .comment-count-text { margin: 0 4px 0 -6px; }
+    .reel-actions .bi { font-size: 1.25rem !important; }
+}
+
+@media (max-height: 650px) and (max-width: 767.98px) {
+    .reel-media { width: min(100%, calc((100dvh - 170px) * 9 / 16)); max-height: calc(100dvh - 170px); }
 }
 </style>
 {% endblock %}
@@ -246,7 +342,6 @@
             <video
                 muted
                 playsinline
-                loop
                 preload="metadata"
                 class="reel-video"
             >
@@ -314,7 +409,7 @@
 
 <div class="modal fade" id="reelDetailModal" tabindex="-1" aria-hidden="true">
  <div class="modal-dialog modal-dialog-centered reel-modal-dialog">
-  <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 reel-detail-close" data-bs-dismiss="modal" aria-label="닫기" style="z-index:1070;transform:translate(150%,-50%);cursor:pointer;pointer-events:auto;"></button>
+  <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 reel-detail-close" data-bs-dismiss="modal" aria-label="닫기" style="z-index:1070;cursor:pointer;pointer-events:auto;"></button>
   <div class="modal-content reel-modal-content">
    <div class="modal-body reel-modal-body row g-0 h-100 p-0">
     <div class="col-md-7 reel-modal-media d-flex align-items-center justify-content-center">
@@ -415,6 +510,9 @@
 <script>
 const csrfToken={{ form.csrf_token.current_token|tojson }};
 let activeReel=null,activeComment=null,activeDetail=null;
+const reelsFeed=document.querySelector('.reels-feed');
+const reelCards=[...document.querySelectorAll('.reel-card')];
+let activeCardIndex=0, reelTransitioning=false, transitionTimer=null;
 const detailModal=new bootstrap.Modal(document.getElementById('reelDetailModal'));
 const reelCommentOptionModal=bootstrap.Modal.getOrCreateInstance(document.getElementById('reelCommentOptionModal'));
 const reelOwnerOptionModal=bootstrap.Modal.getOrCreateInstance(document.getElementById('reelOwnerOptionModal'));
@@ -456,6 +554,7 @@ async function openReel(id){
 
     document.querySelectorAll('.reel-video').forEach(video=>{
         video.pause();
+        video.currentTime=0;
     });
 
     try{
@@ -702,27 +801,79 @@ document.getElementById('reelDetailModal').addEventListener(
 );
 
 
-const reelObserver=new IntersectionObserver((entries)=>{
-    entries.forEach(entry=>{
-        const video=entry.target;
-
-        if(entry.isIntersecting){
-            video.muted=true;
-
-            video.play().catch(error=>{
-                console.log('릴스 자동재생 실패:',error);
+function activateReelCard(index){
+    activeCardIndex=index;
+    reelCards.forEach((card,i)=>{
+        const video=card.querySelector('.reel-video');
+        if(!video)return;
+        if(i===index){
+            document.querySelectorAll('.reel-video').forEach(other=>{
+                if(other!==video){other.pause();other.currentTime=0;}
             });
+            video.muted=true;
+            video.currentTime=0;
+            video.play().catch(()=>{});
         }else{
             video.pause();
+            video.currentTime=0;
         }
     });
+}
+
+function moveReel(direction){
+    if(reelTransitioning||!reelCards.length||document.getElementById('reelDetailModal').classList.contains('show'))return;
+    const nextIndex=Math.max(0,Math.min(reelCards.length-1,activeCardIndex+direction));
+    if(nextIndex===activeCardIndex)return;
+    reelTransitioning=true;
+    activeCardIndex=nextIndex;
+    reelCards[nextIndex].scrollIntoView({behavior:'smooth',block:'start'});
+    activateReelCard(nextIndex);
+    clearTimeout(transitionTimer);
+    transitionTimer=setTimeout(()=>{reelTransitioning=false;},450);
+}
+
+const reelObserver=new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+        if(!entry.isIntersecting)return;
+        const index=reelCards.indexOf(entry.target);
+        if(index>=0&&!reelTransitioning&&index!==activeCardIndex)activateReelCard(index);
+    });
 },{
-    threshold:0.6
+    threshold:0.75
 });
 
-document.querySelectorAll('.reel-video').forEach(video=>{
-    reelObserver.observe(video);
+reelCards.forEach(card=>{
+    reelObserver.observe(card);
+    const video=card.querySelector('.reel-video');
+    video?.addEventListener('ended',()=>{
+        if(reelCards[activeCardIndex]===card)moveReel(1);
+    });
 });
+
+if(reelCards.length)activateReelCard(0);
+
+reelsFeed?.addEventListener('wheel',event=>{
+    if(Math.abs(event.deltaY)<20)return;
+    event.preventDefault();
+    moveReel(event.deltaY>0?1:-1);
+},{passive:false});
+
+document.addEventListener('keydown',event=>{
+    if(event.key!=='ArrowDown'&&event.key!=='ArrowUp')return;
+    if(document.getElementById('reelDetailModal').classList.contains('show'))return;
+    if(event.target.closest('input,textarea,select,[contenteditable="true"]'))return;
+    event.preventDefault();
+    moveReel(event.key==='ArrowDown'?1:-1);
+});
+
+let touchStartY=null;
+reelsFeed?.addEventListener('touchstart',event=>{touchStartY=event.changedTouches[0].clientY;},{passive:true});
+reelsFeed?.addEventListener('touchend',event=>{
+    if(touchStartY===null)return;
+    const delta=touchStartY-event.changedTouches[0].clientY;
+    if(Math.abs(delta)>45)moveReel(delta>0?1:-1);
+    touchStartY=null;
+},{passive:true});
 
 document.querySelectorAll('.reel-caption-wrap').forEach(wrap => {
     const caption = wrap.querySelector('.reel-caption');
