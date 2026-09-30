@@ -61,6 +61,23 @@
         {{ form.submit(class="btn btn-primary") }}
     </form>
 
+    <section class="card mt-4">
+        <div class="card-body">
+            <h2 class="h5">계정 관리</h2>
+            <p class="text-muted mb-3">현재 상태: {{ {'active': '활성', 'inactive': '비활성', 'deletion_pending': '탈퇴 대기'}[g.user.status] }}</p>
+            <div class="d-flex flex-wrap gap-2">
+                <form method="post" action="{{ url_for('auth.deactivate') }}">
+                    {{ account_form.csrf_token }}
+                    <button class="btn btn-outline-secondary" type="submit" onclick="return confirm('계정을 비활성화할까요? 다시 로그인하면 활성화됩니다.');">비활성화</button>
+                </form>
+                <form method="post" action="{{ url_for('auth.request_account_deletion') }}">
+                    {{ account_form.csrf_token }}
+                    <button class="btn btn-outline-danger" type="submit" onclick="return confirm('탈퇴를 신청할까요? 10일 이내 다시 로그인하면 취소할 수 있습니다.');">회원 탈퇴</button>
+                </form>
+            </div>
+        </div>
+    </section>
+
 </div>
 
 {% endblock %}
