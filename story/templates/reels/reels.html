@@ -13,6 +13,173 @@
 .createReelModal .modal-dialog.caption-step{max-width:850px}
 .createReelModal .modal-dialog.caption-step .modal-content{width:100%;margin:0 auto}
 .createReelModal .modal-title{padding-left: 32px}
+/* =========================
+   릴스 기본 레이아웃
+   ========================= */
+
+.reels-feed {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.reel-card {
+    background: transparent;
+    border: 0;
+    margin-bottom: 40px;
+}
+
+.reel-layout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+}
+
+
+/* 왼쪽 회원정보 + 캡션 */
+
+.reel-info {
+    width: 260px;
+    flex: 0 0 260px;
+    align-self: center;
+    transform: translate(-100px, 260px);
+}
+
+.reel-owner-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    color: inherit;
+    text-decoration: none;
+
+    margin-bottom: 16px;
+}
+
+.reel-owner-profile {
+    width: 42px;
+    height: 42px;
+    object-fit: cover;
+}
+
+.reel-owner-profile-icon {
+    font-size: 42px;
+    color: #adb5bd;
+}
+
+.reel-owner-name {
+    font-size: 15px;
+}
+
+.reel-caption {
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.reel-created-at {
+    display: block;
+    margin-top: 10px;
+
+    font-size: 12px;
+    color: #8b8b8b;
+}
+
+
+/* 가운데 릴스 프레임 */
+
+.reel-media {
+    display: block;
+
+    width: 360px;
+    height: 640px;
+
+    flex: 0 0 360px;
+
+    position: relative;
+
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+
+    text-decoration: none;
+
+    transform: translateX(-100px);
+}
+
+
+.reel-media video {
+    width: 100%;
+    height: 100%;
+
+    object-fit: contain;
+}
+
+
+/* 좋아요 / 댓글 */
+
+.reel-actions {
+    width: 60px;
+    flex: 0 0 60px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    transform: translate(-100px, 250px);
+
+}
+
+.reel-actions button {
+    color: #222;
+}
+
+.reel-actions .like-button {
+    color: #dc3545;
+}
+
+.reel-actions .like-count-text,
+.reel-actions .comment-count-text {
+    font-size: 13px;
+    font-weight: 600;
+
+    margin-bottom: 14px;
+}
+.reel-caption-wrap {
+    position: relative;
+}
+
+.reel-caption {
+    font-size: 14px;
+    line-height: 1.5;
+
+    overflow: hidden;
+
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* 캡션 더보기 버튼 */
+.reel-caption-more {
+    display: none;
+
+    padding: 0;
+    margin-top: 4px;
+
+    border: 0;
+    background: none;
+
+    color: #777;
+    font-size: 18px;
+    line-height: 1;
+
+    cursor: pointer;
+}
 </style>
 {% endblock %}
 
@@ -21,29 +188,118 @@
  {% for reel in reels %}
  {% set owner=users.get(reel.user_id) %}
  <article class="reel-card" id="reel-{{ reel.id }}" data-reel-id="{{ reel.id }}">
-  <div class="d-flex align-items-center justify-content-between p-3">
-   <a class="reel-owner reel-owner-link d-flex align-items-center gap-2" href="{{ url_for('auth.mypage') }}{% if owner and owner.id != current_user_id %}?user_id={{ owner.id }}{% endif %}">
-    {% if owner and owner.profile_img_url %}<img class="rounded-circle" src="{{ url_for('static',filename=owner.profile_img_url) }}" alt="">{% else %}<i class="bi bi-person-circle fs-3 text-secondary"></i>{% endif %}
-    <strong>{{ owner.username if owner else '회원' }}</strong>
-   </a><time class="small text-secondary">{{ reel.created_at|time_ago }}</time>
-  </div>
-  <a href="{{ url_for('reels.detail_reel',reel_id=reel.id) }}" class="reel-media reel-open" data-reel-id="{{ reel.id }}" aria-label="릴스 상세 보기">
-   <video muted playsinline loop preload="metadata" class="reel-video"><source src="{{ url_for('reels.uploaded_file',filename='videos/' + reel.video_url.replace('\\','/').split('/')[-1]) }}"></video>
-  </a>
-  <div class="p-3">
-   <div class="d-flex align-items-center mb-2">
-    <button type="button" class="btn btn-link text-danger p-0 me-3 border-0 like-button" data-reel-id="{{ reel.id }}" aria-label="좋아요" aria-pressed="{{ 'true' if reel.id in liked_reels else 'false' }}">
-     {% if reel.id in liked_reels %}<i class="bi bi-heart-fill fs-5"></i>{% else %}<i class="bi bi-heart text-dark fs-5"></i>{% endif %}
+
+    <div class="reel-layout">
+
+        <!-- 왼쪽 : 회원 정보 + 캡션 -->
+        <div class="reel-info">
+
+            <a
+                class="reel-owner-link reel-owner-info"
+                href="{{ url_for('auth.mypage') }}{% if owner and owner.id != current_user_id %}?user_id={{ owner.id }}{% endif %}"
+            >
+                {% if owner and owner.profile_img_url %}
+                    <img
+                        class="reel-owner-profile rounded-circle"
+                        src="{{ url_for('static', filename=owner.profile_img_url) }}"
+                        alt=""
+                    >
+                {% else %}
+                    <i class="bi bi-person-circle reel-owner-profile-icon"></i>
+                {% endif %}
+
+                <strong class="reel-owner-name">
+                    {{ owner.username if owner else '회원' }}
+                </strong>
+            </a>
+
+            <div class="reel-caption-wrap">
+
+    <div class="reel-caption">
+        {{ reel.caption }}
+    </div>
+
+    <button
+        type="button"
+        class="reel-caption-more reel-open"
+        data-reel-id="{{ reel.id }}"
+    >
+        ⋯
     </button>
-    <button type="button" class="btn btn-link text-dark p-0 border-0 d-flex align-items-center reel-open" data-reel-id="{{ reel.id }}" aria-label="댓글">
-     <i class="bi bi-chat fs-5 me-1" aria-hidden="true"></i><span class="fw-bold small comment-count-text">{{ comments_by_reel.get(reel.id,[])|length }}</span>
-    </button>
-   </div>
-   <p class="fw-bold mb-1 small">좋아요 <span class="like-count-text">{{ like_counts.get(reel.id,0) }}</span>개</p>
-   <div class="mt-1 overflow-hidden"><a class="reel-owner-link fw-semibold" href="{{ url_for('auth.mypage') }}{% if owner and owner.id != current_user_id %}?user_id={{ owner.id }}{% endif %}">{{ owner.username if owner else '회원' }}</a> {{ reel.caption }}</div>
-   <button type="button" class="btn btn-link p-0 mt-2 text-secondary text-decoration-none reel-open-all reel-open" data-reel-id="{{ reel.id }}">댓글 <span class="comment-count-text">{{ comments_by_reel.get(reel.id,[])|length }}</span>개 모두 보기</button>
-  </div>
- </article>
+
+</div>
+
+            <time class="reel-created-at">
+                {{ reel.created_at|time_ago }}
+            </time>
+
+        </div>
+
+
+        <!-- 가운데 : 릴스 영상 프레임 -->
+        <a
+            href="{{ url_for('reels.detail_reel', reel_id=reel.id) }}"
+            class="reel-media reel-open"
+            data-reel-id="{{ reel.id }}"
+            aria-label="릴스 상세 보기"
+        >
+            <video
+                muted
+                playsinline
+                loop
+                preload="metadata"
+                class="reel-video"
+            >
+                <source
+                    src="{{ url_for(
+                        'reels.uploaded_file',
+                        filename='videos/' + reel.video_url.replace('\\','/').split('/')[-1]
+                    ) }}"
+                >
+            </video>
+        </a>
+
+
+        <!-- 좋아요 / 댓글 영역 -->
+        <div class="reel-actions">
+
+            <button
+                type="button"
+                class="btn btn-link p-0 border-0 like-button"
+                data-reel-id="{{ reel.id }}"
+                aria-label="좋아요"
+                aria-pressed="{{ 'true' if reel.id in liked_reels else 'false' }}"
+            >
+                {% if reel.id in liked_reels %}
+                    <i class="bi bi-heart-fill fs-4"></i>
+                {% else %}
+                    <i class="bi bi-heart fs-4"></i>
+                {% endif %}
+            </button>
+
+            <span class="like-count-text">
+                {{ like_counts.get(reel.id, 0) }}
+            </span>
+
+
+            <button
+                type="button"
+                class="btn btn-link text-dark p-0 border-0 reel-open"
+                data-reel-id="{{ reel.id }}"
+                aria-label="댓글"
+            >
+                <i class="bi bi-chat fs-4"></i>
+            </button>
+
+            <span class="comment-count-text">
+                {{ comments_by_reel.get(reel.id, [])|length }}
+            </span>
+
+        </div>
+
+    </div>
+
+</article>
  {% else %}
  <div class="text-center text-secondary py-5">아직 등록된 릴스가 없습니다.</div>
  {% endfor %}
@@ -466,6 +722,17 @@ const reelObserver=new IntersectionObserver((entries)=>{
 
 document.querySelectorAll('.reel-video').forEach(video=>{
     reelObserver.observe(video);
+});
+
+document.querySelectorAll('.reel-caption-wrap').forEach(wrap => {
+    const caption = wrap.querySelector('.reel-caption');
+    const moreButton = wrap.querySelector('.reel-caption-more');
+
+    if (!caption || !moreButton) return;
+
+    if (caption.scrollHeight > caption.clientHeight + 1) {
+        moreButton.style.display = 'inline-block';
+    }
 });
 </script>
 {% endblock %}
