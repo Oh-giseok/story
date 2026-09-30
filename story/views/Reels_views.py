@@ -44,6 +44,10 @@ reels_bp = Blueprint(
 
 @reels_bp.route('/')
 def reels():
+    # Keep the Reels endpoint protected even if the app-wide auth hook changes.
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login', next=request.url))
+
     reels = Reels.query.order_by(Reels.created_at.desc()).all()
 
     comments = Comments.query.all()
