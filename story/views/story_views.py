@@ -84,6 +84,9 @@ def story_create():
         db.session.add(story)
         db.session.commit()
 
+        # 홈 피드에서 시작한 업로드는 등록 후 홈으로 복귀합니다.
+        if request.form.get('return_to') == 'home':
+            return redirect(url_for('main.index'))
         return redirect(url_for('story.story_list'))
 
     return render_template('story/story_form.html', form=form)
