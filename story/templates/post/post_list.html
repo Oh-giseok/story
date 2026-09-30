@@ -21,11 +21,11 @@
         /* Swiper Styles (피드 & 모달 공통 맞춤) */
         .feed-swiper { width: 100%; height: 400px; background-color: #000; position: relative; }
         .feed-swiper .swiper-slide { display: flex; justify-content: center; align-items: center; }
-        .feed-swiper .swiper-slide img { width: 100%; height: 100%; object-fit: cover; }
+        .feed-swiper .swiper-slide img, .feed-swiper .swiper-slide video { width: 100%; height: 100%; object-fit: cover; }
 
         .modal-feed-swiper { width: 100%; height: 100%; min-height: 450px; background-color: #000; position: relative; }
         .modal-feed-swiper .swiper-slide { display: flex; justify-content: center; align-items: center; }
-        .modal-feed-swiper .swiper-slide img { width: 100%; height: 100%; object-fit: contain; }
+        .modal-feed-swiper .swiper-slide img, .modal-feed-swiper .swiper-slide video { width: 100%; height: 100%; object-fit: contain; }
 
         /* Swiper Navigation Buttons (피드와 모달 공통 통일) */
         .swiper-button-next, .swiper-button-prev {
@@ -70,17 +70,20 @@
         .comment-input:focus { outline: none; box-shadow: none; }
         .btn-like i, .btn-open-detail i { pointer-events: none; }
 
-        .btn-edit-comment {
-            font-size: 0.75rem;
-            color: #8e8e8e;
-            cursor: pointer;
-            text-decoration: none;
-        }
-        .btn-edit-comment:hover { color: #262626; }
-
         .post-detail-modal .btn-close {
             cursor: pointer !important;
             pointer-events: auto !important; /* 마우스 이벤트 강제 활성화 */
+        }
+
+        .createPostModal .modal-content{
+            width: 80%;
+            margin: 0 auto;
+        }
+        #createPostModal .modal-dialog.caption-step { max-width: 850px; }
+        #createPostModal .modal-dialog.caption-step .modal-content { width: 100%; margin: 0 auto; }
+
+        .modal-title{
+            padding-left: 32px;
         }
     </style>
 </head>
@@ -91,7 +94,7 @@
         <div class="container d-flex justify-content-between align-items-center" style="max-width: 500px">
             <h4 class="fw-bold m-0">Story</h4>
             <button class="btn btn-outline-dark btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#createPostModal">
-                <i class="bi bi-plus-square me-1"></i> 만들기
+                <i class="bi bi-plus-square me-1"></i> 새 게시물 만들기
             </button>
         </div>
     </div>
@@ -123,7 +126,13 @@
                     <div class="swiper-wrapper">
                         {% for img in images %}
                         <div class="swiper-slide">
+                            {% if img.lower().endswith(('.mp4', '.mov', '.webm')) %}
+                            <video controls playsinline preload="metadata" aria-label="게시물 동영상">
+                                <source src="{{ img }}">
+                            </video>
+                            {% else %}
                             <img src="{{ img }}" alt="피드 이미지">
+                            {% endif %}
                         </div>
                         {% endfor %}
                     </div>
@@ -186,7 +195,7 @@
     </div>
 
     <!-- 만들기 모달 (post_list 전용) -->
-    <div class="modal fade" id="createPostModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
+    <div class="modal fade createPostModal" id="createPostModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <form action="{{ url_for('post._create') }}" method="post" enctype="multipart/form-data" id="postForm">
@@ -200,9 +209,14 @@
 
                     <div class="modal-body p-0" id="step1">
                         <div class="upload-box text-center p-4" id="dropArea">
-                            <i class="bi bi-images display-1 text-secondary mb-3"></i>
-                            <h5>사진과 동영상을 여기에 끌어다 놓으세요</h5>
-                            <input type="file" name="media_file" id="fileInput" accept="image/*" multiple class="d-none" required>
+                            <svg aria-label="이미지나 동영상과 같은 미디어를 나타내는 아이콘" class="text-secondary mb-3" fill="currentColor" height="77" role="img" viewBox="0 0 97.6 77.3" width="96">
+                                <title>이미지나 동영상과 같은 미디어를 나타내는 아이콘</title>
+                                <path d="M16.3 24h.3c2.8-.2 4.9-2.6 4.8-5.4-.2-2.8-2.6-4.9-5.4-4.8s-4.9 2.6-4.8 5.4c.1 2.7 2.4 4.8 5.1 4.8zm-2.4-7.2c.5-.6 1.3-1 2.1-1h.2c1.7 0 3.1 1.4 3.1 3.1 0 1.7-1.4 3.1-3.1 3.1-1.7 0-3.1-1.4-3.1-3.1 0-.8.3-1.5.8-2.1z" fill="currentColor"></path>
+                                <path d="M84.7 18.4 58 16.9l-.2-3c-.3-5.7-5.2-10.1-11-9.8L12.9 6c-5.7.3-10.1 5.3-9.8 11L5 51v.8c.7 5.2 5.1 9.1 10.3 9.1h.6l21.7-1.2v.6c-.3 5.7 4 10.7 9.8 11l34 2h.6c5.5 0 10.1-4.3 10.4-9.8l2-34c.4-5.8-4-10.7-9.7-11.1zM7.2 10.8C8.7 9.1 10.8 8.1 13 8l34-1.9c4.6-.3 8.6 3.3 8.9 7.9l.2 2.8-5.3-.3c-5.7-.3-10.7 4-11 9.8l-.6 9.5-9.5 10.7c-.2.3-.6.4-1 .5-.4 0-.7-.1-1-.4l-7.8-7c-1.4-1.3-3.5-1.1-4.8.3L7 49 5.2 17c-.2-2.3.6-4.5 2-6.2zm8.7 48c-4.3.2-8.1-2.8-8.8-7.1l9.4-10.5c.2-.3.6-.4 1-.5.4 0 .7.1 1 .4l7.8 7c.7.6 1.6.9 2.5.9.9 0 1.7-.5 2.3-1.1l7.8-8.8-1.1 18.6-21.9 1.1zm76.5-29.5-2 34c-.3 4.6-4.3 8.2-8.9 7.9l-34-2c-4.6-.3-8.2-4.3-7.9-8.9l2-34c.3-4.4 3.9-7.9 8.4-7.9h.5l34 2c4.7.3 8.2 4.3 7.9 8.9z" fill="currentColor"></path>
+                                <path d="M78.2 41.6 61.3 30.5c-2.1-1.4-4.9-.8-6.2 1.3-.4.7-.7 1.4-.7 2.2l-1.2 20.1c-.1 2.5 1.7 4.6 4.2 4.8h.3c.7 0 1.4-.2 2-.5l18-9c2.2-1.1 3.1-3.8 2-6-.4-.7-.9-1.3-1.5-1.8zm-1.4 6-18 9c-.4.2-.8.3-1.3.3-.4 0-.9-.2-1.2-.4-.7-.5-1.2-1.3-1.1-2.2l1.2-20.1c.1-.9.6-1.7 1.4-2.1.8-.4 1.7-.3 2.5.1L77 43.3c1.2.8 1.5 2.3.7 3.4-.2.4-.5.7-.9.9z" fill="currentColor"></path>
+                            </svg>
+                            <h5>사진 및 동영상을 여기에 끌어다 놓으세요</h5>
+                            <input type="file" name="media_file" id="fileInput" accept="image/*,video/mp4,video/quicktime,video/webm" multiple class="d-none" required>
                             <button type="button" class="btn btn-primary fw-bold mt-3" onclick="document.getElementById('fileInput').click()">컴퓨터에서 선택</button>
                         </div>
                         <div class="d-none" id="previewContainer">
@@ -236,11 +250,21 @@
                                     {% endif %}
                                     <span class="fw-bold">{{ g.user.username if g.user else session.get('username', '') }}</span>
                                 </div>
-                                <textarea name="caption" class="form-control border-0" rows="8" placeholder="문구 작성..." style="resize: none;"></textarea>
+                                <textarea name="caption" class="form-control border-0" rows="8" placeholder="캡션 추가..." style="resize: none;"></textarea>
                             </div>
                         </div>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade confirm-modal" id="createDiscardModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="pt-4 pb-3 px-3 text-center"><h6 class="fw-bold">게시물 작성을 취소하시겠어요?</h6><small class="text-secondary">선택한 사진과 동영상이 사라집니다.</small></div>
+                <button type="button" class="btn btn-action text-danger" id="btnDiscardPostDraft">삭제</button>
+                <button type="button" class="btn btn-action text-dark" data-bs-dismiss="modal">계속 작성</button>
             </div>
         </div>
     </div>
@@ -301,16 +325,57 @@
         const step2 = document.getElementById('step2');
 
         const createPostModal = new bootstrap.Modal(document.getElementById('createPostModal'));
+        const createDiscardModal = new bootstrap.Modal(document.getElementById('createDiscardModal'));
+        const createPostDialog = document.querySelector('#createPostModal .modal-dialog');
 
         let modalSwiperInstance = null;
         let step2SwiperInstance = null;
 
+        function appendMediaPreview(container, file) {
+            const slide = document.createElement('div');
+            slide.className = 'swiper-slide';
+            if (file.type.startsWith('video/')) {
+                const video = document.createElement('video');
+                video.className = 'preview-img';
+                video.src = URL.createObjectURL(file);
+                video.controls = true;
+                video.muted = true;
+                video.playsInline = true;
+                video.preload = 'metadata';
+                video.setAttribute('aria-label', '동영상 미리보기');
+                slide.appendChild(video);
+            } else {
+                const image = document.createElement('img');
+                image.src = URL.createObjectURL(file);
+                image.className = 'preview-img';
+                image.alt = '사진 미리보기';
+                slide.appendChild(image);
+            }
+            container.appendChild(slide);
+        }
+
         btnCloseModal.addEventListener('click', function() {
             if (fileInput.files.length > 0) {
-                deleteConfirmModal.show();
+                createDiscardModal.show();
             } else {
                 createPostModal.hide();
             }
+        });
+
+        document.getElementById('btnDiscardPostDraft').addEventListener('click', function() {
+            createDiscardModal.hide();
+            createPostModal.hide();
+            document.getElementById('postForm').reset();
+            createPostDialog.classList.remove('caption-step');
+            previewInner.innerHTML = '';
+            step2Inner.innerHTML = '';
+            dropArea.classList.remove('d-none');
+            previewContainer.classList.add('d-none');
+            step1.classList.remove('d-none');
+            step2.classList.add('d-none');
+            btnBack.classList.add('d-none');
+            btnNext.classList.add('d-none');
+            btnSubmit.classList.add('d-none');
         });
 
         fileInput.addEventListener('change', function(e) {
@@ -318,42 +383,20 @@
             if (files.length > 0) {
                 previewInner.innerHTML = '';
                 step2Inner.innerHTML = '';
-
-                let loadedCount = 0;
                 files.forEach((file) => {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const slideDiv1 = document.createElement('div');
-                        slideDiv1.className = 'swiper-slide';
-                        slideDiv1.innerHTML = `<img src="${e.target.result}" class="preview-img" alt="미리보기">`;
-                        previewInner.appendChild(slideDiv1);
-
-                        const slideDiv2 = document.createElement('div');
-                        slideDiv2.className = 'swiper-slide';
-                        slideDiv2.innerHTML = `<img src="${e.target.result}" class="preview-img" alt="미리보기">`;
-                        step2Inner.appendChild(slideDiv2);
-
-                        loadedCount++;
-                        if (loadedCount === files.length) {
-                            if (modalSwiperInstance) modalSwiperInstance.destroy();
-
-                            const swiperOptions = { observer: true, observeParents: true };
-
-                            if (files.length > 1) {
-                                swiperOptions.navigation = { nextEl: '#modalSwiper .swiper-button-next', prevEl: '#modalSwiper .swiper-button-prev' };
-                                swiperOptions.pagination = { el: '#modalSwiper .swiper-pagination', clickable: true };
-                                document.querySelectorAll('#modalSwiper .swiper-button-next, #modalSwiper .swiper-button-prev, #modalSwiper .swiper-pagination')
-                                    .forEach(el => el.style.display = '');
-                            } else {
-                                document.querySelectorAll('#modalSwiper .swiper-button-next, #modalSwiper .swiper-button-prev, #modalSwiper .swiper-pagination')
-                                    .forEach(el => el.style.display = 'none');
-                            }
-
-                            modalSwiperInstance = new Swiper('#modalSwiper', swiperOptions);
-                        }
-                    }
-                    reader.readAsDataURL(file);
+                    appendMediaPreview(previewInner, file);
+                    appendMediaPreview(step2Inner, file);
                 });
+
+                if (modalSwiperInstance) modalSwiperInstance.destroy();
+                const swiperOptions = { observer: true, observeParents: true };
+                if (files.length > 1) {
+                    swiperOptions.navigation = { nextEl: '#modalSwiper .swiper-button-next', prevEl: '#modalSwiper .swiper-button-prev' };
+                    swiperOptions.pagination = { el: '#modalSwiper .swiper-pagination', clickable: true };
+                }
+                document.querySelectorAll('#modalSwiper .swiper-button-next, #modalSwiper .swiper-button-prev, #modalSwiper .swiper-pagination')
+                    .forEach(el => el.style.display = files.length > 1 ? '' : 'none');
+                modalSwiperInstance = new Swiper('#modalSwiper', swiperOptions);
 
                 dropArea.classList.add('d-none');
                 previewContainer.classList.remove('d-none');
@@ -363,6 +406,7 @@
         });
 
         btnNext.addEventListener('click', function() {
+            createPostDialog.classList.add('caption-step');
             step1.classList.add('d-none');
             step2.classList.remove('d-none');
             btnNext.classList.add('d-none');
@@ -389,7 +433,7 @@
             }, 100);
         });
 
-        btnBack.addEventListener('click', function() { deleteConfirmModal.show(); });
+        btnBack.addEventListener('click', function() { createDiscardModal.show(); });
     </script>
 </body>
 </html>

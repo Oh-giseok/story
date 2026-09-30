@@ -77,7 +77,11 @@
 
                 {% if img_url %}
                     {% set first_img = img_url.split(',')[0] %}
-                    {% if first_img.startswith('http') %}
+                    {% if first_img.lower().endswith(('.mp4', '.mov', '.webm')) %}
+                        <div class="w-100 rounded bg-dark text-white d-flex align-items-center justify-content-center" style="aspect-ratio: 1;">
+                            <i class="bi bi-play-circle fs-1" aria-label="동영상 게시물"></i>
+                        </div>
+                    {% elif first_img.startswith('http') %}
                         <img src="{{ first_img }}" alt="게시물" class="w-100 rounded" style="aspect-ratio: 1; object-fit: cover;">
                     {% else %}
                         {% set clean_path = first_img.replace('/static/', '').replace('static/', '') %}

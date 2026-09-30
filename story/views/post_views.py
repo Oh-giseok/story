@@ -1,6 +1,7 @@
 import os
+import uuid
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify, session, g
+from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify, session, g, flash
 from werkzeug.utils import secure_filename
 from story import db
 from story.models import Post, User, PostLike, PostComment
@@ -39,17 +40,28 @@ def _create():
     media_files = request.files.getlist('media_file')
     saved_urls = []
 
-    if media_files:
-        today = datetime.now().strftime('%Y%m%d')
-        upload_folder = os.path.join(current_app.root_path, 'static/photo', today)
-        os.makedirs(upload_folder, exist_ok=True)
+    media_files = [file for file in media_files if file and file.filename]
+    if not media_files:
+        flash('사진이나 동영상을 선택해주세요.')
+        return redirect(url_for('post._list'))
 
-        for file in media_files:
-            if file and file.filename != '':
-                filename = secure_filename(file.filename)
-                file_path = os.path.join(upload_folder, filename)
-                file.save(file_path)
-                saved_urls.append(f'/static/photo/{today}/{filename}')
+    allowed_extensions = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'webm'}
+    for file in media_files:
+        extension = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+        if extension not in allowed_extensions:
+            flash('지원하지 않는 사진 또는 동영상 형식입니다.')
+            return redirect(url_for('post._list'))
+
+    today = datetime.now().strftime('%Y%m%d')
+    upload_folder = os.path.join(current_app.root_path, 'static/photo', today)
+    os.makedirs(upload_folder, exist_ok=True)
+
+    for file in media_files:
+        safe_name = secure_filename(file.filename).replace(',', '_')
+        filename = f"{uuid.uuid4().hex}_{safe_name}"
+        file_path = os.path.join(upload_folder, filename)
+        file.save(file_path)
+        saved_urls.append(f'/static/photo/{today}/{filename}')
 
     media_url = ','.join(saved_urls) if saved_urls else None
 
@@ -158,6 +170,28 @@ def edit_comment(comment_id):
     db.session.commit()
 
     return jsonify({'success': True, 'message': '댓글이 수정되었습니다.'})
+
+
+@bp.route('/comment/delete/<int:comment_id>', methods=['POST'])
+def delete_comment(comment_id):
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
+
+    comment_obj = PostComment.query.get_or_404(comment_id)
+    if comment_obj.user_id != user_id:
+        return jsonify({'success': False, 'message': '삭제 권한이 없습니다.'}), 403
+
+    post_id = comment_obj.post_id
+    db.session.delete(comment_obj)
+    db.session.commit()
+
+    comment_count = PostComment.query.filter_by(post_id=post_id).count()
+    return jsonify({
+        'success': True,
+        'message': '댓글이 삭제되었습니다.',
+        'comment_count': comment_count
+    })
 
 
 # 6. 게시물 삭제 기능 [신규 추가]

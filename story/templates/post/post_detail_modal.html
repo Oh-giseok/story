@@ -30,7 +30,8 @@
         width: 100%;
         height: 100%;
     }
-    .post-detail-modal .modal-feed-swiper img {
+    .post-detail-modal .modal-feed-swiper img,
+    .post-detail-modal .modal-feed-swiper video {
         max-width: 100%;
         max-height: 100%;
         object-fit: contain;
@@ -88,6 +89,8 @@
     .confirm-modal .btn-action:first-of-type {
         border-top: none;
     }
+    #deleteConfirmModal .modal-dialog { max-width: 560px; }
+    #deleteConfirmModal .modal-content { border-radius: 24px; }
 </style>
 
 <!-- 게시물 상세 & 댓글 보기 모달 -->
@@ -173,11 +176,22 @@
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content">
             <div class="pt-4 pb-3 px-3 text-center">
-                <h6 class="fw-bold fs-5 mb-1">게시물을 삭제하시겠어요?</h6>
-                <small class="text-secondary">삭제된 게시물은 복구할 수 없습니다.</small>
+                <h6 class="fs-5 mb-1">게시물을 삭제할까요?</h6>
+                <small class="text-secondary">이 게시물을 삭제하시겠어요?</small>
             </div>
-            <button type="button" class="btn btn-action text-danger" id="btnConfirmDeletePost">삭제</button>
+            <button type="button" class="btn btn-action text-danger fw-bold" id="btnConfirmDeletePost">삭제</button>
             <button type="button" class="btn btn-action text-dark" data-bs-dismiss="modal">취소</button>
+        </div>
+    </div>
+</div>
+
+<!-- 댓글 옵션 모달 -->
+<div class="modal fade confirm-modal" id="commentOptionModal" tabindex="-1" aria-hidden="true" style="z-index: 1080;" aria-labelledby="commentOptionTitle">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <h2 id="commentOptionTitle" class="visually-hidden">댓글 옵션</h2>
+            <button type="button" class="btn btn-action text-danger fw-bold" id="btnDeleteComment">삭제</button>
+            <button type="button" class="btn btn-action text-secondary" data-bs-dismiss="modal">취소</button>
         </div>
     </div>
 </div>
@@ -186,6 +200,7 @@
 (() => {
     const currentUserId = {{ session.get('user_id', 0) }};
     let activePostId = null;
+    let activeCommentId = null;
     let detailSwiper = null;
 
     const byId = (id) => document.getElementById(id);
@@ -232,8 +247,11 @@
             body.append(author, text); content.append(body); row.append(content);
             if (id && userId === currentUserId) {
                 const actions = document.createElement('div');
-                const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'btn btn-link btn-sm p-0'; edit.textContent = '수정'; edit.dataset.action = 'edit-comment'; edit.dataset.commentId = id;
-                actions.append(edit); row.append(actions);
+                const options = document.createElement('button');
+                options.type = 'button'; options.className = 'btn btn-link text-secondary p-0 border-0';
+                options.setAttribute('aria-label', '댓글 옵션'); options.title = '댓글 옵션'; options.dataset.action = 'comment-options'; options.dataset.commentId = id;
+                options.innerHTML = '<svg aria-hidden="true" focusable="false" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><circle cx="12" cy="12" r="1.5"></circle><circle cx="6" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>';
+                actions.append(options); row.append(actions);
             }
             list.append(row);
         });
@@ -262,7 +280,13 @@
         const imageList = images ? images.split(',').map(x => x.trim()).filter(Boolean) : [];
         imageList.forEach(src => {
             const slide = document.createElement('div'); slide.className = 'swiper-slide';
-            const image = document.createElement('img'); image.src = src; image.alt = '게시물 이미지'; slide.append(image); wrapper.append(slide);
+            if (/\.(mp4|mov|webm)(?:$|[?#])/i.test(src)) {
+                const video = document.createElement('video'); video.controls = true; video.playsInline = true; video.preload = 'metadata'; video.setAttribute('aria-label', '게시물 동영상');
+                const source = document.createElement('source'); source.src = src; video.append(source); slide.append(video);
+            } else {
+                const image = document.createElement('img'); image.src = src; image.alt = '게시물 이미지'; slide.append(image);
+            }
+            wrapper.append(slide);
         });
         if (detailSwiper) detailSwiper.destroy(true, true);
         detailSwiper = new Swiper('#modalDetailSwiper', {
@@ -319,15 +343,22 @@
             input.value = ''; renderComments(card);
         });
         byId('detailModalCommentList').addEventListener('click', async event => {
-            const button = event.target.closest('[data-action="edit-comment"]'); if (!button) return;
-            const commentId = button.dataset.commentId; const row = button.closest('.comment-item');
-            const original = row.querySelector('.comment-content-text').textContent;
-            const next = prompt('댓글을 수정하세요.', original); if (next === null || !next.trim()) return;
-            const body = new FormData(); body.append('content', next.trim());
-            const response = await fetch(`/post/comment/edit/${commentId}`, { method: 'POST', body }); const data = await response.json();
-            if (!data.success) { alert(data.message || '댓글 수정 실패'); return; }
-            const raw = postCard(activePostId); const rawItem = raw.querySelector(`.raw-comments [data-comment-id="${commentId}"]`);
-            if (rawItem) rawItem.textContent = next.trim(); renderComments(raw);
+            const button = event.target.closest('[data-action="comment-options"]'); if (!button) return;
+            activeCommentId = Number(button.dataset.commentId);
+            modal('commentOptionModal').show();
+        });
+        byId('btnDeleteComment').addEventListener('click', async () => {
+            if (!activeCommentId) return;
+            const response = await fetch(`/post/comment/delete/${activeCommentId}`, { method: 'POST' });
+            const data = await response.json();
+            if (!data.success) { alert(data.message || '댓글 삭제 실패'); return; }
+            modal('commentOptionModal').hide();
+            const card = postCard(activePostId);
+            const raw = cardRaw(card, '.raw-comments');
+            raw.querySelector(`[data-comment-id="${activeCommentId}"]`)?.remove();
+            card.querySelectorAll('.comment-count-text').forEach(el => el.textContent = data.comment_count);
+            renderComments(card);
+            activeCommentId = null;
         });
     });
 })();
