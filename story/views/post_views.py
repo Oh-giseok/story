@@ -29,12 +29,15 @@ def _list():
 
 
 # 2. 게시물 등록 처리
-@bp.route('/create', methods=['POST'])
+@bp.route('/create', methods=['GET', 'POST'])
 def _create():
     user_id = get_current_user_id()
     if not user_id:
         # 로그인하지 않은 유저인 경우 로그인 페이지 등으로 이동 또는 에러 처리
         return redirect(url_for('auth.login'))  # 사용하시는 로그인 라우트명으로 맞추어 사용해주세요.
+
+    if request.method == 'GET':
+        return render_template('post/post_form.html')
 
     caption = request.form.get('caption')
     media_files = request.files.getlist('media_file')

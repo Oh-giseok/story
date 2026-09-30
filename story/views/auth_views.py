@@ -1,4 +1,4 @@
-from flask import Blueprint,request,redirect,url_for,flash,render_template, session, g, current_app
+from flask import Blueprint, request, redirect, url_for, flash, render_template, session, g, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
@@ -8,13 +8,14 @@ from flask_login import login_user, logout_user
 from sqlalchemy import or_
 
 from story import db
-from story.forms import UserCreateForm,UserLoginForm,ProfileEditForm
+from story.forms import UserCreateForm, UserLoginForm, ProfileEditForm
+from story.models import User, Post, Reels, Story
 from story.models import (
-    User, Post, Reels, Story, Conversation, Message, MessageRead,
+    Conversation, Message, MessageRead,
     PostLike, PostComment, Reels_Likes, Comments, StoryLikes,
 )
 
-bp =Blueprint('auth', __name__,url_prefix='/auth')
+bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 
 def permanently_delete_user(user):
@@ -60,6 +61,7 @@ def permanently_delete_user(user):
         Story.query.filter(Story.id.in_(story_ids)).delete(synchronize_session=False)
     db.session.delete(user)
 
+
 @bp.before_app_request
 def load_loggend_in_user():
     user_id = session.get('user_id')
@@ -67,6 +69,7 @@ def load_loggend_in_user():
         g.user = None
     else:
         g.user = User.query.get(user_id)
+
 
 @bp.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -79,7 +82,7 @@ def signup():
             profile_img_url = None
             image = form.profile_img_url.data
 
-            if image and getattr(image,"filename",""):
+            if image and getattr(image, "filename", ""):
                 filename = secure_filename(image.filename)
                 image.save(
                     os.path.join(
@@ -105,15 +108,16 @@ def signup():
             db.session.add(user)
             db.session.commit()
 
-            return redirect(url_for('index'))
+            return redirect(url_for('main.index'))
         else:
             flash('이미 존재하는 사용자입니다.')
 
     return render_template('auth/signup.html', form=form)
 
-@bp.route('/login',methods=['GET','POST'])
+
+@bp.route('/login', methods=['GET', 'POST'])
 def login():
-    form =  UserLoginForm()
+    form = UserLoginForm()
     if request.method == 'POST' and form.validate_on_submit():
         error = None
         user = User.query.filter_by(username=form.username.data).first()
@@ -122,16 +126,14 @@ def login():
         elif not check_password_hash(user.password_hash, form.password.data):
             error = '비밀번호가 올바르지 않습니다'
         elif (
-            user.status == 'deletion_pending'
-            and user.deletion_requested_at
-            and user.deletion_requested_at <= datetime.utcnow() - timedelta(days=10)
+                user.status == 'deletion_pending'
+                and user.deletion_requested_at
+                and user.deletion_requested_at <= datetime.utcnow() - timedelta(days=10)
         ):
             permanently_delete_user(user)
             db.session.commit()
             error = '탈퇴 처리 기간이 지나 계정이 삭제되었습니다.'
         if error is None:
-            # A successful login restores inactive or pending accounts while the
-            # 10-day deletion deadline has not yet elapsed.
             user.status = 'active'
             user.deletion_requested_at = None
             user.last_activity_at = datetime.utcnow()
@@ -146,14 +148,14 @@ def login():
                 parsed_next_url = urlparse(next_url)
                 if not parsed_next_url.netloc and parsed_next_url.path.startswith('/'):
                     return redirect(next_url)
-            return redirect(url_for('index'))
+
+            return redirect(url_for('main.index'))
         flash(error)
-    return render_template('auth/login.html',form=form)
+    return render_template('auth/login.html', form=form)
 
 
 @bp.route('/find_info', methods=['GET', 'POST'])
 def find_info():
-    # Use Flask-WTF's CSRF validation for both recovery actions.
     from flask_wtf import FlaskForm
 
     form = FlaskForm()
@@ -193,19 +195,18 @@ def find_info():
 
     return render_template('auth/find_info.html', form=form, found_username=found_username)
 
+
 @bp.route('/logout')
 def logout():
     logout_user()
     session.clear()
-    return redirect(url_for('index'))
+    return redirect(url_for('main.index'))
 
-# 회원정보 수정
+
 @bp.route('/profile_edit', methods=['GET', 'POST'])
 def profile_edit():
-
     form = ProfileEditForm()
 
-    # 처음 페이지에 들어왔을 때 기존 정보 표시
     if request.method == 'GET':
         form.username.data = g.user.username
         form.name.data = g.user.name
@@ -214,8 +215,6 @@ def profile_edit():
         form.intro.data = g.user.intro
 
     if form.validate_on_submit():
-
-        # 입력한 값만 수정
         if form.username.data:
             user = User.query.filter(
                 User.username == form.username.data,
@@ -263,15 +262,14 @@ def profile_edit():
         db.session.commit()
 
         flash('회원정보가 수정되었습니다.')
-
-        return redirect(url_for('post._list'))
+        return redirect(url_for('main.index'))
 
     return render_template(
         'auth/profile_edit.html',
         form=form
     )
 
-#마이페이지
+
 @bp.route('/mypage')
 def mypage():
     from flask_wtf import FlaskForm
@@ -290,8 +288,13 @@ def mypage():
     ).all()} if reel_comments else {}
     stories = Story.query.filter_by(user_id=g.user.id).order_by(Story.create_date.desc()).all()
 
+    # account_form은 인스턴스 객체로 전달해야 하므로 괄호 없이 FlaskForm() 전달
     return render_template(
-        'auth/mypage.html', user=g.user, posts=posts, reels=reels, stories=stories,
+        'auth/mypage.html',
+        user=g.user,
+        posts=posts,
+        reels=reels,
+        stories=stories,
         reel_comments_by_id=reel_comments_by_id,
         reel_comment_users=reel_comment_users,
         account_form=FlaskForm()
