@@ -1,36 +1,98 @@
 {% extends 'base.html' %}
+{% block title %}회원 가입{% endblock %}
 {% block content %}
-<div class="container">
+<style>
+    .profile-preview {
+        width: 128px;
+        height: 128px;
+        object-fit: cover;
+    }
+</style>
+<div class="container py-3" style="max-width: 640px;">
     <h5 class="my-3 border-bottom pb-2">회원 가입</h5>
-    <form method="post" enctype="multipart/form-data">
-        {{ form.csrf_token }}
-        {% include 'form_errors.html' %}
+    <section class="card">
+        <div class="card-body p-4">
+            <form method="post" enctype="multipart/form-data">
+                {{ form.csrf_token }}
+                {% include 'form_errors.html' %}
 
-        {{ form.profile_img_url.label }}
-        {{ form.profile_img_url(class="form-control") }}
+                <div class="mb-3">
+                    {{ form.profile_img_url.label(class="form-label") }}
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <div id="profile-preview-placeholder" class="profile-preview rounded-circle bg-light border d-flex align-items-center justify-content-center text-secondary" aria-label="프로필 이미지 미리보기 없음">
+                            <i class="bi bi-person-fill fs-1" aria-hidden="true"></i>
+                        </div>
+                        <img id="profile-image-preview" class="profile-preview rounded-circle border d-none" alt="선택한 프로필 이미지 미리보기">
+                    </div>
+                    {{ form.profile_img_url(class="form-control", accept="image/*", id="profile-image-input") }}
+                </div>
 
-        {{ form.username.label }}
-        {{ form.username(class="form-control mb-3") }}
+                <div class="mb-3">
+                    {{ form.username.label(class="form-label") }}
+                    {{ form.username(class="form-control") }}
+                </div>
 
-        {{ form.password_hash.label }}
-        {{ form.password_hash(class="form-control mb-3") }}
+                <div class="mb-3">
+                    {{ form.password_hash.label(class="form-label") }}
+                    {{ form.password_hash(class="form-control") }}
+                </div>
 
-        {{ form.password_hash2.label }}
-        {{ form.password_hash2(class="form-control mb-3") }}
+                <div class="mb-3">
+                    {{ form.password_hash2.label(class="form-label") }}
+                    {{ form.password_hash2(class="form-control") }}
+                </div>
 
-        {{ form.email.label }}
-        {{ form.email(class="form-control mb-3") }}
+                <div class="mb-3">
+                    {{ form.email.label(class="form-label") }}
+                    {{ form.email(class="form-control") }}
+                </div>
 
-        {{ form.name.label }}
-        {{ form.name(class="form-control mb-3") }}
+                <div class="mb-3">
+                    {{ form.name.label(class="form-label") }}
+                    {{ form.name(class="form-control") }}
+                </div>
 
-        {{ form.intro.label }}
-        {{ form.intro(class="form-control", rows="4") }}
+                <div class="mb-3">
+                    {{ form.intro.label(class="form-label") }}
+                    {{ form.intro(class="form-control", rows="4") }}
+                </div>
 
-        {{ form.birth.label }}
-        {{ form.birth(class="form-control mb-3") }}
+                <div class="mb-4">
+                    {{ form.birth.label(class="form-label") }}
+                    {{ form.birth(class="form-control") }}
+                </div>
 
-        {{ form.submit(class="form-control mb-3") }}
-    </form>
+                {{ form.submit(class="btn auth-primary-btn w-100") }}
+            </form>
+        </div>
+    </section>
 </div>
+{% endblock %}
+{% block script %}
+<script>
+    const profileImageInput = document.getElementById('profile-image-input');
+    const profileImagePreview = document.getElementById('profile-image-preview');
+    const profilePreviewPlaceholder = document.getElementById('profile-preview-placeholder');
+    let profilePreviewUrl = null;
+
+    profileImageInput.addEventListener('change', () => {
+        const file = profileImageInput.files && profileImageInput.files[0];
+        if (profilePreviewUrl) {
+            URL.revokeObjectURL(profilePreviewUrl);
+            profilePreviewUrl = null;
+        }
+
+        if (!file || !file.type.startsWith('image/')) {
+            profileImagePreview.removeAttribute('src');
+            profileImagePreview.classList.add('d-none');
+            profilePreviewPlaceholder.classList.remove('d-none');
+            return;
+        }
+
+        profilePreviewUrl = URL.createObjectURL(file);
+        profileImagePreview.src = profilePreviewUrl;
+        profileImagePreview.classList.remove('d-none');
+        profilePreviewPlaceholder.classList.add('d-none');
+    });
+</script>
 {% endblock %}

@@ -1,24 +1,193 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="container">
-    <h5 class="my-3 border-bottom pb-2">로그인</h5>
-    <form method="post" novalidate>
-        {{ form.csrf_token }}
-        {% include 'form_errors.html' %}
 
-        {{ form.username.label }}
-        {{ form.username(class="form-control mb-3") }}
+<style>
+    .login-page {
+        min-height: calc(100vh - 70px);
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        padding-top: 30px;
+    }
+    .login-container {
+        width: 100%;
+        max-width: 800px;
+    }
+    /* LOGO */
+    .login-logo {
+        text-align: center;
+        margin-bottom: 50px;
+    }
+    .login-logo img {
+        display: block;
+        width: 100%;
+        max-width: 500px;
+        height: auto;
+        margin: 0 auto;
+    }
+    .login-logo a {
+        text-decoration: none;
+        color: #222;
+        font-size: 32px;
+        font-weight: 700;
+        letter-spacing: -1px;
+    }
+    /* 로그인 폼 */
+    .login-form {
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto;
+    }
+    .login-form .form-label {
+        font-size: 14px;
+        font-weight: 500;
+        margin-bottom: 8px;
+    }
+    .login-form .form-control {
+        height: 50px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 0 15px;
+        font-size: 15px;
+        box-shadow: none;
+    }
+    .login-form .form-control:focus {
+        border-color: #222;
+        box-shadow: none;
+    }
+    /* 로그인 버튼 */
+    .login-btn {
+        width: 100%;
+        height: 50px;
+        margin-top: 10px;
+        border: none;
+        border-radius: 4px;
+        background-color: #222;
+        color: white;
+        font-size: 15px;
+        font-weight: 500;
+    }
+    .login-btn:hover {
+        background-color: #000;
+        color: white;
+    }
 
-        {{ form.password.label }}
-        {{ form.password(class="form-control mb-3") }}
+    /* 회원가입 */
+    .signup-btn {
+        width: 100%;
+        height: 50px;
+        margin-top: 10px;
+        border-radius: 4px;
+        font-size: 15px;
+        font-weight: 500;
+    }
 
-        <div class="d-flex gap-2">
-            {{ form.submit(class="btn btn-primary") }}
-            <a class="btn btn-outline-secondary" href="{{ url_for('auth.signup') }}">회원가입</a>
+    /* 아이디 찾기 / 비밀번호 찾기 */
+    .login-links {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin-top: 20px;
+        font-size: 13px;
+    }
+
+    .login-links a {
+        color: #777;
+        text-decoration: none;
+    }
+
+    .login-links a:hover {
+        color: #222;
+        text-decoration: underline;
+    }
+
+    .divider {
+        color: #ddd;
+    }
+
+    /* 모바일 */
+    @media (max-width: 768px) {
+        .login-page {
+            padding: 0 20px 0;
+        }
+
+        .login-container {
+            max-width: 100%;
+        }
+
+        .login-logo {
+            margin-bottom: 40px;
+        }
+
+        .login-form {
+            max-width: 100%;
+        }
+    }
+</style>
+
+
+<div class="login-page">
+
+    <div class="login-container">
+
+        <!-- LOGO -->
+        <div class="login-logo">
+            <a href="{{ url_for('post._list') }}" aria-label="Story 홈">
+                <img src="{{ url_for('static', filename='story_logo.png') }}" alt="Story">
+            </a>
         </div>
-        <div class="mt-3">
-            <a href="{{ url_for('auth.find_info') }}">아이디 찾기 / 비밀번호 재설정</a>
+
+        <!-- 로그인 -->
+        <div class="login-form">
+            <form method="post" novalidate>
+
+                {{ form.csrf_token }}
+
+                {% include 'form_errors.html' %}
+
+                <!-- 아이디 -->
+                <div class="mb-3">
+                    {{ form.username.label(class="form-label") }}
+                    {{ form.username(class="form-control", placeholder="아이디를 입력해주세요") }}
+                </div>
+
+                <!-- 비밀번호 -->
+                <div class="mb-3">
+                    {{ form.password.label(class="form-label") }}
+                    {{ form.password(class="form-control", placeholder="비밀번호를 입력해주세요") }}
+                </div>
+
+                <!-- 로그인 -->
+                {{ form.submit(
+                    class="login-btn",
+                    value="로그인"
+                ) }}
+
+                <!-- 회원가입 -->
+                <a href="{{ url_for('auth.signup') }}"
+                   class="btn btn-outline-secondary signup-btn">
+                    회원가입
+                </a>
+
+            </form>
+
+            <!-- 계정 관련 링크 -->
+            <div class="login-links">
+                <a href="{{ url_for('auth.find_info') }}">
+                    아이디 찾기
+                </a>
+
+                <span class="divider">|</span>
+
+                <a href="{{ url_for('auth.find_info') }}">
+                    비밀번호 재설정
+                </a>
+            </div>
+
         </div>
-    </form>
+
+    </div>
+
 </div>
+
 {% endblock %}
