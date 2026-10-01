@@ -19,6 +19,78 @@
         font-weight: 600;
         padding-bottom: 10px;
     }
+    .mypage-profile-heading {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .mypage-profile-stats {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        margin-left: auto;
+    }
+    .mypage-profile-stat {
+        display: inline-flex;
+        align-items: baseline;
+        gap: .35rem;
+        padding: 0;
+        border: 0;
+        background: none;
+        color: #212529;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+    .mypage-profile-stat-count {
+        font-size: .9rem;
+        font-weight: 700;
+    }
+    .mypage-profile-stat-label {
+        color: #6c757d;
+        font-size: .9rem;
+        font-weight: 500;
+    }
+    .mypage-profile-stat:hover,
+    .mypage-profile-stat:focus-visible {
+        color: #212529;
+        text-decoration: underline;
+    }
+    .mypage-account-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .mypage-account-action {
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        color: #6c757d;
+        font-size: .9rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: color .15s ease;
+    }
+    .mypage-account-action:hover,
+    .mypage-account-action:focus-visible {
+        color: #212529;
+        text-decoration: underline;
+    }
+    .mypage-account-action i {
+        font-size: 1rem;
+    }
+    .mypage-account-divider {
+        width: 1px;
+        height: 15px;
+        background: #dee2e6;
+    }
+    @media (max-width: 767.98px) {
+        .mypage-profile-stats {
+            margin-right: 0;
+            gap: 1.5rem;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -41,20 +113,148 @@
         </div>
         {% endif %}
 
-        <div>
-            <h2 class="h4 mb-2">{{ user.name or user.username }}</h2>
+        <div class="flex-grow-1 min-w-0">
+            <div class="mypage-profile-heading mb-3">
+                <h2 class="h4 mb-0">{{ user.name or user.username }}</h2>
+                {% if is_own_profile %}
+                <div class="mypage-profile-stats">
+                    <button type="button" class="mypage-profile-stat" data-bs-toggle="modal" data-bs-target="#friendsListModal">
+                        <span class="mypage-profile-stat-label">친구</span>
+                        <span class="mypage-profile-stat-count">{{ friends|length }}</span>
+                    </button>
+                    <button type="button" class="mypage-profile-stat" data-bs-toggle="modal" data-bs-target="#friendRequestsModal">
+                        <span class="mypage-profile-stat-label">친구 요청</span>
+                        <span class="mypage-profile-stat-count">{{ incoming_requests|length }}</span>
+                    </button>
+                </div>
+                {% endif %}
+            </div>
             <p class="mb-0 text-break">{{ user.intro or '자기소개가 없습니다.' }}</p>
             {% if is_own_profile %}
+            <div class="mypage-account-actions mt-3">
+                <a href="{{ url_for('auth.profile_edit') }}" class="mypage-account-action">
+                    <i class="bi bi-person-gear" aria-hidden="true"></i>회원정보 수정
+                </a>
+                <span class="mypage-account-divider" aria-hidden="true"></span>
+                <a href="{{ url_for('auth.logout') }}" class="mypage-account-action">
+                    <i class="bi bi-box-arrow-right" aria-hidden="true"></i>로그아웃
+                </a>
+            </div>
+            {% else %}
             <div class="d-flex flex-wrap gap-2 mt-3">
-                <a href="{{ url_for('auth.profile_edit') }}" class="btn btn-outline-primary">회원정보 수정</a>
-                <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-secondary">로그아웃</a>
+                {% if friendship and friendship.status == 'accepted' %}
+                <form method="post" action="{{ url_for('auth.update_friendship', target_id=user.id, action='remove') }}">
+                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-danger">친구 삭제</button>
+                </form>
+                {% elif friendship and friendship.status == 'pending' and friendship.requested_by_id == g.user.id %}
+                <form method="post" action="{{ url_for('auth.update_friendship', target_id=user.id, action='cancel') }}">
+                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-secondary">요청 대기 · 취소</button>
+                </form>
+                {% elif friendship and friendship.status == 'pending' %}
+                <form method="post" action="{{ url_for('auth.update_friendship', target_id=user.id, action='accept') }}">
+                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                    <button type="submit" class="btn btn-primary">친구 요청 수락</button>
+                </form>
+                <form method="post" action="{{ url_for('auth.update_friendship', target_id=user.id, action='reject') }}">
+                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-secondary">거절</button>
+                </form>
+                {% else %}
+                <form method="post" action="{{ url_for('auth.send_friend_request', target_id=user.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                    <button type="submit" class="btn btn-primary">친구 추가</button>
+                </form>
+                {% endif %}
             </div>
             {% endif %}
         </div>
     </div>
 
+    {% if is_own_profile %}
+    <div class="modal fade" id="friendsListModal" tabindex="-1" aria-labelledby="friendsListModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="friendsListModalTitle">친구 {{ friends|length }}명</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+                </div>
+                <div class="modal-body p-0">
+                    {% if friends %}
+                    <div class="list-group list-group-flush">
+                        {% for friend in friends %}
+                        <div class="list-group-item d-flex align-items-center gap-3 py-3">
+                            <a href="{{ url_for('auth.mypage', user_id=friend.id) }}" class="d-flex align-items-center gap-3 text-decoration-none text-dark flex-grow-1 min-w-0">
+                                {% if friend.profile_img_url %}
+                                <img src="{{ url_for('static', filename=friend.profile_img_url) }}" alt="" class="rounded-circle flex-shrink-0" width="42" height="42" style="object-fit: cover;">
+                                {% else %}
+                                <i class="bi bi-person-circle fs-2 text-secondary flex-shrink-0" aria-hidden="true"></i>
+                                {% endif %}
+                                <span class="fw-semibold">{{ friend.username }}</span>
+                            </a>
+                            <form method="post" action="{{ url_for('auth.update_friendship', target_id=friend.id, action='remove') }}" class="flex-shrink-0">
+                                <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                                <input type="hidden" name="return_to" value="self">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">친구 삭제</button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center my-4">아직 친구가 없습니다.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="friendRequestsModal" tabindex="-1" aria-labelledby="friendRequestsModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="friendRequestsModalTitle">받은 친구 요청 {{ incoming_requests|length }}명</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+                </div>
+                <div class="modal-body p-0">
+                    {% if incoming_requests %}
+                    <div class="list-group list-group-flush">
+                        {% for relation, friend_user in incoming_requests %}
+                        <div class="list-group-item d-flex align-items-center gap-3 py-3">
+                            <a href="{{ url_for('auth.mypage', user_id=friend_user.id) }}" class="d-flex align-items-center gap-3 text-decoration-none text-dark flex-grow-1 min-w-0">
+                                {% if friend_user.profile_img_url %}
+                                <img src="{{ url_for('static', filename=friend_user.profile_img_url) }}" alt="" class="rounded-circle flex-shrink-0" width="42" height="42" style="object-fit: cover;">
+                                {% else %}
+                                <i class="bi bi-person-circle fs-2 text-secondary flex-shrink-0" aria-hidden="true"></i>
+                                {% endif %}
+                                <span class="fw-semibold">{{ friend_user.username }}</span>
+                            </a>
+                            <div class="d-flex gap-2 flex-shrink-0">
+                                <form method="post" action="{{ url_for('auth.update_friendship', target_id=friend_user.id, action='accept') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                                    <input type="hidden" name="return_to" value="self">
+                                    <button type="submit" class="btn btn-sm btn-primary">수락</button>
+                                </form>
+                                <form method="post" action="{{ url_for('auth.update_friendship', target_id=friend_user.id, action='reject') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                                    <input type="hidden" name="return_to" value="self">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">거절</button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center my-4">받은 친구 요청이 없습니다.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- POST, REELS, STORY, REPOST 탭 -->
-    <div class="d-flex border-bottom" role="tablist" aria-label="내 게시물 종류" style="margin-top: 40px">
+    <div class="d-flex border-bottom" role="tablist" aria-label="내 게시물 종류" style="margin-top: 60px">
         <button type="button" class="btn flex-fill rounded-0 border-0 mypage-tab"
                 onclick="showPosts('posts', this)" aria-selected="true">
             <svg class="me-1" aria-label="게시물" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><title>게시물</title><rect height="6" rx="1" ry="1" width="4.667" x="3" y="1"></rect><rect height="6" rx="1" ry="1" width="4.667" x="16.333" y="1"></rect><rect height="6" rx="1" ry="1" width="4.667" x="9.667" y="1"></rect><rect height="6" rx="1" ry="1" width="4.667" x="3" y="9"></rect><rect height="6" rx="1" ry="1" width="4.667" x="16.333" y="9"></rect><rect height="6" rx="1" ry="1" width="4.667" x="9.667" y="9"></rect><rect height="6" rx="1" ry="1" width="4.667" x="3" y="17"></rect><rect height="6" rx="1" ry="1" width="4.667" x="16.333" y="17"></rect><rect height="6" rx="1" ry="1" width="4.667" x="9.667" y="17"></rect></svg>
@@ -77,9 +277,9 @@
         </button>
     </div>
 
-    <section id="posts-content" class="row g-3 mt-2">
+    <section id="posts-content" class="row row-cols-2 row-cols-md-5 g-3 mt-2">
         {% for post in posts %}
-        <div class="col-6 col-md-3">
+        <div class="col">
             <!-- 게시물 카드 (클릭 시 모달 열기) -->
             <div class="post-card position-relative overflow-hidden rounded cursor-pointer"
                  style="cursor: pointer;"

@@ -78,7 +78,7 @@
             text-decoration: none;
             font-size: 0.8rem;
             font-weight: 600;
-            transition: background-color 0.2s;
+            transition: color 0.2s, background-color 0.2s;
         }
         .bottom-nav-item:hover {
             background-color: #f8f9fa;
@@ -86,12 +86,21 @@
         }
         /* 현재 페이지 또는 선택한 메뉴 */
         .bottom-nav-item.active {
-            background-color: #a06e52;
-            color: #ffffff;
+            background-color: transparent;
+            color: #212529;
         }
         .bottom-nav-item.active:hover {
-            background-color: #8c5d43;
-            color: #ffffff;
+            background-color: #f8f9fa;
+            color: #212529;
+        }
+        .bottom-nav-item.active svg {
+            stroke: currentColor;
+            stroke-width: 0.55px;
+            paint-order: stroke;
+        }
+        .bottom-nav-item.active i::before {
+            font-weight: 700 !important;
+            -webkit-text-stroke: 0.35px currentColor;
         }
         .bottom-nav-avatar {
             width: 27px;
