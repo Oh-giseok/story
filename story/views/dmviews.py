@@ -63,7 +63,7 @@ def user_list():
         target_name=target_name,
         target_user=target_user
     )
-I
+
 @bp.route('/conversations', methods=['POST'])
 def get_or_create_conversation():
     data = request.get_json() or {}
