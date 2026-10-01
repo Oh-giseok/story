@@ -444,7 +444,7 @@ def update_friendship(target_id, action):
     else:
         flash('현재 상태에서는 해당 작업을 할 수 없습니다.')
 
-    return _friend_profile_redirect(target.id)
+    return _friend_profile_redirect(g.user.id if request.form.get('return_to') == 'self' else target.id)
 
 
 @bp.route('/deactivate', methods=['POST'])

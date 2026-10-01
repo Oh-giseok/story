@@ -19,6 +19,40 @@
         font-weight: 600;
         padding-bottom: 10px;
     }
+    .mypage-profile-heading {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .mypage-profile-stats {
+        display: flex;
+        align-items: center;
+        gap: 4rem;
+        margin-left: auto;
+        margin-right: 20%;
+    }
+    .mypage-profile-stat {
+        padding: 0;
+        border: 0;
+        background: none;
+        color: #212529;
+        font-size: 1.5rem;
+        font-weight: 500;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+    .mypage-profile-stat:hover,
+    .mypage-profile-stat:focus-visible {
+        color: #212529;
+        text-decoration: underline;
+    }
+    @media (max-width: 767.98px) {
+        .mypage-profile-stats {
+            margin-right: 0;
+            gap: 1.5rem;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -41,8 +75,20 @@
         </div>
         {% endif %}
 
-        <div>
-            <h2 class="h4 mb-2">{{ user.name or user.username }}</h2>
+        <div class="flex-grow-1 min-w-0">
+            <div class="mypage-profile-heading mb-3">
+                <h2 class="h4 mb-0">{{ user.name or user.username }}</h2>
+                {% if is_own_profile %}
+                <div class="mypage-profile-stats">
+                    <button type="button" class="mypage-profile-stat" data-bs-toggle="modal" data-bs-target="#friendsListModal">
+                        친구 {{ friends|length }}명
+                    </button>
+                    <button type="button" class="mypage-profile-stat" data-bs-toggle="modal" data-bs-target="#friendRequestsModal">
+                        친구 요청 {{ incoming_requests|length }}명
+                    </button>
+                </div>
+                {% endif %}
+            </div>
             <p class="mb-0 text-break">{{ user.intro or '자기소개가 없습니다.' }}</p>
             {% if is_own_profile %}
             <div class="d-flex flex-wrap gap-2 mt-3">
@@ -82,57 +128,84 @@
     </div>
 
     {% if is_own_profile %}
-    <section class="mt-4" aria-labelledby="friend-requests-heading">
-        <h3 id="friend-requests-heading" class="h5">친구 요청</h3>
-        {% if incoming_requests or outgoing_requests %}
-            {% for relation, friend_user in incoming_requests %}
-            <div class="d-flex align-items-center justify-content-between gap-2 border rounded p-2 mb-2">
-                <a class="text-decoration-none text-dark fw-semibold" href="{{ url_for('auth.mypage', user_id=friend_user.id) }}">{{ friend_user.username }}</a>
-                <div class="d-flex gap-2">
-                    <form method="post" action="{{ url_for('auth.update_friendship', target_id=friend_user.id, action='accept') }}">
-                        <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
-                        <button type="submit" class="btn btn-sm btn-primary">수락</button>
-                    </form>
-                    <form method="post" action="{{ url_for('auth.update_friendship', target_id=friend_user.id, action='reject') }}">
-                        <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
-                        <button type="submit" class="btn btn-sm btn-outline-secondary">거절</button>
-                    </form>
+    <div class="modal fade" id="friendsListModal" tabindex="-1" aria-labelledby="friendsListModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="friendsListModalTitle">친구 {{ friends|length }}명</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+                </div>
+                <div class="modal-body p-0">
+                    {% if friends %}
+                    <div class="list-group list-group-flush">
+                        {% for friend in friends %}
+                        <div class="list-group-item d-flex align-items-center gap-3 py-3">
+                            <a href="{{ url_for('auth.mypage', user_id=friend.id) }}" class="d-flex align-items-center gap-3 text-decoration-none text-dark flex-grow-1 min-w-0">
+                                {% if friend.profile_img_url %}
+                                <img src="{{ url_for('static', filename=friend.profile_img_url) }}" alt="" class="rounded-circle flex-shrink-0" width="42" height="42" style="object-fit: cover;">
+                                {% else %}
+                                <i class="bi bi-person-circle fs-2 text-secondary flex-shrink-0" aria-hidden="true"></i>
+                                {% endif %}
+                                <span class="fw-semibold">{{ friend.username }}</span>
+                            </a>
+                            <form method="post" action="{{ url_for('auth.update_friendship', target_id=friend.id, action='remove') }}" class="flex-shrink-0">
+                                <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                                <input type="hidden" name="return_to" value="self">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">친구 삭제</button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center my-4">아직 친구가 없습니다.</p>
+                    {% endif %}
                 </div>
             </div>
-            {% endfor %}
-            {% for relation, friend_user in outgoing_requests %}
-            <div class="d-flex align-items-center justify-content-between gap-2 border rounded p-2 mb-2">
-                <a class="text-decoration-none text-dark fw-semibold" href="{{ url_for('auth.mypage', user_id=friend_user.id) }}">{{ friend_user.username }}</a>
-                <form method="post" action="{{ url_for('auth.update_friendship', target_id=friend_user.id, action='cancel') }}">
-                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
-                    <button type="submit" class="btn btn-sm btn-outline-secondary">요청 취소</button>
-                </form>
-            </div>
-            {% endfor %}
-        {% else %}
-            <p class="text-muted">새로운 친구 요청이 없습니다.</p>
-        {% endif %}
-    </section>
+        </div>
+    </div>
 
-    <section class="mt-4" aria-labelledby="friends-heading">
-        <h3 id="friends-heading" class="h5">친구 <span class="text-muted">{{ friends|length }}</span></h3>
-        {% if friends %}
-            <div class="d-flex flex-wrap gap-3">
-                {% for friend in friends %}
-                <a href="{{ url_for('auth.mypage', user_id=friend.id) }}" class="d-flex align-items-center gap-2 text-decoration-none text-dark">
-                    {% if friend.profile_img_url %}
-                    <img src="{{ url_for('static', filename=friend.profile_img_url) }}" alt="" class="rounded-circle" width="36" height="36" style="object-fit: cover;">
+    <div class="modal fade" id="friendRequestsModal" tabindex="-1" aria-labelledby="friendRequestsModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="friendRequestsModalTitle">받은 친구 요청 {{ incoming_requests|length }}명</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+                </div>
+                <div class="modal-body p-0">
+                    {% if incoming_requests %}
+                    <div class="list-group list-group-flush">
+                        {% for relation, friend_user in incoming_requests %}
+                        <div class="list-group-item d-flex align-items-center gap-3 py-3">
+                            <a href="{{ url_for('auth.mypage', user_id=friend_user.id) }}" class="d-flex align-items-center gap-3 text-decoration-none text-dark flex-grow-1 min-w-0">
+                                {% if friend_user.profile_img_url %}
+                                <img src="{{ url_for('static', filename=friend_user.profile_img_url) }}" alt="" class="rounded-circle flex-shrink-0" width="42" height="42" style="object-fit: cover;">
+                                {% else %}
+                                <i class="bi bi-person-circle fs-2 text-secondary flex-shrink-0" aria-hidden="true"></i>
+                                {% endif %}
+                                <span class="fw-semibold">{{ friend_user.username }}</span>
+                            </a>
+                            <div class="d-flex gap-2 flex-shrink-0">
+                                <form method="post" action="{{ url_for('auth.update_friendship', target_id=friend_user.id, action='accept') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                                    <input type="hidden" name="return_to" value="self">
+                                    <button type="submit" class="btn btn-sm btn-primary">수락</button>
+                                </form>
+                                <form method="post" action="{{ url_for('auth.update_friendship', target_id=friend_user.id, action='reject') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                                    <input type="hidden" name="return_to" value="self">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">거절</button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
                     {% else %}
-                    <i class="bi bi-person-circle fs-3 text-secondary" aria-hidden="true"></i>
+                    <p class="text-muted text-center my-4">받은 친구 요청이 없습니다.</p>
                     {% endif %}
-                    <span>{{ friend.username }}</span>
-                </a>
-                {% endfor %}
+                </div>
             </div>
-        {% else %}
-            <p class="text-muted">아직 친구가 없습니다.</p>
-        {% endif %}
-    </section>
+        </div>
+    </div>
     {% endif %}
 
     <!-- POST, REELS, STORY, REPOST 탭 -->
