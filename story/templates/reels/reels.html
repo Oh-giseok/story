@@ -430,9 +430,11 @@ body:has(.reels-feed) main.py-4 { padding-top: 0 !important; padding-bottom: 0 !
 
      <div class="reel-comments p-3">
       <div class="reel-caption-row d-flex mb-3 align-items-start" id="detailCaptionRow">
-       <img id="detailCaptionOwnerImage" class="rounded-circle me-2 d-none" src="" alt="" width="32" height="32" style="object-fit:cover;">
-       <i id="detailCaptionOwnerIcon" class="bi bi-person-circle fs-5 me-2 text-secondary"></i>
-       <div><span id="detailCaptionOwnerName" class="fw-bold me-1"></span><span id="detailCaption"></span></div>
+       <a id="detailCaptionOwnerLink" href="#" class="d-flex align-items-start text-decoration-none flex-shrink-0">
+        <img id="detailCaptionOwnerImage" class="rounded-circle me-2 d-none" src="" alt="" width="32" height="32" style="object-fit:cover;">
+        <i id="detailCaptionOwnerIcon" class="bi bi-person-circle fs-5 me-2 text-secondary"></i>
+       </a>
+       <div><a id="detailCaptionOwnerName" href="#" class="fw-bold me-1 text-decoration-none text-dark"></a><span id="detailCaption"></span></div>
       </div>
       <hr class="my-2">
       <div id="detailComments"></div>
@@ -509,6 +511,7 @@ body:has(.reels-feed) main.py-4 { padding-top: 0 !important; padding-bottom: 0 !
 {% block script %}
 <script>
 const csrfToken={{ form.csrf_token.current_token|tojson }};
+const mypageUrl={{ url_for('auth.mypage')|tojson }};
 let activeReel=null,activeComment=null,activeDetail=null;
 const reelsFeed=document.querySelector('.reels-feed');
 const reelCards=[...document.querySelectorAll('.reel-card')];
@@ -573,8 +576,10 @@ async function openReel(id){
         document.getElementById('detailOwnerName').textContent=data.username;
         document.getElementById('detailCaptionOwnerName').textContent=data.username;
 
-        document.getElementById('detailOwnerLink').href=
-            `{{ url_for('auth.mypage') }}${data.owner ? '' : '?user_id=' + data.user_id}`;
+        const ownerProfileUrl=`${mypageUrl}?user_id=${encodeURIComponent(data.user_id)}`;
+        document.getElementById('detailOwnerLink').href=ownerProfileUrl;
+        document.getElementById('detailCaptionOwnerLink').href=ownerProfileUrl;
+        document.getElementById('detailCaptionOwnerName').href=ownerProfileUrl;
 
         const ownerImage=document.getElementById('detailOwnerImage');
 
@@ -629,6 +634,10 @@ function renderComments(data){
 
         const contentGroup=document.createElement('div');
         contentGroup.className='d-flex align-items-start gap-2 flex-grow-1';
+        const profileUrl=`${mypageUrl}?user_id=${encodeURIComponent(c.user_id)}`;
+        const profileLink=document.createElement('a');
+        profileLink.href=profileUrl;
+        profileLink.className='d-flex align-items-start text-decoration-none flex-shrink-0';
         if(c.profile){
             const avatar=document.createElement('img');
             avatar.src=c.profile;
@@ -637,18 +646,21 @@ function renderComments(data){
             avatar.width=28;
             avatar.height=28;
             avatar.style.objectFit='cover';
-            contentGroup.append(avatar);
+            profileLink.append(avatar);
         }else{
             const avatar=document.createElement('i');
             avatar.className='bi bi-person-circle fs-5 text-secondary';
             avatar.setAttribute('aria-hidden','true');
-            contentGroup.append(avatar);
+            profileLink.append(avatar);
         }
+        contentGroup.append(profileLink);
 
         const text=document.createElement('div');
         text.className='flex-grow-1 small';
 
-        const name=document.createElement('strong');
+        const name=document.createElement('a');
+        name.href=profileUrl;
+        name.className='fw-bold me-1 text-decoration-none text-dark';
         name.textContent=c.username+' ';
 
         const content=document.createElement('span');

@@ -1,6 +1,7 @@
 from datetime import datetime
 from flask import Blueprint, render_template, session, g, request
 from flask_login import current_user
+from sqlalchemy import or_
 from story.models import Post, Reels, Story, User
 from story.views import dmviews
 
@@ -63,10 +64,12 @@ def search():
         if category == 'users':
             users = User.query.filter(User.username.ilike(pattern)).order_by(User.username.asc()).limit(60).all()
         elif category == 'posts':
-            posts = Post.query.filter(Post.caption.ilike(pattern)).order_by(Post.created_at.desc()).limit(60).all()
+            posts = Post.query.join(User, Post.user_id == User.id).filter(
+                or_(Post.caption.ilike(pattern), User.username.ilike(pattern))
+            ).order_by(Post.created_at.desc()).limit(60).all()
         else:
             reels = Reels.query.join(User, Reels.user_id == User.id).filter(
-                Reels.caption.ilike(pattern)
+                or_(Reels.caption.ilike(pattern), User.username.ilike(pattern))
             ).order_by(Reels.created_at.desc()).limit(60).all()
             reel_users = {
                 user.id: user
