@@ -47,14 +47,14 @@ def _create():
     media_files = [file for file in media_files if file and file.filename]
     if not media_files:
         flash('사진이나 동영상을 선택해주세요.')
-        return redirect(url_for('post._list'))
+        return redirect(url_for('main.index'))
 
     allowed_extensions = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'webm'}
     for file in media_files:
         extension = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
         if extension not in allowed_extensions:
             flash('지원하지 않는 사진 또는 동영상 형식입니다.')
-            return redirect(url_for('post._list'))
+            return redirect(url_for('main.index'))
 
     today = datetime.now().strftime('%Y%m%d')
     upload_folder = os.path.join(current_app.root_path, 'static/photo', today)
@@ -78,7 +78,7 @@ def _create():
     db.session.add(post)
     db.session.commit()
 
-    return redirect(url_for('post._list'))
+    return redirect(url_for('main.index'))
 
 
 # 3. 좋아요 토글

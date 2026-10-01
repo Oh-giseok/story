@@ -11,6 +11,9 @@
 
             <!-- 브라우저에 있는 csrf_token 확인 -->
             {{ form.csrf_token }}
+            {% if request.endpoint == 'story.story_create' %}
+            <input type="hidden" name="return_to" value="{{ request.args.get('return_to', 'story') }}">
+            {% endif %}
             {% include 'form_errors.html' %}
 
             <!-- 1. 스토리 이미지 선택 필드  -->

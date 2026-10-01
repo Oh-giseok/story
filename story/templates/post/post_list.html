@@ -196,6 +196,7 @@
                     {% for comment in post.comments %}
                     <div class="comment-item"
                          data-comment-id="{{ comment.id }}"
+                         data-user-id="{{ comment.user_id }}"
                          data-user-name="{{ comment.user.username }}"
                          data-user-img="{{ url_for('static', filename=comment.user.profile_img_url) if comment.user.profile_img_url else '' }}">
                         {{ comment.content }}
