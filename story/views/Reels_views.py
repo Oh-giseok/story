@@ -1,6 +1,7 @@
 import os
 import cv2
 import uuid
+from datetime import datetime
 
 from flask import (
     Blueprint,
@@ -10,32 +11,31 @@ from flask import (
     url_for,
     session,
     jsonify,
-    request
+    request,
+    g
 )
+from flask_login import current_user
+from werkzeug.utils import secure_filename
+from flask import current_app as currunt_app
 
 from ..models import Reels, Comments, Reels_Likes, User
 from ..forms import ReelsForm, CommentsForm, ReelsEditForm
-from flask import current_app as currunt_app
 from .. import db
-from werkzeug.utils import secure_filename
-
-
-def get_video_duration(video_path):
-    video = cv2.VideoCapture(video_path)
-
-    fps = video.get(cv2.CAP_PROP_FPS)
-    frame_count = video.get(cv2.CAP_PROP_FRAME_COUNT)
-
-    video.release()
-
-    return frame_count / fps if fps else 0
-
+from story.views import dmviews
 
 reels_bp = Blueprint(
     'reels',
     __name__,
     url_prefix='/reels'
 )
+
+
+def get_video_duration(video_path):
+    video = cv2.VideoCapture(video_path)
+    fps = video.get(cv2.CAP_PROP_FPS)
+    frame_count = video.get(cv2.CAP_PROP_FRAME_COUNT)
+    video.release()
+    return frame_count / fps if fps else 0
 
 
 # =========================================================
@@ -48,36 +48,46 @@ def reels():
     if 'user_id' not in session:
         return redirect(url_for('auth.login', next=request.url))
 
-    reels = Reels.query.order_by(Reels.created_at.desc()).all()
+    # 1. 로그인 유저 ID 확인 (Flask-Login 및 세션 안전 대응)
+    current_uid = None
+    if current_user.is_authenticated:
+        current_uid = current_user.id
+    elif hasattr(g, 'user') and g.user and getattr(g.user, 'id', None):
+        current_uid = g.user.id
+    elif 'user_id' in session:
+        current_uid = session['user_id']
 
+    # 2. 최근 대화 목록 조회 (메시지 페이지 및 main_views와 동일한 dmviews 함수 사용)
+    active_chat_users = []
+    if current_uid:
+        try:
+            if hasattr(dmviews, 'get_active_chat_users'):
+                active_chat_users = dmviews.get_active_chat_users(current_uid)
+        except Exception as e:
+            print(f"[DM Query Error in Reels_views.py]: {e}")
+
+    reels = Reels.query.order_by(Reels.created_at.desc()).all()
     comments = Comments.query.all()
 
     comments_by_reel = {}
-
     for comment in comments:
-
         if comment.reel_id not in comments_by_reel:
             comments_by_reel[comment.reel_id] = []
-
         comments_by_reel[comment.reel_id].append(comment)
 
     user_id = session.get('user_id')
 
     like_counts = {}
     liked_reels = set()
-
     all_likes = Reels_Likes.query.all()
 
     for like in all_likes:
-
         like_counts[like.reel_id] = (
             like_counts.get(like.reel_id, 0) + 1
         )
 
     if user_id:
-
         for like in all_likes:
-
             if like.user_id == user_id:
                 liked_reels.add(like.reel_id)
 
@@ -91,7 +101,8 @@ def reels():
         liked_reels=liked_reels,
         form=form,
         users={u.id: u for u in User.query.all()},
-        current_user_id=user_id
+        current_user_id=user_id,
+        active_chat_users=active_chat_users  # 👈 최근 대화 목록 전달 추가
     )
 
 
@@ -101,11 +112,9 @@ def reels():
 
 @reels_bp.route('/upload', methods=['GET', 'POST'])
 def upload():
-
     form = ReelsForm()
 
     if form.validate_on_submit():
-
         video = form.video_url.data
 
         videos_folder = os.path.join(currunt_app.config['UPLOAD_FOLDER'], 'videos')
@@ -114,13 +123,9 @@ def upload():
         video_path = os.path.join(videos_folder, video_filename)
 
         video.save(video_path)
-
         duration = get_video_duration(video_path)
 
-        print(duration)
-
         thumbnail = form.thumbnail.data
-
         thumbnails_folder = os.path.join(currunt_app.config['UPLOAD_FOLDER'], 'thumbnails')
         os.makedirs(thumbnails_folder, exist_ok=True)
         thumbnail_filename = f"{uuid.uuid4().hex}_{secure_filename(thumbnail.filename)}"
@@ -139,9 +144,7 @@ def upload():
         db.session.add(reel)
         db.session.commit()
 
-        return redirect(
-            url_for('reels.reels')
-        )
+        return redirect(url_for('reels.reels'))
 
     return render_template(
         'reels/reels_upload.html',
@@ -153,91 +156,54 @@ def upload():
 # 릴스 수정
 # =========================================================
 
-@reels_bp.route(
-    '/<int:reel_id>/edit',
-    methods=['GET', 'POST']
-)
+@reels_bp.route('/<int:reel_id>/edit', methods=['GET', 'POST'])
 def edit_reel(reel_id):
-
     if 'user_id' not in session:
-        return redirect(
-            url_for('auth.login')
-        )
+        return redirect(url_for('auth.login'))
 
     reel = Reels.query.get_or_404(reel_id)
 
     if reel.user_id != session['user_id']:
-        return redirect(
-            url_for('reels.reels')
-        )
+        return redirect(url_for('reels.reels'))
 
     form = ReelsEditForm(obj=reel)
 
     if form.validate_on_submit():
-
         reel.caption = form.caption.data
 
-        # -------------------------------------------------
-        # 영상 수정
-        # -------------------------------------------------
-
         if form.video_url.data:
-
             video = form.video_url.data
-
             old_video_path = reel.video_url
 
-            video_filename = (
-                f"{uuid.uuid4().hex}_{video.filename}"
-            )
-
+            video_filename = f"{uuid.uuid4().hex}_{secure_filename(video.filename)}"
             video_path = os.path.join(
                 currunt_app.config['UPLOAD_FOLDER'],
                 'videos',
                 video_filename
             )
-
             video.save(video_path)
 
             reel.video_url = video_path
-
-            reel.duration = get_video_duration(
-                video_path
-            )
+            reel.duration = get_video_duration(video_path)
 
             video_used = Reels.query.filter(
                 Reels.video_url == old_video_path,
                 Reels.id != reel.id
             ).first()
 
-            if not video_used:
-
-                if (
-                    old_video_path
-                    and os.path.exists(old_video_path)
-                ):
-                    os.remove(old_video_path)
-
-        # -------------------------------------------------
-        # 썸네일 수정
-        # -------------------------------------------------
+            if not video_used and old_video_path and os.path.exists(old_video_path):
+                os.remove(old_video_path)
 
         if form.thumbnail.data:
-
             thumbnail = form.thumbnail.data
-
             old_thumbnail_path = reel.thumbnail_url
 
-            thumbnail_filename = (
-                f"{uuid.uuid4().hex}_{thumbnail.filename}"
-            )
-
+            thumbnail_filename = f"{uuid.uuid4().hex}_{secure_filename(thumbnail.filename)}"
             thumbnail_path = os.path.join(
                 currunt_app.config['UPLOAD_FOLDER'],
                 'thumbnails',
                 thumbnail_filename
             )
-
             thumbnail.save(thumbnail_path)
 
             reel.thumbnail_url = thumbnail_path
@@ -247,19 +213,11 @@ def edit_reel(reel_id):
                 Reels.id != reel.id
             ).first()
 
-            if not thumbnail_used:
-
-                if (
-                    old_thumbnail_path
-                    and os.path.exists(old_thumbnail_path)
-                ):
-                    os.remove(old_thumbnail_path)
+            if not thumbnail_used and old_thumbnail_path and os.path.exists(old_thumbnail_path):
+                os.remove(old_thumbnail_path)
 
         db.session.commit()
-
-        return redirect(
-            url_for('reels.reels')
-        )
+        return redirect(url_for('reels.reels'))
 
     return render_template(
         'reels/reels_edit.html',
@@ -286,74 +244,37 @@ def edit_reel_caption(reel_id):
 # 릴스 삭제
 # =========================================================
 
-@reels_bp.route(
-    '/<int:reel_id>/delete',
-    methods=['POST']
-)
+@reels_bp.route('/<int:reel_id>/delete', methods=['POST'])
 def delete_reel(reel_id):
-
     if 'user_id' not in session:
-        return redirect(
-            url_for('auth.login')
-        )
+        return redirect(url_for('auth.login'))
 
     reel = Reels.query.get_or_404(reel_id)
 
     if reel.user_id != session['user_id']:
-        return redirect(
-            url_for('reels.reels')
-        )
+        return redirect(url_for('reels.reels'))
 
     video_path = reel.video_url
     thumbnail_path = reel.thumbnail_url
 
-    # 좋아요 삭제
-    Reels_Likes.query.filter_by(
-        reel_id=reel.id
-    ).delete()
+    Reels_Likes.query.filter_by(reel_id=reel.id).delete()
+    Comments.query.filter_by(reel_id=reel.id).delete()
 
-    # 댓글 삭제
-    Comments.query.filter_by(
-        reel_id=reel.id
-    ).delete()
-
-    # 릴스 삭제
     db.session.delete(reel)
-
     db.session.commit()
 
-    # 다른 릴스에서 사용하지 않는 영상이면 삭제
-    video_used = Reels.query.filter_by(
-        video_url=video_path
-    ).first()
+    video_used = Reels.query.filter_by(video_url=video_path).first()
+    if not video_used and video_path and os.path.exists(video_path):
+        os.remove(video_path)
 
-    if not video_used:
-
-        if (
-            video_path
-            and os.path.exists(video_path)
-        ):
-            os.remove(video_path)
-
-    # 다른 릴스에서 사용하지 않는 썸네일이면 삭제
-    thumbnail_used = Reels.query.filter_by(
-        thumbnail_url=thumbnail_path
-    ).first()
-
-    if not thumbnail_used:
-
-        if (
-            thumbnail_path
-            and os.path.exists(thumbnail_path)
-        ):
-            os.remove(thumbnail_path)
+    thumbnail_used = Reels.query.filter_by(thumbnail_url=thumbnail_path).first()
+    if not thumbnail_used and thumbnail_path and os.path.exists(thumbnail_path):
+        os.remove(thumbnail_path)
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({'success': True})
 
-    return redirect(
-        url_for('reels.reels')
-    )
+    return redirect(url_for('reels.reels'))
 
 
 # =========================================================
@@ -362,15 +283,8 @@ def delete_reel(reel_id):
 
 @reels_bp.route('/uploads/<path:filename>')
 def uploaded_file(filename):
-
-    upload_folder = (
-        currunt_app.config['UPLOAD_FOLDER']
-    )
-
-    return send_from_directory(
-        upload_folder,
-        filename
-    )
+    upload_folder = currunt_app.config['UPLOAD_FOLDER']
+    return send_from_directory(upload_folder, filename)
 
 
 # =========================================================
@@ -381,11 +295,7 @@ def uploaded_file(filename):
 def add_comment(reel_id):
     if 'user_id' not in session:
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({
-                'success': False,
-                'message': '로그인이 필요합니다.'
-            }), 401
-
+            return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
         return redirect(url_for('auth.login'))
 
     form = CommentsForm()
@@ -400,7 +310,6 @@ def add_comment(reel_id):
         db.session.add(comment)
         db.session.commit()
 
-        # AJAX 요청이면 JSON으로 응답
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             user = User.query.get(comment.user_id)
             return jsonify({
@@ -416,12 +325,8 @@ def add_comment(reel_id):
                 },
             })
 
-    # AJAX 요청인데 폼 검증에 실패한 경우
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({
-            'success': False,
-            'message': '댓글 내용을 입력해주세요.'
-        }), 400
+        return jsonify({'success': False, 'message': '댓글 내용을 입력해주세요.'}), 400
 
     return redirect(url_for('reels.reels'))
 
@@ -430,18 +335,12 @@ def add_comment(reel_id):
 # 댓글 삭제
 # =========================================================
 
-@reels_bp.route(
-    '/comment/<int:comment_id>/delete',
-    methods=['POST']
-)
+@reels_bp.route('/comment/<int:comment_id>/delete', methods=['POST'])
 def delete_comment(comment_id):
-
     if 'user_id' not in session:
         return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
 
-    comment = Comments.query.get_or_404(
-        comment_id
-    )
+    comment = Comments.query.get_or_404(comment_id)
 
     if comment.user_id != session['user_id']:
         return jsonify({'success': False, 'message': '권한이 없습니다.'}), 403
@@ -456,17 +355,10 @@ def delete_comment(comment_id):
 # 좋아요
 # =========================================================
 
-@reels_bp.route(
-    '/<int:reel_id>/like',
-    methods=['POST']
-)
+@reels_bp.route('/<int:reel_id>/like', methods=['POST'])
 def like_reel(reel_id):
-
     if 'user_id' not in session:
-        return jsonify({
-            'success': False,
-            'message': '로그인이 필요합니다.'
-        }), 401
+        return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
 
     reel = Reels.query.get_or_404(reel_id)
 
@@ -475,109 +367,58 @@ def like_reel(reel_id):
         user_id=session['user_id']
     ).first()
 
-    # 좋아요 취소
     if like:
-
         db.session.delete(like)
-
         liked = False
-
-    # 좋아요 추가
     else:
-
         like = Reels_Likes(
             reel_id=reel_id,
             user_id=session['user_id']
         )
-
         db.session.add(like)
-
         liked = True
 
     db.session.commit()
 
-    # 현재 릴스의 좋아요 개수
-    like_count = Reels_Likes.query.filter_by(
-        reel_id=reel_id
-    ).count()
+    like_count = Reels_Likes.query.filter_by(reel_id=reel_id).count()
 
-    # AJAX 요청이면 JSON 반환
-    if request.headers.get(
-        'X-Requested-With'
-    ) == 'XMLHttpRequest':
-
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({
             'success': True,
             'liked': liked,
             'like_count': like_count
         })
 
-    # 일반 POST 요청이면 디테일 페이지로 돌아감
-    return redirect(
-        url_for(
-            'reels.detail_reel',
-            reel_id=reel_id
-        )
-    )
+    return redirect(url_for('reels.detail_reel', reel_id=reel_id))
 
 
 # =========================================================
 # 릴스 상세
 # =========================================================
 
-@reels_bp.route(
-    '/<int:reel_id>/detail'
-)
+@reels_bp.route('/<int:reel_id>/detail')
 def detail_reel(reel_id):
+    reel = Reels.query.get_or_404(reel_id)
+    comments = Comments.query.filter_by(reel_id=reel.id).all()
+    comments_by_reel = {reel.id: comments}
 
-    reel = Reels.query.get_or_404(
-        reel_id
-    )
-
-    comments = Comments.query.filter_by(
-        reel_id=reel.id
-    ).all()
-
-    comments_by_reel = {
-        reel.id: comments
-    }
-
-    user_id = session.get(
-        'user_id'
-    )
-
+    user_id = session.get('user_id')
     all_likes = Reels_Likes.query.all()
 
     like_counts = {}
-
     for like in all_likes:
-
-        like_counts[like.reel_id] = (
-            like_counts.get(
-                like.reel_id,
-                0
-            ) + 1
-        )
+        like_counts[like.reel_id] = like_counts.get(like.reel_id, 0) + 1
 
     liked_reels = set()
-
     if user_id:
-
         for like in all_likes:
-
             if like.user_id == user_id:
-                liked_reels.add(
-                    like.reel_id
-                )
+                liked_reels.add(like.reel_id)
 
     form = CommentsForm()
-
-    form_edit = ReelsEditForm(
-        obj=reel
-    )
+    form_edit = ReelsEditForm(obj=reel)
 
     if request.args.get('fragment') == '1':
-        from ..models import User
         comment_users = {
             user.id: user
             for user in User.query.filter(User.id.in_([comment.user_id for comment in comments])).all()

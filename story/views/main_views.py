@@ -1,7 +1,6 @@
 from datetime import datetime
 from flask import Blueprint, render_template, session, g
 from flask_login import current_user
-from story import db
 from story.models import Post, Story, User
 from story.views import dmviews
 
@@ -47,4 +46,3 @@ def index():
         story_list=stories,
         active_chat_users=active_chat_users
     )
-    return redirect(url_for('story_list'))
