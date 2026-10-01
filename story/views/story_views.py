@@ -1,4 +1,6 @@
 import os
+from datetime import datetime, timedelta
+from collections import defaultdict
 from datetime import timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, g
 from werkzeug.utils import secure_filename
@@ -8,19 +10,65 @@ from story.forms import StoryForm
 from story.models import Story
 from story.time_utils import kst_now_naive
 
-
 bp = Blueprint('story', __name__, url_prefix='/story')
 
-# 24시간 필터링이 적용된 스토리 목록 조회
+
+def get_unique_story_list():
+    now_time = datetime.now()
+
+    all_stories = Story.query.filter(
+        Story.expires_at > now_time
+    ).order_by(
+        Story.create_date.asc()
+    ).all()
+
+    story_list = []
+    user_ids = set()
+
+    for story in all_stories:
+        if story.user_id not in user_ids:
+            story_list.append(story)
+            user_ids.add(story.user_id)
+
+    story_list.reverse()
+    return story_list
+
+
+# 24시간 필터링 및 중복 제거가 적용된 스토리 목록 조회
 @bp.route('/')
 def story_list():
-    now = kst_now_naive()
-    story_list = Story.query.filter(Story.expires_at > now).order_by(Story.create_date.desc()).all()
-    return render_template('story/story_list.html', story_list=story_list)
-
+    story_list = get_unique_story_list()
+    return render_template(
+        'story/story_list.html',
+        story_list=story_list
+    )
 
 @bp.route('/detail/<int:story_id>/')
 def detail(story_id):
+    current_story = Story.query.get_or_404(story_id)
+    now = datetime.now()
+
+    active_stories = Story.query.filter(
+        Story.expires_at > now
+    ).order_by(
+        Story.create_date.desc()
+    ).all()
+
+    user_groups = defaultdict(list)
+
+    for s in active_stories:
+        user_groups[s.user_id].append(s)
+
+    ordered_user_ids = []
+
+    for s in active_stories:
+        if s.user_id not in ordered_user_ids:
+            ordered_user_ids.append(s.user_id)
+
+    user_stories = user_groups[current_story.user_id]
+    user_stories.sort(key=lambda x: x.create_date)
+
+    current_user_idx = ordered_user_ids.index(current_story.user_id)
     story = Story.query.get_or_404(story_id)
 
     if story.expires_at <= kst_now_naive():
@@ -31,48 +79,88 @@ def detail(story_id):
     active_stories = Story.query.filter(Story.expires_at > now).order_by(Story.create_date.desc()).all()
 
     prev_story = None
+
+    # 수정 추가: 이전 스토리 두 번째 사용자
+    prev_story2 = None
+
     next_story = None
 
-    # 전체 목록을 돌면서 현재 스토리의 앞, 뒤에 있는 스토리를 찾습니다.
-    for i, s in enumerate(active_stories):
-        if s.id == story_id:
-            if i > 0:
-                prev_story = active_stories[i - 1]  # 리스트 상에서 이전에 위치한 스토리
-            if i < len(active_stories) - 1:
-                next_story = active_stories[i + 1]  # 리스트 상에서 다음에 위치한 스토리
-            break
+    # 수정 추가: 다음 스토리 두 번째 사용자
+    next_story2 = None
 
-    return render_template('story/story_detail.html', story=story, prev_story=prev_story, next_story=next_story)
+    if current_user_idx > 0:
+        prev_user_id = ordered_user_ids[current_user_idx - 1]
+        prev_user_stories = user_groups[prev_user_id]
+        prev_user_stories.sort(key=lambda x: x.create_date)
+        prev_story = prev_user_stories[0]
+
+    # 수정 추가: 현재 사용자보다 두 번째 앞의 사용자 스토리
+    if current_user_idx > 1:
+        prev_user2_id = ordered_user_ids[current_user_idx - 2]
+        prev_user2_stories = user_groups[prev_user2_id]
+        prev_user2_stories.sort(key=lambda x: x.create_date)
+        prev_story2 = prev_user2_stories[0]
+
+    if current_user_idx < len(ordered_user_ids) - 1:
+        next_user_id = ordered_user_ids[current_user_idx + 1]
+        next_user_stories = user_groups[next_user_id]
+        next_user_stories.sort(key=lambda x: x.create_date)
+        next_story = next_user_stories[0]
+
+    # 수정 추가: 현재 사용자보다 두 번째 뒤의 사용자 스토리
+    if current_user_idx < len(ordered_user_ids) - 2:
+        next_user2_id = ordered_user_ids[current_user_idx + 2]
+        next_user2_stories = user_groups[next_user2_id]
+        next_user2_stories.sort(key=lambda x: x.create_date)
+        next_story2 = next_user2_stories[0]
+
+    return render_template(
+        'story/story_detail.html',
+        story=current_story,
+        user_stories=user_stories,
+        prev_story=prev_story,
+
+        # 수정 추가: 두 번째 이전 스토리를 HTML로 전달
+        prev_story2=prev_story2,
+
+        next_story=next_story,
+
+        # 수정 추가: 두 번째 다음 스토리를 HTML로 전달
+        next_story2=next_story2
+    )
 
 
-# 스토리 생성/업로드 기능 (배우신 이미지 저장 로직 반영!)
+# 스토리 생성/업로드 기능
 @bp.route('/create/', methods=['GET', 'POST'])
-# @login_required
 def story_create():
     form = StoryForm()
+
     if request.method == 'POST' and form.validate_on_submit():
-        # 폼에서 전송된 이미지 파일 가져오기
         image_file = form.image.data
         caption = form.caption.data
         image_path = None
 
         if image_file:
+            today = datetime.now().strftime('%Y%m%d')
+            upload_folder = os.path.join(
+                current_app.root_path,
+                'static/photo',
+                today
+            )
+
             # 저장 경로 : 오늘 날짜로 폴더 생성
             today = kst_now_naive().strftime('%Y%m%d')
             upload_folder = os.path.join(current_app.root_path, 'static/photo', today)
             os.makedirs(upload_folder, exist_ok=True)
 
-            # 파일 저장
             filename = secure_filename(image_file.filename)
             file_path = os.path.join(upload_folder, filename)
             image_file.save(file_path)
 
-            # DB에 저장할 상대 경로 계산
             image_path = f'photo/{today}/{filename}'
 
         now = kst_now_naive()
         expires_at = now + timedelta(days=1)
-
         user_id = g.user.id
 
         story = Story(
@@ -82,15 +170,20 @@ def story_create():
             create_date=now,
             expires_at=expires_at
         )
+
         db.session.add(story)
         db.session.commit()
 
-        # 홈 피드에서 시작한 업로드는 등록 후 홈으로 복귀합니다.
         if request.form.get('return_to') == 'home':
             return redirect(url_for('main.index'))
+
         return redirect(url_for('story.story_list'))
 
-    return render_template('story/story_form.html', form=form)
+    return render_template(
+        'story/story_form.html',
+        form=form
+    )
+
 
 # 스토리 수정
 @bp.route('/modify/<int:story_id>/', methods=['GET', 'POST'])
@@ -105,6 +198,13 @@ def modify(story_id):
         image_file = form.image.data
 
         if image_file:
+            today = datetime.now().strftime('%Y%m%d')
+            upload_folder = os.path.join(
+                current_app.root_path,
+                'static/photo',
+                today
+            )
+
             today = kst_now_naive().strftime('%Y%m%d')
             upload_folder = os.path.join(current_app.root_path, 'static/photo', today)
             os.makedirs(upload_folder, exist_ok=True)
@@ -116,15 +216,21 @@ def modify(story_id):
             story.media_url = f'photo/{today}/{filename}'
 
         story.caption = form.caption.data
-
         db.session.commit()
 
-        return redirect(url_for('story.detail', story_id=story.id))
+        return redirect(
+            url_for('story.detail', story_id=story.id)
+        )
 
     if request.method == 'GET':
         form.caption.data = story.caption
 
-    return render_template('story/story_form.html', form=form, story=story)
+    return render_template(
+        'story/story_form.html',
+        form=form,
+        story=story
+    )
+
 
 # 스토리 삭제
 @bp.route('/delete/<int:story_id>/')

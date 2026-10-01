@@ -3,7 +3,7 @@
 {% block head %}
 <!-- Swiper.js CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
-<link rel="stylesheet" href="{{ url_for('static', filename='story/story_style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/story_style.css') }}">
 
 <style>
     .modal-content { border-radius: 12px; overflow: hidden; }
@@ -106,7 +106,36 @@
             height: 100% !important;
             flex: 1 1 auto !important;
         }
+        .post-caption {
+        -webkit-line-clamp: 2;
+        }
     }
+/* 게시물 캡션 */
+.post-caption-wrap {
+    position: relative;
+}
+
+.post-caption {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* 캡션 더보기 버튼 */
+.post-caption-more {
+    display: none;
+    padding: 0;
+    margin-top: 4px;
+    border: 0;
+    background: none;
+    color: #777;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+}
 </style>
 {% endblock %}
 
@@ -198,10 +227,24 @@
             </div>
 
             <p class="fw-bold mb-1 small">좋아요 <span class="like-count-text">{{ post.likes|length }}</span>개</p>
-            <p class="card-text mb-2">
-                <span class="fw-bold me-1">{{ post.user.username }}</span>
-                <span class="post-caption-text">{{ post.caption }}</span>
-            </p>
+<p class="card-text mb-2">
+    <span class="fw-bold me-1">{{ post.user.username }}</span>
+
+    <span class="post-caption-wrap">
+        <span class="post-caption">
+            <span class="post-caption-text">{{ post.caption }}</span>
+        </span>
+
+        <button
+            type="button"
+            class="post-caption-more btn-open-detail"
+            data-post-id="{{ post.id }}"
+            style="font-size: small"
+        >
+            더 보기
+        </button>
+    </span>
+</p>
 
             <button type="button" class="btn btn-link text-secondary p-0 small text-decoration-none btn-open-detail" data-post-id="{{ post.id }}">
                 댓글 <span class="comment-count-text">{{ post.comments|length }}</span>개 모두 보기
@@ -282,6 +325,10 @@
                 });
             });
         });
+                // 3. 캡션이 실제로 잘린 경우에만 ⋯ 표시
+        document.querySelectorAll('.post-caption-wrap').forEach(wrap => {
+            const caption = wrap.querySelector('.post-caption');
+            const moreButton = wrap.querySelector('.post-caption-more');
 
         const repostIcon = '<svg aria-label="리포스트" class="x1lliihq x1n2onr6 xyb1xck" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><title>리포스트</title><path d="M19.998 9.497a1 1 0 0 0-1 1v4.228a3.274 3.274 0 0 1-3.27 3.27h-5.313l1.791-1.787a1 1 0 0 0-1.412-1.416L7.29 18.287a1.004 1.004 0 0 0-.294.707v.001c0 .023.012.042.013.065a.923.923 0 0 0 .281.643l3.502 3.504a1 1 0 0 0 1.414-1.414l-1.797-1.798h5.318a5.276 5.276 0 0 0 5.27-5.27v-4.228a1 1 0 0 0-1-1Zm-6.41-3.496-1.795 1.795a1 1 0 1 0 1.414 1.414l3.5-3.5a1.003 1.003 0 0 0 0-1.417l-3.5-3.5a1 1 0 0 0-1.414 1.414l1.794 1.794H8.27A5.277 5.277 0 0 0 3 9.271V13.5a1 1 0 0 0 2 0V9.271a3.275 3.275 0 0 1 3.271-3.27Z"></path></svg>';
         const repostedIcon = '<svg aria-label="리포스트" class="x1lliihq x1n2onr6 xyb1xck" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><title>리포스트</title><path d="M16 6.001a1 1 0 0 0 .924-1.382.998.998 0 0 0-.217-.326l-3.5-3.5a1 1 0 1 0-1.414 1.414l1.794 1.794H8.27A5.277 5.277 0 0 0 3 9.271V13.5a1 1 0 1 0 2 0V9.271a3.275 3.275 0 0 1 3.271-3.27h7.73Zm3.998 3.496a1 1 0 0 0-1 1v4.228a3.274 3.274 0 0 1-3.27 3.27H7.996a1.001 1.001 0 0 0-.706 1.708l3.502 3.504a.997.997 0 0 0 1.414 0 1 1 0 0 0 0-1.414l-1.797-1.798h5.317a5.276 5.276 0 0 0 5.271-5.27v-4.228a1 1 0 0 0-1-1Zm-5.205-.51-3.905 3.906-1.681-1.681a1 1 0 1 0-1.414 1.414l2.388 2.388a1 1 0 0 0 1.414 0l4.612-4.614a1 1 0 1 0-1.414-1.414Z"></path></svg>';
@@ -304,6 +351,12 @@
             });
         });
 
+            if (!caption || !moreButton) return;
+
+            if (caption.scrollHeight > caption.clientHeight + 1) {
+                moreButton.style.display = 'inline-block';
+            }
+        });
     });
 </script>
 {% endblock %}
