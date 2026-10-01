@@ -51,7 +51,6 @@ def create_app():
     login_message = '로그인이 필요합니다.'
     login_message_category = 'info'
 
-    # 프로필 이미지 경로 안전 변환 템플릿 필터
     @app.template_filter('profile_img')
     def profile_img_filter(img_url):
         if not img_url:
