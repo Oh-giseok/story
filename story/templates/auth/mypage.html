@@ -28,24 +28,62 @@
     .mypage-profile-stats {
         display: flex;
         align-items: center;
-        gap: 4rem;
+        gap: 2rem;
         margin-left: auto;
-        margin-right: 20%;
     }
     .mypage-profile-stat {
+        display: inline-flex;
+        align-items: baseline;
+        gap: .35rem;
         padding: 0;
         border: 0;
         background: none;
         color: #212529;
-        font-size: 1.5rem;
-        font-weight: 500;
         line-height: 1.2;
         white-space: nowrap;
+    }
+    .mypage-profile-stat-count {
+        font-size: .9rem;
+        font-weight: 700;
+    }
+    .mypage-profile-stat-label {
+        color: #6c757d;
+        font-size: .9rem;
+        font-weight: 500;
     }
     .mypage-profile-stat:hover,
     .mypage-profile-stat:focus-visible {
         color: #212529;
         text-decoration: underline;
+    }
+    .mypage-account-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .mypage-account-action {
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        color: #6c757d;
+        font-size: .9rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: color .15s ease;
+    }
+    .mypage-account-action:hover,
+    .mypage-account-action:focus-visible {
+        color: #212529;
+        text-decoration: underline;
+    }
+    .mypage-account-action i {
+        font-size: 1rem;
+    }
+    .mypage-account-divider {
+        width: 1px;
+        height: 15px;
+        background: #dee2e6;
     }
     @media (max-width: 767.98px) {
         .mypage-profile-stats {
@@ -81,19 +119,26 @@
                 {% if is_own_profile %}
                 <div class="mypage-profile-stats">
                     <button type="button" class="mypage-profile-stat" data-bs-toggle="modal" data-bs-target="#friendsListModal">
-                        친구 {{ friends|length }}명
+                        <span class="mypage-profile-stat-label">친구</span>
+                        <span class="mypage-profile-stat-count">{{ friends|length }}</span>
                     </button>
                     <button type="button" class="mypage-profile-stat" data-bs-toggle="modal" data-bs-target="#friendRequestsModal">
-                        친구 요청 {{ incoming_requests|length }}명
+                        <span class="mypage-profile-stat-label">친구 요청</span>
+                        <span class="mypage-profile-stat-count">{{ incoming_requests|length }}</span>
                     </button>
                 </div>
                 {% endif %}
             </div>
             <p class="mb-0 text-break">{{ user.intro or '자기소개가 없습니다.' }}</p>
             {% if is_own_profile %}
-            <div class="d-flex flex-wrap gap-2 mt-3">
-                <a href="{{ url_for('auth.profile_edit') }}" class="btn btn-outline-primary">회원정보 수정</a>
-                <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-secondary">로그아웃</a>
+            <div class="mypage-account-actions mt-3">
+                <a href="{{ url_for('auth.profile_edit') }}" class="mypage-account-action">
+                    <i class="bi bi-person-gear" aria-hidden="true"></i>회원정보 수정
+                </a>
+                <span class="mypage-account-divider" aria-hidden="true"></span>
+                <a href="{{ url_for('auth.logout') }}" class="mypage-account-action">
+                    <i class="bi bi-box-arrow-right" aria-hidden="true"></i>로그아웃
+                </a>
             </div>
             {% else %}
             <div class="d-flex flex-wrap gap-2 mt-3">
@@ -209,7 +254,7 @@
     {% endif %}
 
     <!-- POST, REELS, STORY, REPOST 탭 -->
-    <div class="d-flex border-bottom" role="tablist" aria-label="내 게시물 종류" style="margin-top: 40px">
+    <div class="d-flex border-bottom" role="tablist" aria-label="내 게시물 종류" style="margin-top: 60px">
         <button type="button" class="btn flex-fill rounded-0 border-0 mypage-tab"
                 onclick="showPosts('posts', this)" aria-selected="true">
             <svg class="me-1" aria-label="게시물" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><title>게시물</title><rect height="6" rx="1" ry="1" width="4.667" x="3" y="1"></rect><rect height="6" rx="1" ry="1" width="4.667" x="16.333" y="1"></rect><rect height="6" rx="1" ry="1" width="4.667" x="9.667" y="1"></rect><rect height="6" rx="1" ry="1" width="4.667" x="3" y="9"></rect><rect height="6" rx="1" ry="1" width="4.667" x="16.333" y="9"></rect><rect height="6" rx="1" ry="1" width="4.667" x="9.667" y="9"></rect><rect height="6" rx="1" ry="1" width="4.667" x="3" y="17"></rect><rect height="6" rx="1" ry="1" width="4.667" x="16.333" y="17"></rect><rect height="6" rx="1" ry="1" width="4.667" x="9.667" y="17"></rect></svg>
@@ -232,9 +277,9 @@
         </button>
     </div>
 
-    <section id="posts-content" class="row g-3 mt-2">
+    <section id="posts-content" class="row row-cols-2 row-cols-md-5 g-3 mt-2">
         {% for post in posts %}
-        <div class="col-6 col-md-3">
+        <div class="col">
             <!-- 게시물 카드 (클릭 시 모달 열기) -->
             <div class="post-card position-relative overflow-hidden rounded cursor-pointer"
                  style="cursor: pointer;"
@@ -413,10 +458,8 @@
             document.getElementById(`${name}-content`).hidden = name !== type;
         });
         document.querySelectorAll('[aria-label="내 게시물 종류"] button').forEach((button) => {
-            button.classList.remove('bg-dark', 'text-white', 'fw-bold');
             button.setAttribute('aria-selected', 'false');
         });
-        selectedButton.classList.add('bg-dark', 'text-white', 'fw-bold');
         selectedButton.setAttribute('aria-selected', 'true');
     }
 </script>
