@@ -120,16 +120,19 @@
 .reel-actions {
     width: 60px;
     flex: 0 0 60px;
-
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 2px;
 
 }
 
 .reel-actions button {
     color: #222;
+}
+.reel-actions .like-button i::before,
+.reel-actions .reel-open i::before {
+    font-weight: 600 !important;
 }
 
 .reel-actions .like-button {
@@ -139,7 +142,7 @@
 .reel-actions .like-count-text,
 .reel-actions .comment-count-text {
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
 
     margin-bottom: 14px;
 }
@@ -367,9 +370,9 @@ body:has(.reels-feed) main.py-4 { padding-top: 0 !important; padding-bottom: 0 !
                 aria-pressed="{{ 'true' if reel.id in liked_reels else 'false' }}"
             >
                 {% if reel.id in liked_reels %}
-                    <i class="bi bi-heart-fill fs-4"></i>
+                    <i class="bi bi-heart-fill text-danger fs-5"></i>
                 {% else %}
-                    <i class="bi bi-heart fs-4"></i>
+                    <i class="bi bi-heart text-dark fs-5"></i>
                 {% endif %}
             </button>
 
@@ -384,7 +387,7 @@ body:has(.reels-feed) main.py-4 { padding-top: 0 !important; padding-bottom: 0 !
                 data-reel-id="{{ reel.id }}"
                 aria-label="댓글"
             >
-                <i class="bi bi-chat fs-4"></i>
+                <i class="bi bi-chat fs-5"></i>
             </button>
 
             <span class="comment-count-text">
@@ -532,7 +535,7 @@ function syncCounts(id,likes,comments){
 
 function updateLikeUI(id,liked,count){
     document.querySelectorAll(`.like-button[data-reel-id="${id}"]`).forEach(b=>{
-        b.innerHTML=liked?'<i class="bi bi-heart-fill fs-5"></i>':'<i class="bi bi-heart text-dark fs-5"></i>';
+        b.innerHTML=liked?'<i class="bi bi-heart-fill text-danger fs-5"></i>':'<i class="bi bi-heart text-dark fs-5"></i>';
         b.setAttribute('aria-pressed',liked);
     });
     document.querySelectorAll(`[data-reel-id="${id}"].reel-card .like-count-text`).forEach(e=>e.textContent=count);

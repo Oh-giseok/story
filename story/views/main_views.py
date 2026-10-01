@@ -1,3 +1,5 @@
+import datetime
+
 from flask import Blueprint, render_template, session, g, request
 from flask_login import current_user
 from sqlalchemy import and_, or_
@@ -26,17 +28,38 @@ def index():
             print(f"[DM Query Error in main_views.py]: {e}")
     stories = []
     try:
-        stories = Story.query.filter(Story.expires_at > kst_now_naive()).order_by(Story.create_date.desc()).all()
-    except Exception:
-        pass
+        now_time = datetime.now()
+        all_stories = Story.query.filter(
+            Story.expires_at > now_time
+        ).order_by(
+            Story.create_date.asc()
+        ).all()
+
+        user_ids = set()
+        for story in all_stories:
+            if story.user_id not in user_ids:
+                stories.append(story)
+                user_ids.add(story.user_id)
+
+        stories.reverse()
+    except Exception as e:
+        print(f"[Story Query Error]: {e}")
+
     posts = []
+    reposted_post_ids = set()
     try:
         posts = Post.query.order_by(Post.id.desc()).all()
+        if current_uid:
+            reposted_post_ids = {
+                repost.post_id
+                for repost in PostRepost.query.filter_by(user_id=current_uid).all()
+            }
     except Exception:
         pass
     return render_template(
         'post/post_list.html',
         posts=posts,
+        reposted_post_ids=reposted_post_ids,
         story_list=stories,
         active_chat_users=active_chat_users
     )

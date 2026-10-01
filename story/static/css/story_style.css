@@ -1,4 +1,4 @@
-/* 스토리 목록 전체 영역 */
+ /* 스토리 목록 전체 영역 */
 .insta-story-container {
     display: flex;
     gap: 24px;
@@ -17,6 +17,8 @@
     align-items: center;
     text-align: center;
     min-width: 76px;
+    color: #333333;
+    text-decoration: none;
 }
 
 /* 스토리 이미지 바깥쪽 테두리 */
@@ -52,12 +54,52 @@
     border: 2px solid #ffffff;
 }
 
+/* 🛠️ [버그 수정 추가] 메인 홈 화면 원형 안의 사람 이모티콘 크기를 꽉 차게 키워줍니다! */
+.insta-story-no-img i {
+    font-size: 2.2rem !important;
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+/* 스토리 작성 버튼 */
+.insta-story-create-ring {
+    padding: 0;
+    border: 1px solid #dbdbdb;
+    background: #e0e0e0;
+}
+
+/* 스토리 작성 버튼 안쪽 */
+.insta-story-create {
+    border: 0;
+    background-color: #dbdbdb;
+}
+
+/* 스토리 작성 버튼 아이콘 */
+.insta-story-create i {
+    color: #555555;
+    font-size: 1.8rem;
+}
+
 /* 스토리 작성자 이름 */
 .insta-story-username {
     font-size: 13px;
     font-weight: 500;
     color: #333333;
     margin-top: 8px;
+    max-width: 76px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 스토리 작성 시간 */
+.insta-story-time {
+    font-size: 11px;
+    color: #8e8e8e;
+    margin-top: 3px;
     max-width: 76px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -82,55 +124,45 @@
     height: 100%;
     background-color: #1a1a1a;
     z-index: 9999;
-}
-
-
-/* 가운데 현재 스토리 */
-.story-viewer {
-    position: absolute;
-    top: 50%; /* 🟢 축 이동 중앙 정렬 유지 */
-    left: 50%;
-    transform: translate(-50%, -50%); /* 🟢 한가운데 표준 정렬선 일치 */
-    width: 394px; /* 🟢 실제 인스타 날씬한 가로폭 수치 고정 */
-    height: 700px; /* 🟢 실제 인스타 9:16 비율 표준 세로 높이 고정 */
-    background-color: #000000;
-    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 25px;
     overflow: hidden;
-    z-index: 20;
 }
 
 
-/* 이전 스토리 */
-.story-adjacent-card.prev-card {
-    position: absolute;
-    top: 50%; /* 🟢 수직 기준선을 브라우저 화면의 정확한 정중앙(50%)으로 지정 */
-    transform: translateY(-50%); /* 🟢 학원 표준 수식인 축 이동을 적용해 세로 한가운데 정렬선 일치 */
-    left: calc(50% - 375px); /* 실제 인스타처럼 자연스럽게 메인 박스 근처에 배치 */
-    width: 158px; /* 🟢 실제 인스타 뷰어 비율에 맞춘 슬림 너비 고정 */
-    height: 280px; /* 🟢 실제 인스타 대기 카드 세로 높이 완벽 복구 */
+/* 이전 / 다음 스토리 그룹 */
+.story-adjacent-group {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+}
+
+
+/* 이전 / 다음 스토리 카드 */
+.story-adjacent-card,
+.story-adjacent-card.prev-card,
+.story-adjacent-card.next-card,
+.story-adjacent-card.prev-card-far,
+.story-adjacent-card.next-card-far {
+    position: relative;
+    display: block;
+    width: 158px;
+    height: 280px;
+    flex: 0 0 158px;
     background-color: #222222;
     border: 1px solid #333333;
     border-radius: 12px;
     opacity: 0.35;
     overflow: hidden;
-    z-index: 10;
+    text-decoration: none;
 }
 
 
-/* 다음 스토리 */
-.story-adjacent-card.next-card {
-    position: absolute;
-    top: 50%; /* 🟢 수직 기준선을 브라우저 화면의 정확한 정중앙(50%)으로 지정 */
-    transform: translateY(-50%); /* 🟢 학원 표준 수식인 축 이동을 적용해 세로 한가운데 정렬선 일치 */
-    right: calc(50% - 375px); /* 실제 인스타처럼 자연스럽게 메인 박스 근처에 배치 */
-    width: 158px; /* 🟢 실제 인스타 뷰어 비율에 맞춘 슬림 너비 고정 */
-    height: 280px; /* 🟢 실제 인스타 대기 카드 세로 높이 완벽 복구 */
-    background-color: #222222;
-    border: 1px solid #333333;
-    border-radius: 12px;
-    opacity: 0.35;
-    overflow: hidden;
-    z-index: 10;
+/* 이전 / 다음 스토리에 마우스를 올렸을 때 */
+.story-adjacent-card:hover {
+    opacity: 0.6;
 }
 
 
@@ -142,22 +174,102 @@
 }
 
 
-/* 이전 / 다음 스토리에 마우스를 올렸을 때 */
-.story-adjacent-card:hover {
-    opacity: 0.6;
+/* 이전 스토리 이동 표시 */
+.story-adjacent-group.prev-group {
+    position: relative;
 }
+
+.story-adjacent-group.prev-group::after {
+    content: "‹";
+    position: absolute;
+    top: 50%;
+    right: -43px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-50%);
+    border-radius: 50%;
+    color: #333333;
+    font-size: 25px;
+    background: rgba(255, 255, 255, 0.8);
+    z-index: 20;
+}
+
+
+/* 다음 스토리 이동 표시 */
+.story-adjacent-group.next-group {
+    position: relative;
+}
+
+.story-adjacent-group.next-group::before {
+    content: "›";
+    position: absolute;
+    top: 50%;
+    left: -43px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-50%);
+    border-radius: 50%;
+    color: #333333;
+    font-size: 25px;
+    background: rgba(255, 255, 255, 0.8);
+    z-index: 20;
+}
+
+
+/* 가운데 현재 스토리 */
+.story-viewer {
+    position: relative;
+    width: 394px;
+    height: 700px;
+    flex: 0 0 394px;
+    background-color: #000000;
+    border-radius: 12px;
+    overflow: hidden;
+    z-index: 20;
+}
+
+
+/* 스토리 이미지 */
+.story-viewer-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #000000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1;
+}
+
+
+/* 스토리 이미지 */
+.story-viewer-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
 
 /* 닫기 버튼 */
 .story-viewer-close {
-    position: absolute;
-    top: 36px; /* 🛠️ 이름이 내려온 비율에 맞춰 닫기 버튼도 자연스럽게 아래로 이동 */
-    right: 20px; /* 🟢 인스타 실제 여백 비율 매칭 */
+    position: fixed;
+    top: 18px;
+    right: 24px;
     color: #ffffff;
-    font-size: 28px; /* 실제 인스타 슬림 엑스 크기로 다듬음 */
+    font-size: 42px;
     line-height: 1;
     text-decoration: none;
-    z-index: 110;
+    z-index: 10000;
 }
+
 
 /* 작성자 정보 */
 .story-viewer-user {
@@ -165,12 +277,12 @@
     top: 0;
     left: 0;
     width: 100%;
-    height: auto; /* 🟢 패딩 값에 의해 높이가 유연하게 잡히도록 auto로 변경 */
-    padding: 38px 16px 32px; /* 🛠️ [핵심] 상단 패딩을 기존 20px에서 38px로 대폭 늘려 이름/시간을 아래로 뚝 떨어뜨립니다! */
+    height: auto;
+    padding: 38px 16px 32px;
     display: flex;
     align-items: center;
     gap: 10px;
-    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0) 100%); /* 🟢 은은하게 명암 강도 조절 */
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0) 100%);
     color: #ffffff;
     z-index: 5;
     box-sizing: border-box;
@@ -180,13 +292,14 @@
 /* 작성자 정보 안의 아이디와 시간 묶음 방 가로 정렬 */
 .story-viewer-user > div {
     display: flex;
-    align-items: center; /* 🟢 가로 나란히 한 줄 정렬을 유지합니다 */
+    align-items: center;
     gap: 8px;
 }
 
+
 /* 프로필 이미지 */
 .story-viewer-profile {
-    width: 36px; /* 🟢 인스타 규격에 맞게 크기 최적화 */
+    width: 36px;
     height: 36px;
     border-radius: 50%;
     object-fit: cover;
@@ -196,8 +309,8 @@
 
 /* 프로필 이미지가 없을 때 */
 .story-viewer-profile-default {
-    width: 34px; /* 인스타 실제 규격에 더 근접하도록 미세 최적화 */
-    height: 34px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     background-color: #555555;
     border: 2px solid #ffffff;
@@ -210,7 +323,7 @@
 /* 프로필 기본 아이콘 */
 .story-viewer-profile-default i {
     color: #ffffff;
-    font-size: 16px;
+    font-size: 18px;
 }
 
 
@@ -224,27 +337,9 @@
 
 /* 작성 시간 */
 .story-viewer-time {
-    color: rgba(255, 255, 255, 0.75); /* 🛠️ 가로 배열 상태에서 눈에 잘 띄도록 선명한 밝기 조절 */
+    color: rgba(255, 255, 255, 0.75);
     font-size: 14px;
-    margin-left: 0px; /* 불필요한 마진 리셋 */
-}
-
-/* 스토리 이미지 */
-.story-viewer-image {
-    width: 100%;
-    height: 100%;
-    background-color: #000000;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-
-/* 스토리 이미지 */
-.story-viewer-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    margin-left: 0px;
 }
 
 
@@ -254,11 +349,12 @@
     bottom: 0;
     left: 0;
     width: 100%;
-    padding: 40px 20px 95px; /* 🟢 첫 자막 겹침 질문에서 해결했던 95px 정답 스펙 보존! */
+    padding: 40px 20px 95px;
     background: linear-gradient(to top, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0) 100%);
     color: #ffffff;
     text-align: center;
     box-sizing: border-box;
+    z-index: 30;
 }
 
 
@@ -269,7 +365,7 @@
     right: 20px;
     display: flex;
     gap: 8px;
-    z-index: 10;
+    z-index: 40;
 }
 
 
@@ -283,6 +379,7 @@
     background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 100%);
     text-align: center;
     box-sizing: border-box;
+    z-index: 5;
 }
 
 
@@ -334,11 +431,11 @@
 /* 스토리 게이지 바 컨테이너 */
 .story-progress-bar-container {
     position: absolute;
-    top: 14px; /* 🛠️ [핵심] 게이지 바를 상단 끝 기준 14px로 아주 얇고 세련되게 밀어 올립니다! */
+    top: 25px;
     left: 0;
-    z-index: 10;
+    z-index: 100;
     width: 100%;
-    padding: 0 10px; /* 실제 인스타처럼 꽉 차는 얇은 비율 패딩 */
+    padding: 0 16px !important;
     display: flex;
     gap: 4px;
     box-sizing: border-box;
@@ -348,16 +445,23 @@
 /* 스토리 게이지 바 기본 트랙 */
 .story-progress-bar-track {
     flex: 1;
-    height: 2px;
+    height: 2.8px;
     background-color: rgba(255, 255, 255, 0.35);
-    border-radius: 2px;
+    border-radius: 10px;
     overflow: hidden;
+    position: relative;
 }
 
 
 /* 스토리 게이지 바 */
 .story-progress-bar-fill {
-    width: 100%;
+    width: 0%;
     height: 100%;
     background-color: #ffffff;
+}
+
+
+/* 완료된 스토리 게이지 */
+.story-progress-bar-fill.watched {
+    width: 100% !important;
 }

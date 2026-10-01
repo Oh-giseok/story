@@ -3,7 +3,7 @@ import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify, session, g, flash
 from werkzeug.utils import secure_filename
 from story import db
-from story.models import Post, User, PostLike, PostComment, Story
+from story.models import Post, User, PostLike, PostComment, PostRepost, Story
 from story.time_utils import utc_isoformat, kst_now_naive
 
 # /post 경로로 들어오는 요청들을 처리할 블루프린트 생성
@@ -26,7 +26,15 @@ def get_current_user_id():
 def _list():
     posts = Post.query.order_by(Post.created_at.desc()).all()
     story_list = Story.query.filter(Story.expires_at > kst_now_naive()).order_by(Story.create_date.desc()).all()
-    return render_template('post/post_list.html', posts=posts, story_list=story_list)
+    user_id = get_current_user_id()
+    reposted_post_ids = {
+        repost.post_id
+        for repost in PostRepost.query.filter_by(user_id=user_id).all()
+    } if user_id else set()
+    return render_template(
+        'post/post_list.html', posts=posts, story_list=story_list,
+        reposted_post_ids=reposted_post_ids
+    )
 
 
 # 2. 게시물 등록 처리
@@ -107,6 +115,25 @@ def like(post_id):
         'liked': liked,
         'like_count': like_count
     })
+
+
+@bp.route('/repost/<int:post_id>', methods=['POST'])
+def repost(post_id):
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
+
+    post = Post.query.get_or_404(post_id)
+    existing_repost = PostRepost.query.filter_by(post_id=post.id, user_id=user_id).first()
+    if existing_repost:
+        db.session.delete(existing_repost)
+        reposted = False
+    else:
+        db.session.add(PostRepost(post_id=post.id, user_id=user_id))
+        reposted = True
+
+    db.session.commit()
+    return jsonify({'success': True, 'reposted': reposted})
 
 
 # 4. 댓글 작성 기능

@@ -98,7 +98,7 @@
     .post-card {
         width: 100%;
         background: #fff;
-        border: 1px solid #dee2e6;
+        border: 0;
         border-radius: 12px;
         margin-bottom: 20px;
     }
@@ -207,10 +207,13 @@
                             {% else %}
 
                                 <div class="insta-story-no-img"
-                                     style="width: 66px; height: 66px; border-radius: 50%;
-                                     background-color: #a0a0a0; display: flex; justify-content:
-                                     center; align-items: center; border: 2px solid #ffffff;">
-                                    <i class="bi bi-person-fill" style="font-size: 1.8rem; color: #ffffff;"></i>
+                                     style="width: 74px !important; height: 74px !important; border-radius: 50%;
+                                     background-color: #a0a0a0; display: flex; justify-content: center;
+                                     align-items: center; border: 2px solid #ffffff;">
+                                    <i class="bi bi-person-fill"
+                                       style="font-size: 2.5rem !important; color: #ffffff;
+                                       display: inline-flex; align-items: center; justify-content:
+                                       center; line-height: 1;"></i>
                                 </div>
 
                             {% endif %}
@@ -218,7 +221,8 @@
 
                         <!-- 작성자 아이디 정돈 -->
                         <div class="insta-story-username"
-                             style="font-size: 13px; font-weight: 500; color: #333333; margin-top: 8px; max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                             style="font-size: 13px; font-weight: 500; color: #333333; margin-top: 8px;
+                             max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {{ story.user.username if story.user else '익명' }}
                         </div>
 

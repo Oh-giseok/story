@@ -85,11 +85,11 @@ def static_url(*parts):
 def ensure_assets(app):
     """Verify bundled seed assets exist in the project after extraction/copy."""
     required = [
-        project_path(app, "static", "seed_media", "profiles"),
-        project_path(app, "static", "seed_media", "posts"),
-        project_path(app, "static", "seed_media", "stories"),
-        project_path(app, "reels_uploads", "videos"),
-        project_path(app, "reels_uploads", "thumbnails"),
+        project_path(app, "static",  "profiles"),
+        project_path(app, "static", "posts"),
+        project_path(app, "static", "stories"),
+        project_path(app, "static","reels_uploads", "videos"),
+        project_path(app, "static","reels_uploads", "thumbnails"),
     ]
     missing = [str(p) for p in required if not p.exists()]
     if missing:
