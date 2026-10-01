@@ -268,6 +268,20 @@ def edit_reel(reel_id):
     )
 
 
+@reels_bp.route('/<int:reel_id>/caption', methods=['POST'])
+def edit_reel_caption(reel_id):
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
+
+    reel = Reels.query.get_or_404(reel_id)
+    if reel.user_id != session['user_id']:
+        return jsonify({'success': False, 'message': '수정 권한이 없습니다.'}), 403
+
+    reel.caption = request.form.get('caption', '')
+    db.session.commit()
+    return jsonify({'success': True, 'caption': reel.caption})
+
+
 # =========================================================
 # 릴스 삭제
 # =========================================================
