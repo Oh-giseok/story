@@ -36,9 +36,91 @@
                 <a href="{{ url_for('auth.profile_edit') }}" class="btn btn-outline-primary">회원정보 수정</a>
                 <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-secondary">로그아웃</a>
             </div>
+            {% else %}
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                {% if friendship and friendship.status == 'accepted' %}
+                <form method="post" action="{{ url_for('auth.update_friendship', target_id=user.id, action='remove') }}">
+                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-danger">친구 삭제</button>
+                </form>
+                {% elif friendship and friendship.status == 'pending' and friendship.requested_by_id == g.user.id %}
+                <form method="post" action="{{ url_for('auth.update_friendship', target_id=user.id, action='cancel') }}">
+                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-secondary">요청 대기 · 취소</button>
+                </form>
+                {% elif friendship and friendship.status == 'pending' %}
+                <form method="post" action="{{ url_for('auth.update_friendship', target_id=user.id, action='accept') }}">
+                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                    <button type="submit" class="btn btn-primary">친구 요청 수락</button>
+                </form>
+                <form method="post" action="{{ url_for('auth.update_friendship', target_id=user.id, action='reject') }}">
+                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-secondary">거절</button>
+                </form>
+                {% else %}
+                <form method="post" action="{{ url_for('auth.send_friend_request', target_id=user.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                    <button type="submit" class="btn btn-primary">친구 추가</button>
+                </form>
+                {% endif %}
+            </div>
             {% endif %}
         </div>
     </div>
+
+    {% if is_own_profile %}
+    <section class="mt-4" aria-labelledby="friend-requests-heading">
+        <h3 id="friend-requests-heading" class="h5">친구 요청</h3>
+        {% if incoming_requests or outgoing_requests %}
+            {% for relation, friend_user in incoming_requests %}
+            <div class="d-flex align-items-center justify-content-between gap-2 border rounded p-2 mb-2">
+                <a class="text-decoration-none text-dark fw-semibold" href="{{ url_for('auth.mypage', user_id=friend_user.id) }}">{{ friend_user.username }}</a>
+                <div class="d-flex gap-2">
+                    <form method="post" action="{{ url_for('auth.update_friendship', target_id=friend_user.id, action='accept') }}">
+                        <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-primary">수락</button>
+                    </form>
+                    <form method="post" action="{{ url_for('auth.update_friendship', target_id=friend_user.id, action='reject') }}">
+                        <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">거절</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+            {% for relation, friend_user in outgoing_requests %}
+            <div class="d-flex align-items-center justify-content-between gap-2 border rounded p-2 mb-2">
+                <a class="text-decoration-none text-dark fw-semibold" href="{{ url_for('auth.mypage', user_id=friend_user.id) }}">{{ friend_user.username }}</a>
+                <form method="post" action="{{ url_for('auth.update_friendship', target_id=friend_user.id, action='cancel') }}">
+                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">요청 취소</button>
+                </form>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted">새로운 친구 요청이 없습니다.</p>
+        {% endif %}
+    </section>
+
+    <section class="mt-4" aria-labelledby="friends-heading">
+        <h3 id="friends-heading" class="h5">친구 <span class="text-muted">{{ friends|length }}</span></h3>
+        {% if friends %}
+            <div class="d-flex flex-wrap gap-3">
+                {% for friend in friends %}
+                <a href="{{ url_for('auth.mypage', user_id=friend.id) }}" class="d-flex align-items-center gap-2 text-decoration-none text-dark">
+                    {% if friend.profile_img_url %}
+                    <img src="{{ url_for('static', filename=friend.profile_img_url) }}" alt="" class="rounded-circle" width="36" height="36" style="object-fit: cover;">
+                    {% else %}
+                    <i class="bi bi-person-circle fs-3 text-secondary" aria-hidden="true"></i>
+                    {% endif %}
+                    <span>{{ friend.username }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-muted">아직 친구가 없습니다.</p>
+        {% endif %}
+    </section>
+    {% endif %}
 
     <!-- POST = Post 모델, REELS = Reels 모델, STORY = Story 모델 -->
     <div class="d-flex mt-4 border-bottom" role="tablist" aria-label="내 게시물 종류">

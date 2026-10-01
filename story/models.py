@@ -22,6 +22,29 @@ class User(db.Model, UserMixin):
     updated_at = db.Column(db.DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 
 
+class Friendship(db.Model):
+    """A single directed request / accepted friendship for an unordered user pair."""
+    __tablename__ = 'friendship'
+    __table_args__ = (
+        db.UniqueConstraint('user_low_id', 'user_high_id', name='unique_friendship_pair'),
+        db.CheckConstraint('user_low_id < user_high_id', name='check_friendship_user_order'),
+        db.CheckConstraint("status IN ('pending', 'accepted')", name='check_friendship_status'),
+        db.CheckConstraint(
+            'requested_by_id = user_low_id OR requested_by_id = user_high_id',
+            name='check_friendship_requester_pair'
+        ),
+        {'extend_existing': True}
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_low_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    user_high_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    requested_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='pending')
+    created_at = db.Column(db.DateTime, nullable=False, default=utc_now_naive)
+    updated_at = db.Column(db.DateTime, nullable=False, default=utc_now_naive, onupdate=utc_now_naive)
+
+
 class Conversation(db.Model):
     __tablename__ = 'conversation'
     __table_args__ = (
