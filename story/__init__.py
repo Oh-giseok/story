@@ -1,10 +1,10 @@
 import os
-from datetime import datetime
 from datetime import datetime, timedelta
 from flask import Flask, redirect, render_template, url_for, g, session
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, current_user
+from story.time_utils import as_utc, utc_now_naive, kst_now_naive, format_kst
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -51,7 +51,6 @@ def create_app():
     login_message = '로그인이 필요합니다.'
     login_message_category = 'info'
 
-    # 프로필 이미지 경로 안전 변환 템플릿 필터
     @app.template_filter('profile_img')
     def profile_img_filter(img_url):
         if not img_url:
@@ -126,7 +125,7 @@ def create_app():
         # required. Deletion happens on the first request after the 10-day deadline.
         from story.models import User
         from story import db
-        now = datetime.utcnow()
+        now = utc_now_naive()
         # Avoid writing to SQLite on every request. Lifecycle sweeps run at most
         # every 30 minutes; login separately enforces an expired deletion deadline.
         if now - account_maintenance['last_run'] >= timedelta(minutes=30):
@@ -169,7 +168,7 @@ def create_app():
         if not value:
             return ""
 
-        diff = datetime.now() - value
+        diff = as_utc(utc_now_naive()) - as_utc(value)
         seconds = diff.total_seconds()
         minutes = int(seconds // 60)
         hours = int(minutes // 60)
@@ -183,6 +182,28 @@ def create_app():
             return f"{hours}시간 전"
         else:
             return f"{days}일 전"
+
+    @app.template_filter('time_ago_local')
+    def time_ago_local_filter(value):
+        """Story timestamps predate UTC normalization and are naive KST."""
+        if not value:
+            return ""
+        diff = kst_now_naive() - value
+        seconds = diff.total_seconds()
+        minutes = int(seconds // 60)
+        hours = int(minutes // 60)
+        days = int(hours // 24)
+        if minutes < 1:
+            return "방금 전"
+        if minutes < 60:
+            return f"{minutes}분 전"
+        if hours < 24:
+            return f"{hours}시간 전"
+        return f"{days}일 전"
+
+    @app.template_filter('kst_datetime')
+    def kst_datetime_filter(value, fmt='%Y-%m-%d %H:%M'):
+        return format_kst(value, fmt)
 
     return app
 

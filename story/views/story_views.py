@@ -1,12 +1,14 @@
 import os
 from datetime import datetime, timedelta
 from collections import defaultdict
+from datetime import timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, g
 from werkzeug.utils import secure_filename
 
 from story import db
 from story.forms import StoryForm
 from story.models import Story
+from story.time_utils import kst_now_naive
 
 bp = Blueprint('story', __name__, url_prefix='/story')
 
@@ -41,7 +43,6 @@ def story_list():
         story_list=story_list
     )
 
-
 @bp.route('/detail/<int:story_id>/')
 def detail(story_id):
     current_story = Story.query.get_or_404(story_id)
@@ -68,6 +69,14 @@ def detail(story_id):
     user_stories.sort(key=lambda x: x.create_date)
 
     current_user_idx = ordered_user_ids.index(current_story.user_id)
+    story = Story.query.get_or_404(story_id)
+
+    if story.expires_at <= kst_now_naive():
+        return redirect(url_for('story.story_list'))
+
+    # 현재 유효한 모든 스토리 목록을 가져옵니다 (목록 정렬 기준과 동일하게 세팅)
+    now = kst_now_naive()
+    active_stories = Story.query.filter(Story.expires_at > now).order_by(Story.create_date.desc()).all()
 
     prev_story = None
 
@@ -139,6 +148,9 @@ def story_create():
                 today
             )
 
+            # 저장 경로 : 오늘 날짜로 폴더 생성
+            today = kst_now_naive().strftime('%Y%m%d')
+            upload_folder = os.path.join(current_app.root_path, 'static/photo', today)
             os.makedirs(upload_folder, exist_ok=True)
 
             filename = secure_filename(image_file.filename)
@@ -147,7 +159,7 @@ def story_create():
 
             image_path = f'photo/{today}/{filename}'
 
-        now = datetime.now()
+        now = kst_now_naive()
         expires_at = now + timedelta(days=1)
         user_id = g.user.id
 
@@ -193,6 +205,8 @@ def modify(story_id):
                 today
             )
 
+            today = kst_now_naive().strftime('%Y%m%d')
+            upload_folder = os.path.join(current_app.root_path, 'static/photo', today)
             os.makedirs(upload_folder, exist_ok=True)
 
             filename = secure_filename(image_file.filename)

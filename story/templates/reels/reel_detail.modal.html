@@ -33,19 +33,21 @@
                 </div>
                 <section class="col-md-5 d-flex flex-column bg-white h-100 reel-detail-panel">
                     <header class="p-3 border-bottom d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center">
-                        <img id="reelDetailAvatar" class="rounded-circle me-2 d-none" src="" alt="프로필 이미지" width="32" height="32" style="object-fit: cover;">
-                        <i id="reelDetailAvatarIcon" class="bi bi-person-circle fs-4 me-2 text-secondary" aria-hidden="true"></i>
-                        <span class="fw-bold" id="reelDetailModalTitle">릴스</span>
-                        </div>
+                        <a id="reelDetailOwnerLink" href="#" class="d-flex align-items-center text-decoration-none text-dark">
+                            <img id="reelDetailAvatar" class="rounded-circle me-2 d-none" src="" alt="프로필 이미지" width="32" height="32" style="object-fit: cover;">
+                            <i id="reelDetailAvatarIcon" class="bi bi-person-circle fs-4 me-2 text-secondary" aria-hidden="true"></i>
+                            <span class="fw-bold" id="reelDetailModalTitle">릴스</span>
+                        </a>
                         <button type="button" class="btn btn-link text-dark p-0 border-0 d-none" id="btnReelMoreOption" aria-label="릴스 옵션"><i class="bi bi-three-dots fs-5"></i></button>
                     </header>
                     <div class="p-3 reel-detail-comments">
                         <div class="d-flex mb-3 align-items-start reel-detail-comment">
-                            <img id="reelDetailCaptionAvatar" class="rounded-circle me-2 d-none" src="" alt="프로필 이미지" width="32" height="32" style="object-fit: cover;">
-                            <i id="reelDetailCaptionAvatarIcon" class="bi bi-person-circle fs-5 me-2 text-secondary" aria-hidden="true"></i>
+                            <a id="reelDetailCaptionOwnerLink" href="#" class="d-flex align-items-start text-decoration-none flex-shrink-0">
+                                <img id="reelDetailCaptionAvatar" class="rounded-circle me-2 d-none" src="" alt="프로필 이미지" width="32" height="32" style="object-fit: cover;">
+                                <i id="reelDetailCaptionAvatarIcon" class="bi bi-person-circle fs-5 me-2 text-secondary" aria-hidden="true"></i>
+                            </a>
                             <div class="w-100">
-                                <span id="reelDetailCaptionUser" class="fw-bold me-1">User</span><span id="reelDetailCaption"></span>
+                                <a id="reelDetailCaptionUser" href="#" class="fw-bold me-1 text-decoration-none text-dark">User</a><span id="reelDetailCaption"></span>
                                 <div id="reelCaptionEditBox" class="mt-2 d-none">
                                     <textarea id="reelCaptionEditText" class="form-control form-control-sm mb-2" rows="3" style="resize:none;"></textarea>
                                     <div class="d-flex justify-content-end">
@@ -102,6 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const detailModal = bootstrap.Modal.getOrCreateInstance(modalElement);
     const csrfToken = byId('reelDetailCommentForm').elements.csrf_token.value;
     const currentUserId = Number({{ session.get('user_id', 0) }});
+    const mypageUrl = {{ url_for('auth.mypage')|tojson }};
     let activeReelId = null;
     let activeCommentId = null;
     let activeDetail = null;
@@ -136,15 +139,20 @@ document.addEventListener('DOMContentLoaded', () => {
             row.className = 'd-flex mb-3 align-items-start justify-content-between reel-detail-comment';
             const body = document.createElement('div');
             body.className = 'd-flex align-items-start gap-2 flex-grow-1 me-2';
+            const profileUrl = `${mypageUrl}?user_id=${encodeURIComponent(comment.user_id)}`;
+            const profileLink = document.createElement('a');
+            profileLink.href = profileUrl;
+            profileLink.className = 'd-flex align-items-start text-decoration-none flex-shrink-0';
             if (comment.profile) {
                 const avatar = document.createElement('img');
                 avatar.src = comment.profile; avatar.alt = ''; avatar.width = 28; avatar.height = 28;
-                avatar.className = 'rounded-circle'; avatar.style.objectFit = 'cover'; body.append(avatar);
+                avatar.className = 'rounded-circle'; avatar.style.objectFit = 'cover'; profileLink.append(avatar);
             } else {
-                const avatar = document.createElement('i'); avatar.className = 'bi bi-person-circle fs-6 text-secondary'; body.append(avatar);
+                const avatar = document.createElement('i'); avatar.className = 'bi bi-person-circle fs-6 text-secondary'; profileLink.append(avatar);
             }
+            body.append(profileLink);
             const text = document.createElement('div'); text.className = 'small';
-            const author = document.createElement('strong'); author.className = 'me-1'; author.textContent = comment.username || '';
+            const author = document.createElement('a'); author.href = profileUrl; author.className = 'fw-bold me-1 text-decoration-none text-dark'; author.textContent = comment.username || '';
             const content = document.createElement('span'); content.textContent = comment.content || '';
             text.append(author, content); body.append(text); row.append(body);
             if (Number(comment.user_id) === currentUserId) {
@@ -164,8 +172,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const detail = await response.json();
             if (!response.ok || !detail.id) throw new Error(detail.message || '릴스 정보를 불러오지 못했습니다.');
             activeDetail = detail;
+            const ownerProfileUrl = `${mypageUrl}?user_id=${encodeURIComponent(detail.user_id)}`;
             byId('reelDetailModalTitle').textContent = detail.username || '릴스';
             byId('reelDetailCaptionUser').textContent = detail.username || '';
+            byId('reelDetailOwnerLink').href = ownerProfileUrl;
+            byId('reelDetailCaptionOwnerLink').href = ownerProfileUrl;
+            byId('reelDetailCaptionUser').href = ownerProfileUrl;
             byId('reelDetailCaption').textContent = detail.caption || '';
             byId('reelDetailCaption').classList.remove('d-none');
             byId('reelCaptionEditBox').classList.add('d-none');

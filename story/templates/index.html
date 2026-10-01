@@ -319,7 +319,7 @@
                         class="text-muted d-block"
                         style="font-size: 0.72rem;"
                     >
-                        {{ post.created_at.strftime('%Y-%m-%d %H:%M')
+                        {{ post.created_at|kst_datetime('%Y-%m-%d %H:%M')
                            if post.created_at else '' }}
                     </small>
 

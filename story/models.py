@@ -1,6 +1,6 @@
-from datetime import datetime
 from story import db  # __init__.py의 db 객체 임포트
 from flask_login import UserMixin
+from story.time_utils import utc_now_naive, utc_isoformat
 
 class User(db.Model, UserMixin):
 
@@ -18,8 +18,8 @@ class User(db.Model, UserMixin):
     status = db.Column(db.String(20), nullable=False, default='active', server_default='active')
     last_activity_at = db.Column(db.DateTime, nullable=True)
     deletion_requested_at = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now_naive)
+    updated_at = db.Column(db.DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 
 
 class Conversation(db.Model):
@@ -32,7 +32,7 @@ class Conversation(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id1 = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user_id2 = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now_naive)
 
     messages = db.relationship('Message', backref='conversation', lazy=True, cascade="all, delete-orphan")
 
@@ -46,7 +46,7 @@ class Message(db.Model):
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     text = db.Column(db.Text, nullable=True)
     img_url = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now_naive)
 
     reads = db.relationship('MessageRead', backref='message', lazy=True, cascade="all, delete-orphan")
 
@@ -60,7 +60,7 @@ class Message(db.Model):
             'sender_id': self.sender_id,
             'text': self.text,
             'img_url': self.img_url,
-            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'created_at': utc_isoformat(self.created_at),
             'unread_count': unread_count
         }
 
@@ -75,7 +75,7 @@ class MessageRead(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     message_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    read_at = db.Column(db.DateTime, default=datetime.utcnow)
+    read_at = db.Column(db.DateTime, default=utc_now_naive)
 
 
 class Post(db.Model):
@@ -87,8 +87,8 @@ class Post(db.Model):
     caption = db.Column(db.Text)
     media_url = db.Column(db.String(255), nullable=False)
     thumbnail_url = db.Column(db.String(255))
-    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
-    updated_at = db.Column(db.DateTime, nullable=False, default=db.func.now(), onupdate=db.func.now())
+    created_at = db.Column(db.DateTime, nullable=False, default=utc_now_naive)
+    updated_at = db.Column(db.DateTime, nullable=False, default=utc_now_naive, onupdate=utc_now_naive)
 
     user = db.relationship('User', backref=db.backref('post_set', cascade='all, delete-orphan'))
 
@@ -103,7 +103,7 @@ class PostLike(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     post_id = db.Column(db.Integer, db.ForeignKey('post.id', ondelete='CASCADE'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+    created_at = db.Column(db.DateTime, nullable=False, default=utc_now_naive)
 
     # [추가] Post 모델과의 관계
     post = db.relationship('Post', backref=db.backref('likes', cascade='all, delete-orphan'))
@@ -117,8 +117,8 @@ class PostComment(db.Model):
     post_id = db.Column(db.Integer, db.ForeignKey('post.id', ondelete='CASCADE'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utc_now_naive, nullable=False)
+    updated_at = db.Column(db.DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)
 
     # [수정/추가] Post 모델과 연결 -> post.comments 로 댓글 목록 접근
     post = db.relationship('Post', backref=db.backref('comments', cascade='all, delete-orphan'))
@@ -135,8 +135,8 @@ class Reels(db.Model):
     thumbnail_url = db.Column(db.String(250), nullable=False)
     caption = db.Column(db.Text, nullable=False)
     duration = db.Column(db.Float, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utc_now_naive, nullable=False)
+    updated_at = db.Column(db.DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)
 
     @property
     def thumbnail_img_url(self):
@@ -158,8 +158,8 @@ class Reels_Likes(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     reel_id = db.Column(db.Integer, db.ForeignKey('reels.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utc_now_naive, nullable=False)
+    updated_at = db.Column(db.DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)
 
     __table_args__ = (db.UniqueConstraint('user_id', 'reel_id', name='unique_user_reel_like'),)
 
@@ -172,8 +172,8 @@ class Comments(db.Model):
     reel_id = db.Column(db.Integer, db.ForeignKey('reels.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=utc_now_naive, nullable=False)
+    updated_at = db.Column(db.DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)
 
 
 class Story(db.Model):

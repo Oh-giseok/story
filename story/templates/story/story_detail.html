@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block head %}
-   <link rel="stylesheet" href="{{ url_for('static', filename='story/story_style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='story/story_style.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -120,10 +120,14 @@
                    </i>
                {% endif %}
 
-               <span class="story-viewer-time">
-                   {{ story.create_date | time_ago }}
-               </span>
-           </div>
+                        <!-- 3. 작성 시간  -->
+                        <span class="story-viewer-time"
+                               style="font-size: 12px; color: #ffffff; margin-left: 0px ;
+                               display: block; opacity: 0.85;">
+
+                            {{ story.create_date | time_ago_local }}
+                        </span>
+                    </div>
 
        </div>
 

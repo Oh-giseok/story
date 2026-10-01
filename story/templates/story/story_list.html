@@ -26,6 +26,11 @@
                     내 스토리
                 </div>
 
+                <div style="font-size: 11px; color: #8e8e8e; margin-top: 2px;">
+                    {% if story.create_date %}
+                        {{ story.create_date | time_ago_local if story.create_date | time_ago_local else story.create_date.strftime('%Y-%m-%d') }}
+                    {% else %}
+
                 <div class="insta-story-time">
                     새로 만들기
                 </div>

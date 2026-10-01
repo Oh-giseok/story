@@ -4,7 +4,6 @@
 
 {% block content %}
 <style>
-    /* 온라인/오프라인 표시 동그라미 스타일 */
     .status-dot {
         display: inline-block;
         width: 10px;
@@ -33,7 +32,6 @@
 <div class="container py-3" style="max-width: 1200px;">
     <div class="row g-3">
 
-        <!-- [좌측 패널] 최근 대화 + 대화 가능 대상 목록 -->
         <div class="col-12 col-md-4 {% if target_id %}d-none d-md-block{% endif %}">
             <div class="card shadow-sm h-100">
                 <div class="card-header bg-white fw-bold py-3 border-bottom">
@@ -41,7 +39,6 @@
                 </div>
 
                 <div class="card-body p-2 overflow-auto" style="max-height: 650px;">
-                    <!-- 1. 최근 대화 목록 -->
                     <div class="fw-bold small text-muted px-2 my-2">최근 대화</div>
                     <div class="list-group list-group-flush mb-3">
                         {% for item in active_chat_users %}
@@ -78,7 +75,6 @@
 
                     <hr class="my-2">
 
-                    <!-- 2. 대화 가능 대상 목록 & 검색 -->
                     <div class="fw-bold small text-muted px-2 my-2">새 메시지 보내기</div>
                     <form method="GET" action="{{ url_for('dm.user_list') }}" class="mb-2 px-1">
                         {% if target_id %}
@@ -125,11 +121,9 @@
             </div>
         </div>
 
-        <!-- [우측 패널] 실시간 채팅 화면 -->
         <div class="col-12 col-md-8 {% if not target_id %}d-none d-md-block{% endif %}">
             <div class="card shadow-sm h-100">
 
-                <!-- 상단 헤더 -->
                 <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between border-bottom">
                     <a href="{{ url_for('dm.user_list') }}" class="btn btn-outline-secondary btn-sm d-md-none">
                         <i class="bi bi-chevron-left"></i> 목록으로
@@ -159,7 +153,6 @@
                         </h5>
                     </div>
 
-                    <!-- 대화 나가기 버튼 -->
                     {% if target_id %}
                         <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="leaveConversation({{ target_id }})">
                             <i class="bi bi-box-arrow-right me-1"></i> 대화 나가기
@@ -169,7 +162,6 @@
                     {% endif %}
                 </div>
 
-                <!-- 채팅창 본문 -->
                 <div class="card-body d-flex flex-column" style="height: 580px;">
                     {% if target_id %}
                         <input type="hidden" id="sender_id" value="{{ current_uid if current_uid else 1 }}">
@@ -202,6 +194,37 @@ const currentUserId = senderElem ? senderElem.value : "{{ current_uid }}";
 
 const socket = io({ query: { user_id: currentUserId } });
 let currentConvId = null;
+
+function parseUtcTimestamp(value) {
+    if (!value) return null;
+    const normalized = value.endsWith('Z') ? value : `${value.replace(' ', 'T')}Z`;
+    const parsed = new Date(normalized);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function timeAgo(value) {
+    const date = parseUtcTimestamp(value);
+    if (!date) return '';
+    const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+    if (seconds < 60) return '방금 전';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}분 전`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}시간 전`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}일 전`;
+    return new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium' }).format(date);
+}
+
+function messageTimeMarkup(value, className) {
+    const date = parseUtcTimestamp(value);
+    if (!date) return '';
+    const fullKst = new Intl.DateTimeFormat('ko-KR', {
+        timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false
+    }).format(date);
+    return `<small class="${className}" style="font-size:0.75rem;" title="${fullKst}">${timeAgo(value)}</small>`;
+}
 
 setInterval(() => {
     if (currentUserId) {
@@ -316,7 +339,6 @@ function sendMessage() {
     textInput.value = '';
 }
 
-// 대화방 나가기 함수
 async function leaveConversation(targetId) {
     if (!confirm("정말 이 대화방에서 나가지시겠습니까?\n나간 대화는 최근 대화 목록에서 제거됩니다.")) {
         return;
@@ -375,13 +397,13 @@ function appendMessage(msg) {
         : '';
 
     if (isMe) {
-        div.innerHTML = `${unreadBadge}<div class="p-2 rounded bg-primary text-white" style="max-width:70%;"><strong>나:</strong> ${escapeHtml(msg.text)} <br><small class="text-white-50" style="font-size:0.75rem;">${msg.created_at}</small></div>`;
+        div.innerHTML = `${unreadBadge}<div class="p-2 rounded bg-primary text-white" style="max-width:70%;"><strong>나:</strong> ${escapeHtml(msg.text)} <br>${messageTimeMarkup(msg.created_at, 'text-white-50')}</div>`;
     } else {
         div.innerHTML = `
             <i class="bi bi-person-circle text-secondary fs-4 me-2 flex-shrink-0 align-self-start"></i>
             <div class="p-2 rounded bg-white border" style="max-width:70%;">
                 <strong>상대방:</strong> ${escapeHtml(msg.text)} <br>
-                <small class="text-muted" style="font-size:0.75rem;">${msg.created_at}</small>
+                ${messageTimeMarkup(msg.created_at, 'text-muted')}
             </div>
             ${unreadBadge}
         `;
