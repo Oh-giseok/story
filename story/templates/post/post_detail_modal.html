@@ -202,6 +202,7 @@
     const currentUserId = {{ session.get('user_id', 0) }};
     const mypageUrl = {{ url_for('auth.mypage')|tojson }};
     let activePostId = null;
+    let activePostCard = null;
     let activeCommentId = null;
     let detailSwiper = null;
 
@@ -211,7 +212,11 @@
     const optionModal = () => modal('postOptionModal');
     const deleteModal = () => modal('deleteConfirmModal');
 
-    function postCard(id) { return byId(`post-card-${id}`); }
+    function postCard(id) {
+        return activePostCard && Number(activePostId) === Number(id)
+            ? activePostCard
+            : byId(`post-card-${id}`);
+    }
     function cardRaw(card, selector) { return card.querySelector(`.raw-post-data ${selector}`) || card.querySelector(selector); }
     function setAvatar(imgId, iconId, src) {
         const img = byId(imgId), icon = byId(iconId);
@@ -264,9 +269,10 @@
         });
     }
 
-    function openPostDetailModal(postId) {
+    function openPostDetailModal(postId, sourceCard = null) {
         activePostId = Number(postId);
-        const card = postCard(activePostId);
+        activePostCard = sourceCard || byId(`post-card-${activePostId}`);
+        const card = activePostCard;
         if (!card) return;
         const userName = card.dataset.userName || '';
         const userImage = card.dataset.userImg || '';

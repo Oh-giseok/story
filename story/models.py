@@ -93,6 +93,22 @@ class Post(db.Model):
     user = db.relationship('User', backref=db.backref('post_set', cascade='all, delete-orphan'))
 
 
+class PostRepost(db.Model):
+    __tablename__ = 'post_reposts'
+    __table_args__ = (
+        db.UniqueConstraint('post_id', 'user_id', name='unique_post_user_repost'),
+        {'extend_existing': True}
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=utc_now_naive)
+
+    post = db.relationship('Post', backref=db.backref('reposts', cascade='all, delete-orphan'))
+    user = db.relationship('User', backref=db.backref('post_reposts', cascade='all, delete-orphan'))
+
+
 class PostLike(db.Model):
     __tablename__ = 'post_likes'
     __table_args__ = (

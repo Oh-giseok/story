@@ -9,7 +9,7 @@ from sqlalchemy import or_
 from story import db
 from story.time_utils import utc_now_naive
 from story.forms import UserCreateForm, UserLoginForm, ProfileEditForm
-from story.models import User, Post, Reels, Story
+from story.models import User, Post, PostRepost, Reels, Story
 from story.models import (
     Conversation, Message, MessageRead,
     PostLike, PostComment, Reels_Likes, Comments, StoryLikes,
@@ -285,6 +285,7 @@ def mypage():
     is_own_profile = profile_user.id == g.user.id
 
     posts = Post.query.filter_by(user_id=profile_user.id).order_by(Post.created_at.desc()).all()
+    reposts = PostRepost.query.filter_by(user_id=profile_user.id).order_by(PostRepost.created_at.desc()).all()
     reels = Reels.query.filter_by(user_id=profile_user.id).order_by(Reels.created_at.desc()).all()
     reel_comments = Comments.query.filter(Comments.reel_id.in_([reel.id for reel in reels])).all() if reels else []
     reel_comments_by_id = {}
@@ -301,6 +302,7 @@ def mypage():
         user=profile_user,
         is_own_profile=is_own_profile,
         posts=posts,
+        reposts=reposts,
         reels=reels,
         stories=stories,
         reel_comments_by_id=reel_comments_by_id,

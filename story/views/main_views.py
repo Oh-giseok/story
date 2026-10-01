@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, session, g, request
 from flask_login import current_user
 from sqlalchemy import or_
-from story.models import Post, Reels, Story, User
+from story.models import Post, PostRepost, Reels, Story, User
 from story.time_utils import kst_now_naive
 from story.views import dmviews
 
@@ -30,13 +30,20 @@ def index():
     except Exception:
         pass
     posts = []
+    reposted_post_ids = set()
     try:
         posts = Post.query.order_by(Post.id.desc()).all()
+        if current_uid:
+            reposted_post_ids = {
+                repost.post_id
+                for repost in PostRepost.query.filter_by(user_id=current_uid).all()
+            }
     except Exception:
         pass
     return render_template(
         'post/post_list.html',
         posts=posts,
+        reposted_post_ids=reposted_post_ids,
         story_list=stories,
         active_chat_users=active_chat_users
     )
