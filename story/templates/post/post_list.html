@@ -80,6 +80,10 @@
         pointer-events: auto !important;
     }
 
+    .feed-card{
+        border: 0;
+    }
+
     /* 모바일 환경(768px 이하)에서 상세보기 모달 레이아웃 변경 (이미지 숨김 및 댓글 영역 확대) */
     @media (max-width: 768px) {
         .post-detail-modal .modal-dialog {
@@ -126,7 +130,7 @@
 <div class="container py-2" style="max-width: 500px">
     {% include 'story/_story_strip.html' %}
     {% for post in posts %}
-    <div class="card shadow-sm mb-4" id="post-card-{{ post.id }}"
+    <div class="feed-card card mb-4" id="post-card-{{ post.id }}"
          data-user-id="{{ post.user_id }}"
          data-user-name="{{ post.user.username }}"
          data-user-img="{{ url_for('static', filename=post.user.profile_img_url) if post.user.profile_img_url else '' }}">
@@ -174,7 +178,7 @@
                     {% endif %}
                 </button>
 
-                <button type="button" class="btn btn-link text-dark p-0 border-0 d-flex align-items-center btn-open-detail" data-post-id="{{ post.id }}">
+                <button type="button" class="btn btn-link text-dark text-decoration-none p-0 border-0 d-flex align-items-center btn-open-detail" data-post-id="{{ post.id }}">
                     <i class="bi bi-chat fs-5 me-1"></i>
                     <span class="fw-bold small comment-count-text">{{ post.comments|length }}</span>
                 </button>
