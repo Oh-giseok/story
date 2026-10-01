@@ -1,7 +1,6 @@
 import os
 import cv2
 import uuid
-from datetime import datetime
 
 from flask import (
     Blueprint,
@@ -19,6 +18,7 @@ from werkzeug.utils import secure_filename
 from flask import current_app as currunt_app
 
 from ..models import Reels, Comments, Reels_Likes, User
+from story.time_utils import utc_isoformat
 from ..forms import ReelsForm, CommentsForm, ReelsEditForm
 from .. import db
 from story.views import dmviews
@@ -429,7 +429,7 @@ def detail_reel(reel_id):
             'username': User.query.get(reel.user_id).username,
             'profile': User.query.get(reel.user_id).profile_img_url,
             'caption': reel.caption,
-            'created': reel.created_at.strftime('%Y-%m-%d %H:%M'),
+            'created': utc_isoformat(reel.created_at),
             'video': url_for('reels.uploaded_file', filename='videos/' + os.path.basename(reel.video_url)),
             'thumbnail': url_for('reels.uploaded_file', filename='thumbnails/' + os.path.basename(reel.thumbnail_url)),
             'liked': reel.id in liked_reels,

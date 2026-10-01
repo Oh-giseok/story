@@ -1,10 +1,10 @@
 import os
 import uuid
-from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify, session, g, flash
 from werkzeug.utils import secure_filename
 from story import db
 from story.models import Post, User, PostLike, PostComment, Story
+from story.time_utils import utc_isoformat, kst_now_naive
 
 # /post 경로로 들어오는 요청들을 처리할 블루프린트 생성
 bp = Blueprint('post', __name__, url_prefix='/post')
@@ -25,7 +25,7 @@ def get_current_user_id():
 @bp.route('/')
 def _list():
     posts = Post.query.order_by(Post.created_at.desc()).all()
-    story_list = Story.query.filter(Story.expires_at > datetime.now()).order_by(Story.create_date.desc()).all()
+    story_list = Story.query.filter(Story.expires_at > kst_now_naive()).order_by(Story.create_date.desc()).all()
     return render_template('post/post_list.html', posts=posts, story_list=story_list)
 
 
@@ -47,16 +47,16 @@ def _create():
     media_files = [file for file in media_files if file and file.filename]
     if not media_files:
         flash('사진이나 동영상을 선택해주세요.')
-        return redirect(url_for('post._list'))
+        return redirect(url_for('main.index'))
 
     allowed_extensions = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'webm'}
     for file in media_files:
         extension = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
         if extension not in allowed_extensions:
             flash('지원하지 않는 사진 또는 동영상 형식입니다.')
-            return redirect(url_for('post._list'))
+            return redirect(url_for('main.index'))
 
-    today = datetime.now().strftime('%Y%m%d')
+    today = kst_now_naive().strftime('%Y%m%d')
     upload_folder = os.path.join(current_app.root_path, 'static/photo', today)
     os.makedirs(upload_folder, exist_ok=True)
 
@@ -78,7 +78,7 @@ def _create():
     db.session.add(post)
     db.session.commit()
 
-    return redirect(url_for('post._list'))
+    return redirect(url_for('main.index'))
 
 
 # 3. 좋아요 토글
@@ -144,7 +144,7 @@ def comment(post_id):
                 'user_name': user_name,
                 'profile_img_url': profile_img_url,
                 'content': new_comment.content,
-                'created_at': new_comment.created_at.strftime('%Y-%m-%d %H:%M')
+                'created_at': utc_isoformat(new_comment.created_at)
                 if hasattr(new_comment, 'created_at') and new_comment.created_at else ''
             },
             'comment_count': comment_count

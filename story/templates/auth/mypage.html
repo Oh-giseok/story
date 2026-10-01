@@ -31,10 +31,12 @@
         <div>
             <h2 class="h4 mb-2">{{ user.name or user.username }}</h2>
             <p class="mb-0 text-break">{{ user.intro or '자기소개가 없습니다.' }}</p>
+            {% if is_own_profile %}
             <div class="d-flex flex-wrap gap-2 mt-3">
                 <a href="{{ url_for('auth.profile_edit') }}" class="btn btn-outline-primary">회원정보 수정</a>
                 <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-secondary">로그아웃</a>
             </div>
+            {% endif %}
         </div>
     </div>
 

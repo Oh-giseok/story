@@ -203,6 +203,37 @@ const currentUserId = senderElem ? senderElem.value : "{{ current_uid }}";
 const socket = io({ query: { user_id: currentUserId } });
 let currentConvId = null;
 
+function parseUtcTimestamp(value) {
+    if (!value) return null;
+    const normalized = value.endsWith('Z') ? value : `${value.replace(' ', 'T')}Z`;
+    const parsed = new Date(normalized);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function timeAgo(value) {
+    const date = parseUtcTimestamp(value);
+    if (!date) return '';
+    const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+    if (seconds < 60) return '방금 전';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}분 전`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}시간 전`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}일 전`;
+    return new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium' }).format(date);
+}
+
+function messageTimeMarkup(value, className) {
+    const date = parseUtcTimestamp(value);
+    if (!date) return '';
+    const fullKst = new Intl.DateTimeFormat('ko-KR', {
+        timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false
+    }).format(date);
+    return `<small class="${className}" style="font-size:0.75rem;" title="${fullKst}">${timeAgo(value)}</small>`;
+}
+
 setInterval(() => {
     if (currentUserId) {
         socket.emit('heartbeat', { user_id: currentUserId });
@@ -375,13 +406,13 @@ function appendMessage(msg) {
         : '';
 
     if (isMe) {
-        div.innerHTML = `${unreadBadge}<div class="p-2 rounded bg-primary text-white" style="max-width:70%;"><strong>나:</strong> ${escapeHtml(msg.text)} <br><small class="text-white-50" style="font-size:0.75rem;">${msg.created_at}</small></div>`;
+        div.innerHTML = `${unreadBadge}<div class="p-2 rounded bg-primary text-white" style="max-width:70%;"><strong>나:</strong> ${escapeHtml(msg.text)} <br>${messageTimeMarkup(msg.created_at, 'text-white-50')}</div>`;
     } else {
         div.innerHTML = `
             <i class="bi bi-person-circle text-secondary fs-4 me-2 flex-shrink-0 align-self-start"></i>
             <div class="p-2 rounded bg-white border" style="max-width:70%;">
                 <strong>상대방:</strong> ${escapeHtml(msg.text)} <br>
-                <small class="text-muted" style="font-size:0.75rem;">${msg.created_at}</small>
+                ${messageTimeMarkup(msg.created_at, 'text-muted')}
             </div>
             ${unreadBadge}
         `;
