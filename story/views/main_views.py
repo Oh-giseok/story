@@ -30,9 +30,22 @@ def index():
     # 3. 스토리 및 게시글 데이터 조회
     stories = []
     try:
-        stories = Story.query.filter(Story.expires_at > datetime.now()).order_by(Story.create_date.desc()).all()
-    except Exception:
-        pass
+        now_time = datetime.now()
+        all_stories = Story.query.filter(
+            Story.expires_at > now_time
+        ).order_by(
+            Story.create_date.asc()
+        ).all()
+
+        user_ids = set()
+        for story in all_stories:
+            if story.user_id not in user_ids:
+                stories.append(story)
+                user_ids.add(story.user_id)
+
+        stories.reverse()
+    except Exception as e:
+        print(f"[Story Query Error]: {e}")
 
     posts = []
     try:

@@ -1,70 +1,81 @@
 {% extends 'base.html' %}
 
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='story/story_style.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='story/story_style.css') }}?v=1.1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='story/story_style.css') }}?v=1.1">
 {% endblock %}
 
 {% block content %}
 
-<!-- 스토리 목록  -->
-<div class="container my-4">
+    <!-- 스토리 목록  -->
+    <div class="container my-4">
 
-    <!-- 홈 상단 정렬 박스 -->
-    <div class="insta-story-container">
+        <!-- 홈 상단 정렬 박스 -->
+        <div class="insta-story-container">
 
-        <!-- 🟢 [수정 추가] 실제 인스타처럼 목록 맨 왼쪽에 '내 스토리 작성' 버튼을 동그라미 형태로 배치 -->
-        <a href="{{ url_for('story.story_create') }}" class="insta-story-item" style="text-decoration: none;">
-            <div class="insta-story-ring" style="background: #e0e0e0; display: flex; justify-content: center; align-items: center; border: none;">
-                <div class="insta-story-no-img" style="background-color: #dbdbdb;">
-                    <i class="bi bi-plus-lg" style="font-size: 1.8rem; color: #555555;"></i>
-                </div>
-            </div>
-            <div class="insta-story-username" style="color: #262626; font-weight: 500;">
-                내 스토리
-            </div>
-            <div style="font-size: 11px; color: #8e8e8e; margin-top: 2px;">
-                새로 만들기
-            </div>
-        </a>
+            <!-- 실제 인스타처럼 목록 맨 왼쪽에 '내 스토리 작성' 버튼을 동그라미 형태로 배치 -->
+            <a href="{{ url_for('story.story_create') }}"
+               class="insta-story-item">
 
-        {% if story_list %}
-            {% for story in story_list %}
-            <!-- 개별 스토리 아이템 -->
-           <a href="{{ url_for('story.detail', story_id=story.id) }}" class="insta-story-item" style="text-decoration: none;">
-
-                <!-- 스토리 링 및 프로필 -->
-                <div class="insta-story-ring">
-                    {% if story.user.profile_img_url %}
-                        <img src="{{ url_for('static', filename=story.user.profile_img_url) }}"
-                             alt="프로필 이미지"
-                             class="insta-story-img">
-                    {% else %}
-                        <div class="insta-story-no-img">
-                            <i class="bi bi-person-fill" style="font-size: 1.8rem; color: #ffffff;"></i>
-                        </div>
-                    {% endif %}
+                <div class="insta-story-ring insta-story-create-ring">
+                    <div class="insta-story-no-img insta-story-create">
+                        <i class="bi bi-plus-lg"></i>
+                    </div>
                 </div>
 
-                <!--  아이디 밑에 시간 배치 -->
                 <div class="insta-story-username">
-                    {{ story.user.username }}
+                    내 스토리
                 </div>
-                <div style="font-size: 11px; color: #8e8e8e; margin-top: 2px;">
-                    {% if story.create_date %}
-                        {{ story.create_date | time_ago if story.create_date | time_ago else story.create_date.strftime('%Y-%m-%d') }}
-                    {% else %}
 
-                    {% endif %}
+                <div class="insta-story-time">
+                    새로 만들기
                 </div>
 
             </a>
-            {% endfor %}
-        {% else %}
-            <!-- 유저 스토리가 없을 때도 내 스토리 작성 버튼은 살려두기 위해 위치 유지 -->
-        {% endif %}
+
+            {% if story_list %}
+                {% for story in story_list %}
+
+                    <!-- 개별 스토리 아이템 -->
+                    <a href="{{ url_for('story.detail', story_id=story.id) }}"
+                       class="insta-story-item">
+
+                        <!-- 스토리 링 및 프로필 -->
+                        <div class="insta-story-ring">
+
+                            {% if story.user.profile_img_url %}
+                                <img src="{{ url_for('static', filename=story.user.profile_img_url) }}"
+                                     alt="프로필 이미지"
+                                     class="insta-story-img">
+                            {% else %}
+                                <div class="insta-story-no-img">
+                                    <i class="bi bi-person-fill"></i>
+                                </div>
+                            {% endif %}
+
+                        </div>
+
+                        <!-- 아이디 밑에 시간 배치 -->
+                        <div class="insta-story-username">
+                            {{ story.user.username }}
+                        </div>
+
+                        <div class="insta-story-time">
+                            {% if story.create_date %}
+                                {{ story.create_date | time_ago }}
+                            {% endif %}
+                        </div>
+
+                    </a>
+
+                {% endfor %}
+            {% else %}
+
+                <!-- 유저 스토리가 없을 때도 내 스토리 작성 버튼은 살려두기 위해 위치 유지 -->
+
+            {% endif %}
+
+        </div>
 
     </div>
 
-</div>
 {% endblock %}
