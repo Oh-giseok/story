@@ -9,12 +9,11 @@
     <!-- 인스타 스타일 전체 스토리 Wrapper  -->
     <div class="story-viewer-wrapper">
 
-        <!-- 이전 스토리 대기 카드 -->
+        <!-- 이전 유저 대기 카드 -->
         {% if prev_story %}
             <a href="{{ url_for('story.detail', story_id=prev_story.id) }}" class="story-adjacent-card prev-card">
                 {% if prev_story.media_url %}
-                    <img src="{{ url_for('static', filename=prev_story.media_url) }}" alt="이전 스토리 이미지"
-                         class="adjacent-img">
+                    <img src="{{ url_for('static', filename=prev_story.media_url) }}" alt="이전 스토리">
                 {% else %}
                     <p>이전 스토리</p>
                 {% endif %}
@@ -26,11 +25,13 @@
         <!-- 가운데 현재 스토리 박스 -->
         <div class="story-viewer">
 
-            <!-- 상단 스토리 게이지 바 영역 -->
             <div class="story-progress-bar-container">
-                <div class="story-progress-bar-track">
-                    <div class="story-progress-bar-fill"></div>
-                </div>
+                {% for s in user_stories %}
+                    <div class="story-progress-bar-track">
+                        <!-- 현재 진입한 스토리 ID와 일치하면 active 클래스 부여 -->
+                        <div class="story-progress-bar-fill {% if s.id == story.id %}active{% elif s.create_date < story.create_date %}watched{% endif %}" data-story-id="{{ s.id }}"></div>
+                    </div>
+                {% endfor %}
             </div>
 
             <!-- 스토리 닫기 -->
@@ -38,11 +39,8 @@
 
             <!-- 작성자 정보 -->
             <div class="story-viewer-user">
-
                 {% if story.user.profile_img_url %}
-                    <img src="{{ url_for('static', filename=story.user.profile_img_url) }}"
-                         alt="프로필 이미지"
-                         class="story-viewer-profile">
+                    <img src="{{ url_for('static', filename=story.user.profile_img_url) }}" alt="프로필 이미지" class="story-viewer-profile">
                 {% else %}
                     <div class="story-viewer-profile-default">
                         <i class="bi bi-person-fill"></i>
@@ -50,67 +48,38 @@
                 {% endif %}
 
                 <div style="display: flex; align-items: center; gap: 6px;">
-                        <!-- 1. 작성자 아이디 -->
-                        <span class="story-viewer-username" style="font-size: 14px; font-weight: 600; color: #ffffff;">
-                            {{ story.user.username }}
-                        </span>
-
-                        <!-- 인증 배지  -->
-                        {% if story.user.username == 'test1' %}
-                            <i class="bi bi-check-circle-fill"
-                               style="color: #ffffff; border-radius: 50%; padding: 1px; font-size: 11px;
-                               display: inline-flex; align-items: center; justify-content: center; width: 14px;
-                               height: 14px; flex-shrink: 0;"></i>
-                        {% endif %}
-
-                        <!-- 3. 작성 시간  -->
-                        <span class="story-viewer-time"
-                               style="font-size: 12px; color: #ffffff; margin-left: 0px ;
-                               display: block; opacity: 0.85;">
-
-                            {{ story.create_date | time_ago }}
-                        </span>
-                    </div>
-
+                    <span class="story-viewer-username">{{ story.user.username }}</span>
+                    {% if story.user.username == 'test1' %}
+                        <i class="bi bi-check-circle-fill" style="color: #ffffff; font-size: 11px;"></i>
+                    {% endif %}
+                    <span class="story-viewer-time">{{ story.create_date | time_ago }}</span>
                 </div>
+            </div>
 
-            <!-- 스토리 이미지 -->
-            {% if story.media_url %}
-                <div class="story-viewer-image">
-                    <img src="{{ url_for('static', filename=story.media_url) }}"
-                         alt="스토리 이미지">
-                </div>
-            {% endif %}
+            <div class="story-viewer-image">
+                <img id="main-story-img" src="{{ url_for('static', filename=story.media_url) }}" alt="스토리 이미지">
+            </div>
 
             <!-- 스토리 문구 -->
-            {% if story.caption %}
-                <div class="story-viewer-caption">
-                    {{ story.caption }}
-                </div>
-            {% endif %}
+            <div class="story-viewer-caption" id="main-story-caption">
+                {{ story.caption if story.caption else '' }}
+            </div>
 
-            <!-- 수정/삭제 -->
+            <!-- 수정/삭제 버튼 -->
             {% if g.user and g.user.id == story.user_id %}
-                <div class="story-viewer-buttons">
-
-                    <a href="{{ url_for('story.modify', story_id=story.id) }}"
-                       class="btn btn-sm btn-primary">수정</a>
-
-                    <a href="{{ url_for('story.delete', story_id=story.id) }}"
-                       class="btn btn-sm btn-danger"
-                       onclick="return confirm('정말 삭제하시겠습니까?');">삭제</a>
-
+                <div class="story-viewer-buttons" id="owner-buttons">
+                    <a href="{{ url_for('story.modify', story_id=story.id) }}" class="btn btn-sm btn-primary" id="btn-modify">수정</a>
+                    <a href="{{ url_for('story.delete', story_id=story.id) }}" class="btn btn-sm btn-danger" id="btn-delete" onclick="return confirm('정말 삭제하시겠습니까?');">삭제</a>
                 </div>
             {% endif %}
 
         </div>
 
-        <!-- 다음 스토리 대기 카드 -->
+        <!-- 다음 유저 대기 카드 -->
         {% if next_story %}
             <a href="{{ url_for('story.detail', story_id=next_story.id) }}" class="story-adjacent-card next-card">
                 {% if next_story.media_url %}
-                    <img src="{{ url_for('static', filename=next_story.media_url) }}" alt="다음 스토리 이미지"
-                         class="adjacent-img">
+                    <img src="{{ url_for('static', filename=next_story.media_url) }}" alt="다음 스토리">
                 {% else %}
                     <p>다음 스토리</p>
                 {% endif %}
@@ -120,5 +89,86 @@
         {% endif %}
 
     </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const stories = [
+                {% for s in user_stories %}
+                {
+                    id: {{ s.id }},
+                    media_url: "{{ url_for('static', filename=s.media_url) }}",
+                    caption: "{{ s.caption if s.caption else '' }}",
+                    is_owner: {% if g.user and g.user.id == s.user_id %}true{% else %}false{% endif %},
+                    modify_url: "{{ url_for('story.modify', story_id=s.id) }}",
+                    delete_url: "{{ url_for('story.delete', story_id=s.id) }}"
+                }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+
+            let currentIdx = stories.findIndex(s => s.id === {{ story.id }});
+            const nextUserUrl = "{% if next_story %}{{ url_for('story.detail', story_id=next_story.id) }}{% else %}{{ url_for('story.story_list') }}{% endif %}";
+
+            const fills = document.querySelectorAll('.story-progress-bar-fill');
+            const mainImg = document.getElementById('main-story-img');
+            const mainCaption = document.getElementById('main-story-caption');
+            const ownerButtons = document.getElementById('owner-buttons');
+            const btnModify = document.getElementById('btn-modify');
+            const btnDelete = document.getElementById('btn-delete');
+            let currentWidth = 0;
+            let storyTimer = null;
+
+            function startTimer() {
+                clearInterval(storyTimer);
+                currentWidth = 0;
+                const activeFill = fills[currentIdx];
+                storyTimer = setInterval(() => {
+                    currentWidth += 1;
+                    if (activeFill) activeFill.style.width = currentWidth + '%';
+                    if (currentWidth >= 100) {
+                        clearInterval(storyTimer);
+                        goNext();
+                    }
+                }, 70);
+            }
+
+            function goNext() {
+                if (fills[currentIdx]) {
+                    fills[currentIdx].classList.remove('active');
+                    fills[currentIdx].style.width = '100%';
+                }
+
+                currentIdx++;
+
+                if (currentIdx < stories.length) {
+                    const nextData = stories[currentIdx];
+                    if (fills[currentIdx]) fills[currentIdx].classList.add('active');
+
+                    mainImg.src = nextData.media_url;
+                    mainCaption.textContent = nextData.caption;
+
+                    if (ownerButtons) {
+                        if (nextData.is_owner) {
+                            ownerButtons.style.display = 'flex';
+                            if (btnModify) btnModify.href = nextData.modify_url;
+                            if (btnDelete) btnDelete.href = nextData.delete_url;
+                        } else {
+                            ownerButtons.style.display = 'none';
+                        }
+                    }
+                    startTimer();
+                } else {
+                    window.location.href = nextUserUrl;
+                }
+            }
+
+            startTimer();
+        });
+    </script>
+
+    <style>
+        .story-progress-bar-fill.watched {
+            width: 100% !important;
+        }
+    </style>
 
 {% endblock %}
