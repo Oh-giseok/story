@@ -4,6 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
     <title>{% block title %}Story{% endblock %}</title>
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
@@ -16,7 +17,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link
         rel="stylesheet"
-        href="{{ url_for('static', filename='story_style.css') }}">
+        href="{{ url_for('static', filename='story/story_style.css') }}">
 
     <style>
         body, button, input, select, textarea {
@@ -261,7 +262,7 @@
     </nav>
 
     <div class="modal fade upload-choice-modal" id="uploadTypeModal" tabindex="-1" aria-labelledby="uploadTypeModalTitle" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header justify-content-center position-relative">
                     <div class="text-center">
