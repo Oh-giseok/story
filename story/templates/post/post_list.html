@@ -336,9 +336,19 @@
         document.querySelectorAll('.btn-repost').forEach(btn => {
             btn.addEventListener('click', async function() {
                 const postId = this.dataset.postId;
+                if (this.disabled) return;
+                this.disabled = true;
                 try {
                     const response = await fetch(`/post/repost/${postId}`, { method: 'POST' });
-                    const data = await response.json();
+                    const responseText = await response.text();
+                    let data;
+                    try {
+                        data = JSON.parse(responseText);
+                    } catch {
+                        throw new Error(response.redirected
+                            ? '로그인이 풀렸습니다. 새로고침 후 다시 로그인해 주세요.'
+                            : `서버 요청 오류 (${response.status})`);
+                    }
                     if (!response.ok || !data.success) {
                         alert(data.message || '리포스트에 실패했습니다.');
                         return;
@@ -346,7 +356,10 @@
                     this.setAttribute('aria-pressed', String(data.reposted));
                     this.innerHTML = data.reposted ? repostedIcon : repostIcon;
                 } catch (error) {
-                    alert('리포스트 처리 중 오류가 발생했습니다.');
+                    console.error('리포스트 요청 실패:', error);
+                    alert(error.message || '리포스트 처리 중 오류가 발생했습니다.');
+                } finally {
+                    this.disabled = false;
                 }
             });
         });
