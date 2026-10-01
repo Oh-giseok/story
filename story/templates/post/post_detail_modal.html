@@ -111,11 +111,11 @@
                 <div class="col-md-5 d-flex flex-column bg-white h-100">
                     <!-- 유저 정보 헤더 -->
                     <div class="p-3 border-bottom d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center">
+                        <a id="detailModalUserLink" href="#" class="d-flex align-items-center text-decoration-none text-dark">
                             <img id="detailModalUserImg" src="" alt="프로필 이미지" class="rounded-circle me-2 d-none" width="32" height="32" style="object-fit: cover;">
                             <i id="detailModalUserIcon" class="bi bi-person-circle fs-4 me-2 text-secondary"></i>
                             <span class="fw-bold" id="detailModalUser">User</span>
-                        </div>
+                        </a>
 
                         <!-- 더보기(...) 아이콘 버튼 -->
                         <button type="button" class="btn btn-link text-dark p-0 border-0" id="btnPostMoreOption">
@@ -126,10 +126,12 @@
                     <!-- 본문 및 댓글 스크롤 영역 -->
                     <div class="p-3 comments-scroll-area">
                         <div class="d-flex mb-3 align-items-start">
-                            <img id="detailModalCaptionUserImg" src="" alt="프로필 이미지" class="rounded-circle me-2 d-none" width="32" height="32" style="object-fit: cover;">
-                            <i id="detailModalCaptionUserIcon" class="bi bi-person-circle fs-5 me-2 text-secondary"></i>
+                            <a id="detailModalCaptionUserLink" href="#" class="d-flex align-items-start text-decoration-none text-dark flex-shrink-0">
+                                <img id="detailModalCaptionUserImg" src="" alt="프로필 이미지" class="rounded-circle me-2 d-none" width="32" height="32" style="object-fit: cover;">
+                                <i id="detailModalCaptionUserIcon" class="bi bi-person-circle fs-5 me-2 text-secondary"></i>
+                            </a>
                             <div class="w-100">
-                                <span class="fw-bold me-1" id="detailModalCaptionUser">User</span>
+                                <a id="detailModalCaptionUser" href="#" class="fw-bold me-1 text-decoration-none text-dark">User</a>
                                 <span id="detailModalCaption">게시물 내용</span>
 
                                 <!-- 문구 수정 입력 창 -->
@@ -198,6 +200,7 @@
 <script>
 (() => {
     const currentUserId = {{ session.get('user_id', 0) }};
+    const mypageUrl = {{ url_for('auth.mypage')|tojson }};
     let activePostId = null;
     let activeCommentId = null;
     let detailSwiper = null;
@@ -229,19 +232,24 @@
             const name = item.dataset.userName || '';
             const image = item.dataset.userImg || '';
             const userId = Number(item.dataset.userId || 0);
+            const profileUrl = `${mypageUrl}?user_id=${encodeURIComponent(userId)}`;
             const row = document.createElement('div');
             row.className = 'd-flex mb-2 align-items-start justify-content-between comment-item';
             row.id = `comment-item-${id || ''}`;
             const content = document.createElement('div');
             content.className = 'd-flex align-items-start gap-2 flex-grow-1 me-2';
+            const profileLink = document.createElement('a');
+            profileLink.href = profileUrl;
+            profileLink.className = 'd-flex align-items-start text-decoration-none flex-shrink-0';
             if (image) {
                 const avatar = document.createElement('img'); avatar.src = image;
-                avatar.className = 'rounded-circle'; avatar.width = 28; avatar.height = 28; avatar.style.objectFit = 'cover'; content.append(avatar);
+                avatar.className = 'rounded-circle'; avatar.width = 28; avatar.height = 28; avatar.style.objectFit = 'cover'; profileLink.append(avatar);
             } else {
-                const avatar = document.createElement('i'); avatar.className = 'bi bi-person-circle fs-6 text-secondary'; content.append(avatar);
+                const avatar = document.createElement('i'); avatar.className = 'bi bi-person-circle fs-6 text-secondary'; profileLink.append(avatar);
             }
+            content.append(profileLink);
             const body = document.createElement('div'); body.className = 'w-100';
-            const author = document.createElement('span'); author.className = 'fw-bold me-1 small'; author.textContent = name;
+            const author = document.createElement('a'); author.href = profileUrl; author.className = 'fw-bold me-1 small text-decoration-none text-dark'; author.textContent = name;
             const text = document.createElement('span'); text.className = 'small comment-content-text'; text.textContent = item.textContent.trim();
             body.append(author, text); content.append(body); row.append(content);
             if (id && userId === currentUserId) {
@@ -266,8 +274,12 @@
         const captionNode = cardRaw(card, '.raw-caption') || card.querySelector('.post-caption-text');
         const caption = captionNode?.textContent.trim() || '';
         const images = cardRaw(card, '.raw-images')?.textContent.trim() || '';
+        const profileUrl = `${mypageUrl}?user_id=${encodeURIComponent(userId)}`;
         byId('detailModalUser').textContent = userName;
         byId('detailModalCaptionUser').textContent = userName;
+        byId('detailModalUserLink').href = profileUrl;
+        byId('detailModalCaptionUserLink').href = profileUrl;
+        byId('detailModalCaptionUser').href = profileUrl;
         byId('detailModalCaption').textContent = caption;
         byId('detailModalCaption').classList.remove('d-none');
         byId('captionEditBox').classList.add('d-none');
