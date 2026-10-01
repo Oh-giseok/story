@@ -139,8 +139,8 @@
                 <i class="bi bi-person-circle fs-4 me-2 text-secondary"></i>
                 {% endif %}
                 <span class="fw-bold">{{ post.user.username }}</span>
-            </a>
-            <small class="text-muted">{{ post.created_at.strftime('%Y-%m-%d %H:%M') if post.created_at else '' }}</small>
+            </div>
+            <small class="text-muted">{{ post.created_at|time_ago }}</small>
         </div>
 
         <!-- 피드 이미지 영역 -->
