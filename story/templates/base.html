@@ -169,6 +169,13 @@
                 padding: 0 4px;
             }
         }
+
+        body{
+            scrollbar-gutter: stable;
+                max-width: 1900px;
+            margin: 0 auto;
+            overflow-x: hidden;
+        }
     </style>
     {% block head %}{% endblock %}
 </head>
@@ -177,15 +184,24 @@
 
     <!-- Flash 메시지 및 메인 컨텐츠 영역 -->
     <main class="py-4">
-        {% with messages = get_flashed_messages() %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 <div class="container">
-                    {% for message in messages %}
-                        <div class="alert alert-warning">{{ message }}</div>
+                    {% for category, message in messages %}
+                        <div style="z-index: 1" class="alert alert-warning"{% if category == 'profile_updated' %} data-dismiss-after="2000"{% endif %}>{{ message }}</div>
                     {% endfor %}
                 </div>
             {% endif %}
         {% endwith %}
+        <script>
+            document.querySelectorAll('[data-dismiss-after]').forEach((message) => {
+                window.setTimeout(() => {
+                    message.style.transition = 'opacity 150ms ease';
+                    message.style.opacity = '0';
+                    window.setTimeout(() => message.remove(), 150);
+                }, Number(message.dataset.dismissAfter));
+            });
+        </script>
 
         <!-- 페이지 내용 -->
         {% block content %}

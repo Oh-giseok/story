@@ -263,7 +263,7 @@ def profile_edit():
 
         db.session.commit()
 
-        flash('회원정보가 수정되었습니다.')
+        flash('회원정보가 수정되었습니다.', 'profile_updated')
         return redirect(url_for('main.index'))
 
     return render_template(
