@@ -20,7 +20,7 @@
    </a><time class="small text-secondary">{{ reel.created_at|time_ago }}</time>
   </div>
   <a href="{{ url_for('reels.detail_reel',reel_id=reel.id) }}" class="reel-media reel-open" data-reel-id="{{ reel.id }}" aria-label="릴스 상세 보기">
-   <video muted playsinline loop preload="metadata" class="reel-video"><source src="{{ url_for('reels.uploaded_file',filename='videos/' + reel.video_url.replace('\\','/').split('/')[-1]) }}"></video>
+   <video muted playsinline loop preload="metadata" class="reel-video"><source src="{{ url_for('/reels.uploaded_file',filename='videos/' + reel.video_url.replace('\\','/').split('/')[-1]) }}"></video>
   </a>
   <div class="p-3">
    <div class="d-flex gap-3 align-items-center mb-2"><button class="btn btn-link p-0 fs-3 text-decoration-none like-button" data-reel-id="{{ reel.id }}" aria-label="좋아요">{% if reel.id in liked_reels %}<span class="text-danger">♥</span>{% else %}♡{% endif %}</button><button class="btn btn-link p-0 fs-4 text-dark" data-reel-id="{{ reel.id }}" onclick="openReel({{ reel.id }})" aria-label="댓글"><i class="bi bi-chat"></i></button><span class="small">댓글 <span class="comment-count">{{ comments_by_reel.get(reel.id,[])|length }}</span></span></div>
