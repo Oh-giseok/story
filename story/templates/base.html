@@ -151,6 +151,52 @@
         .upload-choice-copy small { display: block; margin-top: .15rem; color: #6c757d; line-height: 1.35; }
         .upload-choice-arrow { color: #adb5bd; }
 
+        .page-search-area {
+            padding-top: 1.25rem;
+        }
+        .page-search-bar {
+            width: min(100% - 1.5rem, 500px);
+            margin: 0 auto 1rem;
+        }
+        .page-search-bar .input-group {
+            display: flex;
+            align-items: center;
+            flex-wrap: nowrap;
+            padding: .2rem .3rem .2rem .9rem;
+            overflow: hidden;
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 999px;
+            transition: border-color .15s ease, box-shadow .15s ease;
+        }
+        .page-search-bar .input-group:focus-within {
+            border-color: #a06e52;
+            box-shadow: 0 0 0 .2rem rgba(160, 110, 82, .12);
+        }
+        .page-search-bar .form-control {
+            min-width: 0;
+            padding-left: .15rem;
+            border: 0;
+            background: transparent;
+            box-shadow: none;
+        }
+        .page-search-bar .form-control:focus { box-shadow: none; }
+        .page-search-bar .btn {
+            flex: 0 0 40px;
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            border: 0;
+            border-radius: 50%;
+            color: #495057;
+            background: transparent;
+        }
+        .page-search-bar .btn:hover,
+        .page-search-bar .btn:focus-visible {
+            color: #212529;
+            background: #f1f3f5;
+        }
+
         #createPostModal .modal-content { border-radius: 12px; overflow: hidden; }
         #createPostModal .modal-dialog.caption-step { max-width: 850px; }
         #createPostModal .modal-dialog.caption-step .modal-content { width: 100%; margin: 0 auto; }
@@ -175,6 +221,19 @@
 
 <body class="bg-light">
 
+    {% if current_user.is_authenticated and request.endpoint in ['main.index', 'post._list', 'reels.reels', 'dm.user_list', 'main.search'] %}
+    <div class="page-search-area">
+        <form class="page-search-bar" role="search" action="{{ url_for('main.search') }}" method="get">
+            <div class="input-group">
+                <input type="search" class="form-control" name="q" value="{{ request.args.get('q', '') }}" placeholder="검색" aria-label="검색">
+                <button class="btn" type="submit" aria-label="검색 실행">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
     <!-- Flash 메시지 및 메인 컨텐츠 영역 -->
     <main class="py-4">
         {% with messages = get_flashed_messages() %}
@@ -194,7 +253,7 @@
 
     <!-- 하단 고정 네비게이션 Bar (로그인 상태 및 특정 페이지 조건부 노출) -->
     {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup'] %}
-    {% if request.endpoint in ['main.index', 'reels.reels'] %}
+    {% if request.endpoint in ['main.index', 'reels.reels', 'main.search'] %}
     <!-- 1. 좌측 DM 최근 대화 목록 -->
     <aside class="left-dm-sidebar">
         <div class="card shadow-sm border-0 rounded-3">

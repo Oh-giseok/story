@@ -280,8 +280,12 @@ def mypage():
     if g.user is None:
         return redirect(url_for('auth.login'))
 
-    posts = Post.query.filter_by(user_id=g.user.id).order_by(Post.created_at.desc()).all()
-    reels = Reels.query.filter_by(user_id=g.user.id).order_by(Reels.created_at.desc()).all()
+    profile_user_id = request.args.get('user_id', type=int)
+    profile_user = User.query.filter_by(id=profile_user_id).first_or_404() if profile_user_id else g.user
+    is_own_profile = profile_user.id == g.user.id
+
+    posts = Post.query.filter_by(user_id=profile_user.id).order_by(Post.created_at.desc()).all()
+    reels = Reels.query.filter_by(user_id=profile_user.id).order_by(Reels.created_at.desc()).all()
     reel_comments = Comments.query.filter(Comments.reel_id.in_([reel.id for reel in reels])).all() if reels else []
     reel_comments_by_id = {}
     for comment in reel_comments:
@@ -289,12 +293,13 @@ def mypage():
     reel_comment_users = {user.id: user for user in User.query.filter(
         User.id.in_({comment.user_id for comment in reel_comments})
     ).all()} if reel_comments else {}
-    stories = Story.query.filter_by(user_id=g.user.id).order_by(Story.create_date.desc()).all()
+    stories = Story.query.filter_by(user_id=profile_user.id).order_by(Story.create_date.desc()).all()
 
     # account_form은 인스턴스 객체로 전달해야 하므로 괄호 없이 FlaskForm() 전달
     return render_template(
         'auth/mypage.html',
-        user=g.user,
+        user=profile_user,
+        is_own_profile=is_own_profile,
         posts=posts,
         reels=reels,
         stories=stories,
