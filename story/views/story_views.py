@@ -1,11 +1,12 @@
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, g
 from werkzeug.utils import secure_filename
 
 from story import db
 from story.forms import StoryForm
 from story.models import Story
+from story.time_utils import kst_now_naive
 
 
 bp = Blueprint('story', __name__, url_prefix='/story')
@@ -13,7 +14,7 @@ bp = Blueprint('story', __name__, url_prefix='/story')
 # 24시간 필터링이 적용된 스토리 목록 조회
 @bp.route('/')
 def story_list():
-    now = datetime.now()
+    now = kst_now_naive()
     story_list = Story.query.filter(Story.expires_at > now).order_by(Story.create_date.desc()).all()
     return render_template('story/story_list.html', story_list=story_list)
 
@@ -22,11 +23,11 @@ def story_list():
 def detail(story_id):
     story = Story.query.get_or_404(story_id)
 
-    if story.expires_at <= datetime.now():
+    if story.expires_at <= kst_now_naive():
         return redirect(url_for('story.story_list'))
 
     # 현재 유효한 모든 스토리 목록을 가져옵니다 (목록 정렬 기준과 동일하게 세팅)
-    now = datetime.now()
+    now = kst_now_naive()
     active_stories = Story.query.filter(Story.expires_at > now).order_by(Story.create_date.desc()).all()
 
     prev_story = None
@@ -57,7 +58,7 @@ def story_create():
 
         if image_file:
             # 저장 경로 : 오늘 날짜로 폴더 생성
-            today = datetime.now().strftime('%Y%m%d')
+            today = kst_now_naive().strftime('%Y%m%d')
             upload_folder = os.path.join(current_app.root_path, 'static/photo', today)
             os.makedirs(upload_folder, exist_ok=True)
 
@@ -69,7 +70,7 @@ def story_create():
             # DB에 저장할 상대 경로 계산
             image_path = f'photo/{today}/{filename}'
 
-        now = datetime.now()
+        now = kst_now_naive()
         expires_at = now + timedelta(days=1)
 
         user_id = g.user.id
@@ -104,7 +105,7 @@ def modify(story_id):
         image_file = form.image.data
 
         if image_file:
-            today = datetime.now().strftime('%Y%m%d')
+            today = kst_now_naive().strftime('%Y%m%d')
             upload_folder = os.path.join(current_app.root_path, 'static/photo', today)
             os.makedirs(upload_folder, exist_ok=True)
 

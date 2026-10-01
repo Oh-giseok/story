@@ -1,6 +1,6 @@
 from flask import Blueprint, request, redirect, url_for, flash, render_template, session, g, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
+from datetime import timedelta
 from urllib.parse import urlparse
 import os
 from werkzeug.utils import secure_filename
@@ -8,6 +8,7 @@ from flask_login import login_user, logout_user
 from sqlalchemy import or_
 
 from story import db
+from story.time_utils import utc_now_naive
 from story.forms import UserCreateForm, UserLoginForm, ProfileEditForm
 from story.models import User, Post, Reels, Story
 from story.models import (
@@ -100,9 +101,9 @@ def signup():
                 intro=form.intro.data,
                 birth=form.birth.data,
                 status='active',
-                last_activity_at=datetime.utcnow(),
-                created_at=datetime.now(),
-                updated_at=datetime.now()
+                last_activity_at=utc_now_naive(),
+                created_at=utc_now_naive(),
+                updated_at=utc_now_naive()
             )
 
             db.session.add(user)
@@ -128,7 +129,7 @@ def login():
         elif (
                 user.status == 'deletion_pending'
                 and user.deletion_requested_at
-                and user.deletion_requested_at <= datetime.utcnow() - timedelta(days=10)
+                and user.deletion_requested_at <= utc_now_naive() - timedelta(days=10)
         ):
             permanently_delete_user(user)
             db.session.commit()
@@ -136,8 +137,8 @@ def login():
         if error is None:
             user.status = 'active'
             user.deletion_requested_at = None
-            user.last_activity_at = datetime.utcnow()
-            user.updated_at = datetime.utcnow()
+            user.last_activity_at = utc_now_naive()
+            user.updated_at = utc_now_naive()
             db.session.commit()
             session.clear()
             login_user(user)
@@ -187,7 +188,7 @@ def find_info():
                     flash('기존 비밀번호와 동일합니다.')
                 else:
                     user.password_hash = generate_password_hash(password)
-                    user.updated_at = datetime.now()
+                    user.updated_at = utc_now_naive()
                     db.session.commit()
                     flash('비밀번호가 변경되었습니다. 새 비밀번호로 로그인해 주세요.')
             else:
@@ -259,7 +260,7 @@ def profile_edit():
             image.save(os.path.join(current_app.config['PROFILE_UPLOAD_FOLDER'], filename))
             g.user.profile_img_url = f'profile/{filename}'
 
-        g.user.updated_at = datetime.now()
+        g.user.updated_at = utc_now_naive()
 
         db.session.commit()
 
@@ -319,7 +320,7 @@ def deactivate():
     if g.user is None:
         return redirect(url_for('auth.login'))
     g.user.status = 'inactive'
-    g.user.updated_at = datetime.utcnow()
+    g.user.updated_at = utc_now_naive()
     db.session.commit()
     logout_user()
     session.clear()
@@ -337,8 +338,8 @@ def request_account_deletion():
     if g.user is None:
         return redirect(url_for('auth.login'))
     g.user.status = 'deletion_pending'
-    g.user.deletion_requested_at = datetime.utcnow()
-    g.user.updated_at = datetime.utcnow()
+    g.user.deletion_requested_at = utc_now_naive()
+    g.user.updated_at = utc_now_naive()
     db.session.commit()
     logout_user()
     session.clear()

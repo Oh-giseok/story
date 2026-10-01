@@ -1,7 +1,7 @@
-from datetime import datetime
 from flask import Blueprint, render_template, session, g, request
 from flask_login import current_user
 from story.models import Post, Reels, Story, User
+from story.time_utils import kst_now_naive
 from story.views import dmviews
 
 bp = Blueprint('main', __name__)
@@ -30,7 +30,7 @@ def index():
     # 3. 스토리 및 게시글 데이터 조회
     stories = []
     try:
-        stories = Story.query.filter(Story.expires_at > datetime.now()).order_by(Story.create_date.desc()).all()
+        stories = Story.query.filter(Story.expires_at > kst_now_naive()).order_by(Story.create_date.desc()).all()
     except Exception:
         pass
 
