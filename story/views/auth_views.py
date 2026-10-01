@@ -6,7 +6,6 @@ import os
 from werkzeug.utils import secure_filename
 from flask_login import login_user, logout_user
 from sqlalchemy import or_
-
 from story import db
 from story.forms import UserCreateForm, UserLoginForm, ProfileEditForm
 from story.models import User, Post, Reels, Story
