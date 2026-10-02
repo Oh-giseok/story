@@ -293,8 +293,7 @@
                         {% set is_online = target_user.is_online if target_user.is_online is defined else False %}
 
                         <!-- 클릭 시 대화 상대의 target_id 파라미터와 함께 DM 채팅 페이지로 이동 -->
-<!--                <a href="{{ url_for('dm.user_list', target_id=target_user.id) }}" class="list-group-item list-group-item-action d-flex align-items-center py-2 px-3 border-0">-->
-                        <a href="" class="list-group-item list-group-item-action d-flex align-items-center py-2 px-3 border-0">
+                        <a href="{{ url_for('dm.user_list', target_id=target_user.id) }}" class="list-group-item list-group-item-action d-flex align-items-center py-2 px-3 border-0">
                             {% if target_user.profile_img_url %}
                                 <img src="{{ target_user.profile_img_url | profile_img }}"
                                      class="rounded-circle me-2 flex-shrink-0" width="40" height="40" style="object-fit: cover;">
@@ -328,7 +327,7 @@
         <a href="#" class="bottom-nav-item {{ 'active' if request.endpoint in ['post._list', 'post._create'] else '' }}" title="업로드" aria-label="게시물 또는 릴스 만들기" data-bs-toggle="modal" data-bs-target="#uploadTypeModal" {% if request.endpoint in ['post._list', 'post._create'] %}aria-current="page"{% endif %}>
             <svg aria-label="새로운 게시물" class="x1lliihq x1n2onr6 x5n08af" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><title>새로운 게시물</title><path d="M21 11h-8V3a1 1 0 1 0-2 0v8H3a1 1 0 1 0 0 2h8v8a1 1 0 1 0 2 0v-8h8a1 1 0 1 0 0-2Z"></path></svg>
         </a>
-        <a href="" class="bottom-nav-item " title="메시지" aria-current="page">
+        <a href="{{ url_for('dm.user_list') }}" class="bottom-nav-item {{ 'active' if request.endpoint == 'dm.user_list' else '' }}" title="메시지" {% if request.endpoint == 'dm.user_list' %}aria-current="page"{% endif %}>
             <svg aria-label="메시지" class="x1lliihq x1n2onr6 x5n08af" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><title>메시지</title><path d="M13.973 20.046 21.77 6.928C22.8 5.195 21.55 3 19.535 3H4.466C2.138 3 .984 5.825 2.646 7.456l4.842 4.752 1.723 7.121c.548 2.266 3.571 2.721 4.762.717Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="2"></path><line fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" x1="7.488" x2="15.515" y1="12.208" y2="7.641"></line></svg>
         </a>
         <a href="{{ url_for('main.index') if 'main.index' in url_for.__globals__.get('current_app').view_functions else url_for('index') }}" class="bottom-nav-item {{ 'active' if request.endpoint in ['main.index', 'index'] else '' }}" title="홈" {% if request.endpoint in ['main.index', 'index'] %}aria-current="page"{% endif %}>
