@@ -19,4 +19,5 @@ services:
 databases:
   - name: story-test-db
     plan: free
+    region: singapore
     databaseName: story_test
