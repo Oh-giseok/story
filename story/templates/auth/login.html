@@ -133,7 +133,7 @@
         <!-- LOGO -->
         <div class="login-logo">
             <a href="{{ url_for('post._list') }}" aria-label="Story 홈">
-                <img src="{{ url_for('static', filename='story_logo.png') }}" alt="Story">
+                <img src="{{ url_for('static', filename='story/story_logo.png') }}" alt="Story">
             </a>
         </div>
 
@@ -154,7 +154,7 @@
                 <!-- 비밀번호 -->
                 <div class="mb-3">
                     {{ form.password.label(class="form-label") }}
-                    {{ form.password(class="form-control", placeholder="비밀번호를 입력해주세요") }}
+                    {{ form.password(class="form-control", placeholder="비밀번호를 입력해주세요" ) }}
                 </div>
 
                 <!-- 로그인 -->

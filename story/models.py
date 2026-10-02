@@ -45,6 +45,25 @@ class Friendship(db.Model):
     updated_at = db.Column(db.DateTime, nullable=False, default=utc_now_naive, onupdate=utc_now_naive)
 
 
+class Notification(db.Model):
+    __tablename__ = 'notification'
+    __table_args__ = (
+        db.UniqueConstraint('friendship_id', 'recipient_id', 'type', name='unique_friend_request_notification'),
+        {'extend_existing': True}
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    actor_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    friendship_id = db.Column(db.Integer, db.ForeignKey('friendship.id', ondelete='CASCADE'), nullable=False, index=True)
+    type = db.Column(db.String(40), nullable=False, default='friend_request')
+    is_read = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=utc_now_naive, index=True)
+
+    recipient = db.relationship('User', foreign_keys=[recipient_id])
+    actor = db.relationship('User', foreign_keys=[actor_id])
+
+
 class Conversation(db.Model):
     __tablename__ = 'conversation'
     __table_args__ = (

@@ -17,7 +17,8 @@ class UserCreateForm(FlaskForm):
 
 #로그인
 class UserLoginForm(FlaskForm):
-    username = StringField('아이디',validators=[DataRequired(),Length(min=3,max=25)])
+    # Keep the login username limits aligned with UserCreateForm.
+    username = StringField('아이디',validators=[DataRequired(),Length(min=2,max=20)])
     password = PasswordField('비밀번호',validators=[DataRequired()])
     submit = SubmitField('로그인')
 

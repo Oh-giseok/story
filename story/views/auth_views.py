@@ -1,4 +1,4 @@
-from flask import Blueprint, request, redirect, url_for, flash, render_template, session, g, current_app
+from flask import Blueprint, request, redirect, url_for, flash, render_template, session, g, current_app, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import timedelta
 from urllib.parse import urlparse
@@ -14,6 +14,7 @@ from story.models import (
     Conversation, Message, MessageRead,
     PostLike, PostComment, Reels_Likes, Comments, StoryLikes,
     Friendship,
+    Notification,
 )
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
@@ -26,6 +27,10 @@ def permanently_delete_user(user):
         Friendship.user_low_id == user_id,
         Friendship.user_high_id == user_id,
         Friendship.requested_by_id == user_id,
+    )).delete(synchronize_session=False)
+    Notification.query.filter(or_(
+        Notification.recipient_id == user_id,
+        Notification.actor_id == user_id,
     )).delete(synchronize_session=False)
     conversation_ids = [row.id for row in Conversation.query.filter(
         or_(Conversation.user_id1 == user_id, Conversation.user_id2 == user_id)
@@ -393,15 +398,39 @@ def send_friend_request(target_id):
         return _friend_profile_redirect(target_id)
 
     now = utc_now_naive()
-    db.session.add(Friendship(
+    friendship = Friendship(
         user_low_id=low_id,
         user_high_id=high_id,
         requested_by_id=g.user.id,
         status='pending',
         created_at=now,
         updated_at=now,
-    ))
+    )
+    db.session.add(friendship)
+    db.session.flush()
+    notification = Notification(
+        recipient_id=target.id,
+        actor_id=g.user.id,
+        friendship_id=friendship.id,
+        type='friend_request',
+        is_read=False,
+        created_at=now,
+    )
+    db.session.add(notification)
     db.session.commit()
+    from story.events import socketio
+    unread_count = Notification.query.filter_by(recipient_id=target.id, is_read=False).count()
+    socketio.emit('new_notification', {
+        'id': notification.id,
+        'type': notification.type,
+        'actor_id': g.user.id,
+        'actor_username': g.user.username,
+        'actor_profile_img_url': g.user.profile_img_url,
+        'message': f'{g.user.username}님이 친구 요청을 보냈습니다.',
+        'url': url_for('auth.mypage', user_id=g.user.id),
+        'created_at': now.isoformat(),
+        'unread_count': unread_count,
+    }, to=f'user_{target.id}')
     flash('친구 요청을 보냈습니다.')
     return _friend_profile_redirect(target_id)
 
@@ -426,18 +455,23 @@ def update_friendship(target_id, action):
     if action == 'accept' and friendship.status == 'pending' and friendship.requested_by_id == target.id:
         friendship.status = 'accepted'
         friendship.updated_at = utc_now_naive()
+        Notification.query.filter_by(friendship_id=friendship.id, recipient_id=g.user.id).update(
+            {Notification.is_read: True}, synchronize_session=False
+        )
         db.session.commit()
         flash('친구 요청을 수락했습니다.')
     elif action in {'reject', 'cancel'} and friendship.status == 'pending':
         is_incoming = friendship.requested_by_id == target.id
         is_outgoing = friendship.requested_by_id == g.user.id
         if (action == 'reject' and is_incoming) or (action == 'cancel' and is_outgoing):
+            Notification.query.filter_by(friendship_id=friendship.id).delete(synchronize_session=False)
             db.session.delete(friendship)
             db.session.commit()
             flash('친구 요청을 정리했습니다.')
         else:
             flash('이 요청을 처리할 권한이 없습니다.')
     elif action == 'remove' and friendship.status == 'accepted':
+        Notification.query.filter_by(friendship_id=friendship.id).delete(synchronize_session=False)
         db.session.delete(friendship)
         db.session.commit()
         flash('친구 관계를 삭제했습니다.')
@@ -445,6 +479,17 @@ def update_friendship(target_id, action):
         flash('현재 상태에서는 해당 작업을 할 수 없습니다.')
 
     return _friend_profile_redirect(g.user.id if request.form.get('return_to') == 'self' else target.id)
+
+
+@bp.route('/notifications/mark-read', methods=['POST'])
+def mark_notifications_read():
+    if not _friend_action_form_is_valid():
+        return jsonify({'success': False, 'message': '요청이 만료되었습니다.'}), 400
+    Notification.query.filter_by(recipient_id=g.user.id, is_read=False).update(
+        {Notification.is_read: True}, synchronize_session=False
+    )
+    db.session.commit()
+    return jsonify({'success': True, 'unread_count': 0})
 
 
 @bp.route('/deactivate', methods=['POST'])
