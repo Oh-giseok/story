@@ -31,6 +31,18 @@ def create_app():
     # 설정 로드
     app.config.from_object('config')
 
+    # Render 같은 호스팅 환경의 값으로 개발 기본 설정을 덮어쓴다.
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url:
+        if database_url.startswith('postgres://'):
+            database_url = database_url.replace('postgres://', 'postgresql+psycopg://', 1)
+        elif database_url.startswith('postgresql://'):
+            database_url = database_url.replace('postgresql://', 'postgresql+psycopg://', 1)
+        app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    app.config['SECRET_KEY'] = os.environ.get(
+        'SECRET_KEY', app.config.get('SECRET_KEY', 'dev-secret-key')
+    )
+
     if not app.config.get('SQLALCHEMY_DATABASE_URI'):
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///story.db'
 
