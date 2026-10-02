@@ -1,7 +1,15 @@
 from flask_socketio import SocketIO, emit, join_room
+from flask_login import current_user
 from story.models import Message, MessageRead, db
 
 socketio = SocketIO()
+
+
+@socketio.on('connect')
+def handle_connect(auth=None):
+    if not current_user.is_authenticated:
+        return False
+    join_room(f'user_{current_user.id}')
 
 
 @socketio.on('join_room')
