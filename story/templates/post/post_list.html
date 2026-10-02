@@ -172,9 +172,9 @@
                 <h2 class="modal-title fs-5" id="notificationModalTitle">알림</h2>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
             </div>
-            <div class="modal-body p-0 notification-list" id="notificationList">
+            <div class="modal-body notification-list" id="notificationList">
                 {% for notification in notifications %}
-                <a class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-3 notification-item {% if not notification.is_read %}unread{% endif %}"
+                <a class="list-group-item list-group-item-action d-flex align-items-center gap-3 notification-item {% if not notification.is_read %}unread{% endif %}"
                    href="{{ url_for('auth.mypage', user_id=notification.actor_id) }}" data-notification-id="{{ notification.id }}">
                     {% if notification.actor.profile_img_url %}
                     <img class="notification-avatar rounded-circle" src="{{ notification.actor.profile_img_url|profile_img }}" alt="">
