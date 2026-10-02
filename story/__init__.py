@@ -111,7 +111,7 @@ def create_app():
 
     app.register_blueprint(reels_bp)
     app.register_blueprint(main_views.bp)
-    app.register_blueprint(dmviews.bp)
+    # app.register_blueprint(dmviews.bp)
     app.register_blueprint(auth_views.bp)
     app.register_blueprint(post_views.bp)
     app.register_blueprint(story_views.bp)
