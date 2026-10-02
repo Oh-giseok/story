@@ -15,7 +15,7 @@ def create_app():
     app = Flask(__name__)
 
     # 업로드 폴더 설정
-    app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'reels_uploads')
+    app.config['UPLOAD_FOLDER'] = os.path.join(app.static_folder, 'reels_uploads')
 
     upload_folder = os.path.join(app.root_path, 'static', 'photo')
     os.makedirs(upload_folder, exist_ok=True)
