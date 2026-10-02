@@ -8,6 +8,10 @@
 
 <div class="story-viewer-wrapper">
 
+ <div class="story-instagram-logo">
+        Instagram
+    </div>
+
    <!-- 좌측 대기 카드 2개 배치 -->
    <div class="story-adjacent-group prev-group">
 
@@ -16,8 +20,14 @@
               class="story-adjacent-card prev-card-far">
 
                {% if prev_story2.media_url %}
-                   <img src="{{ url_for('static', filename=prev_story2.media_url) }}"
-                        alt="이전 스토리2">
+                   {% if prev_story2.media_url.endswith(('.mp4', '.webm', '.ogg', '.mov')) %}
+                       <video src="{{ url_for('static', filename=prev_story2.media_url) }}"
+                              muted playsinline
+                              style="width: 100%; height: 100%; object-fit: cover;"></video>
+                   {% else %}
+                       <img src="{{ url_for('static', filename=prev_story2.media_url) }}"
+                            alt="이전 스토리2">
+                   {% endif %}
                {% endif %}
 
                <!-- 이전 스토리 작성자 정보 -->
@@ -48,8 +58,14 @@
               class="story-adjacent-card prev-card">
 
                {% if prev_story.media_url %}
-                   <img src="{{ url_for('static', filename=prev_story.media_url) }}"
-                        alt="이전 스토리1">
+                   <!-- 파일 확장자가 동영상(mp4 등)이라면 비디오 태그로 재생 -->
+                   {% if prev_story.media_url.endswith(('.mp4', '.webm', '.ogg', '.mov')) %}
+                       <video src="{{ url_for('static', filename=prev_story.media_url) }}" muted playsinline
+                              style="width: 100%; height: 100%; object-fit: cover;"></video>
+                   {% else %}
+                       <!-- 이미지 파일일 때는 기존처럼 이미지 출력 -->
+                       <img src="{{ url_for('static', filename=prev_story.media_url) }}" alt="이전 스토리1">
+                   {% endif %}
                {% endif %}
 
                <!-- 이전 스토리 작성자 정보 -->
@@ -131,11 +147,20 @@
 
        </div>
 
-       <!-- 현재 스토리 이미지 -->
+       <!-- 현재 스토리 이미지 / 영상 -->
        <div class="story-viewer-image">
+
            <img id="main-story-img"
                 src="{{ url_for('static', filename=story.media_url) }}"
-                alt="스토리 이미지">
+                alt="스토리 이미지"
+                style="display: none; width: 100%; height: 100%; object-fit: cover;">
+
+           <video id="main-story-video"
+                  muted
+                  playsinline
+                  style="display: none; width: 100%; height: 100%; object-fit: cover;">
+           </video>
+
        </div>
 
        <!-- 스토리 문구 -->
@@ -175,8 +200,14 @@
               class="story-adjacent-card next-card">
 
                {% if next_story.media_url %}
-                   <img src="{{ url_for('static', filename=next_story.media_url) }}"
-                        alt="다음 스토리1">
+                   {% if next_story.media_url.endswith(('.mp4', '.webm', '.ogg', '.mov')) %}
+                       <video src="{{ url_for('static', filename=next_story.media_url) }}"
+                              muted playsinline
+                              style="width: 100%; height: 100%; object-fit: cover;"></video>
+                   {% else %}
+                       <img src="{{ url_for('static', filename=next_story.media_url) }}"
+                            alt="다음 스토리1">
+                   {% endif %}
                {% endif %}
 
                <!-- 다음 스토리 작성자 정보 -->
@@ -271,9 +302,42 @@ document.addEventListener("DOMContentLoaded", () => {
        '.story-progress-bar-fill'
    );
 
-   const mainImg = document.getElementById(
-       'main-story-img'
-   );
+    const mainImg = document.getElementById(
+        'main-story-img'
+    );
+
+    const mainVideo = document.getElementById(
+        'main-story-video'
+    );
+
+    // 현재 스토리가 영상인지 확인
+    const currentIsVideo = /\.(mp4|webm|ogg|mov)$/i.test(
+        "{{ story.media_url }}"
+    );
+
+    if (currentIsVideo) {
+
+        mainImg.style.display = 'none';
+
+        mainVideo.style.display = 'block';
+        mainVideo.src = "{{ url_for('static', filename=story.media_url) }}";
+        mainVideo.load();
+
+        mainVideo.onloadeddata = function () {
+            mainVideo.play();
+        };
+
+    } else {
+
+        mainVideo.pause();
+        mainVideo.removeAttribute('src');
+        mainVideo.load();
+
+        mainVideo.style.display = 'none';
+
+        mainImg.style.display = 'block';
+        mainImg.src = "{{ url_for('static', filename=story.media_url) }}";
+    }
 
    const mainCaption = document.getElementById(
        'main-story-caption'
@@ -341,9 +405,40 @@ document.addEventListener("DOMContentLoaded", () => {
                fills[currentIdx].classList.add('active');
            }
 
-           mainImg.src = nextData.media_url;
+           const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(
+               nextData.media_url
+           );
+
+           if (isVideo) {
+
+               if (mainImg) {
+                   mainImg.style.display = 'none';
+               }
+
+               if (mainVideo) {
+                   mainVideo.style.display = 'block';
+                   mainVideo.src = nextData.media_url;
+                   mainVideo.load();
+                   mainVideo.play();
+               }
+
+           } else {
+
+               // 영상 숨기기
+               if (mainVideo) {
+                   mainVideo.pause();
+                   mainVideo.style.display = 'none';
+               }
+
+               // 이미지 표시
+               if (mainImg) {
+                   mainImg.style.display = 'block';
+                   mainImg.src = nextData.media_url;
+               }
+           }
 
            mainCaption.textContent = nextData.caption;
+
 
            <!-- 수정/삭제 버튼 변경 -->
            if (ownerButtons) {

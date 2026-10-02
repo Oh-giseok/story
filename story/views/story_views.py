@@ -37,11 +37,21 @@ def get_unique_story_list():
 # 24시간 필터링 및 중복 제거가 적용된 스토리 목록 조회
 @bp.route('/')
 def story_list():
-    story_list = get_unique_story_list()
-    return render_template(
-        'story/story_list.html',
-        story_list=story_list
-    )
+    now = datetime.now()
+    all_stories = Story.query.filter(
+        Story.expires_at > now
+    ).order_by(
+        Story.create_date.desc()
+    ).all()
+
+    story_list = []
+    user_ids = set()
+    for story in all_stories:
+        if story.user_id not in user_ids:
+            story_list.append(story)
+            user_ids.add(story.user_id)
+
+    return render_template('story/story_list.html', story_list=story_list)
 
 @bp.route('/detail/<int:story_id>/')
 def detail(story_id):
@@ -80,12 +90,12 @@ def detail(story_id):
 
     prev_story = None
 
-    # 수정 추가: 이전 스토리 두 번째 사용자
+    # 이전 스토리 두 번째 사용자
     prev_story2 = None
 
     next_story = None
 
-    # 수정 추가: 다음 스토리 두 번째 사용자
+    # 다음 스토리 두 번째 사용자
     next_story2 = None
 
     if current_user_idx > 0:
@@ -94,7 +104,7 @@ def detail(story_id):
         prev_user_stories.sort(key=lambda x: x.create_date)
         prev_story = prev_user_stories[0]
 
-    # 수정 추가: 현재 사용자보다 두 번째 앞의 사용자 스토리
+    # 현재 사용자보다 두 번째 앞의 사용자 스토리
     if current_user_idx > 1:
         prev_user2_id = ordered_user_ids[current_user_idx - 2]
         prev_user2_stories = user_groups[prev_user2_id]
@@ -120,12 +130,12 @@ def detail(story_id):
         user_stories=user_stories,
         prev_story=prev_story,
 
-        # 수정 추가: 두 번째 이전 스토리를 HTML로 전달
+        #  두 번째 이전 스토리를 HTML로 전달
         prev_story2=prev_story2,
 
         next_story=next_story,
 
-        # 수정 추가: 두 번째 다음 스토리를 HTML로 전달
+        # 두 번째 다음 스토리를 HTML로 전달
         next_story2=next_story2
     )
 

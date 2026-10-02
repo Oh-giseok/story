@@ -1,5 +1,3 @@
-import datetime
-
 from flask import Blueprint, render_template, session, g, request
 from flask_login import current_user
 from sqlalchemy import or_
@@ -28,10 +26,7 @@ def index():
             print(f"[DM Query Error in main_views.py]: {e}")
     stories = []
     try:
-        now_time = datetime.now()
-        all_stories = Story.query.filter(
-            Story.expires_at > now_time
-        ).order_by(
+        all_stories = Story.query.order_by(
             Story.create_date.asc()
         ).all()
 

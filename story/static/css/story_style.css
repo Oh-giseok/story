@@ -4,6 +4,9 @@
     gap: 24px;
     align-items: center;
     overflow-x: auto;
+    white-space: nowrap;
+    width: 100%;
+    box-sizing: border-box;
     padding: 18px;
     background-color: #ffffff;
     border-radius: 16px;
@@ -16,6 +19,7 @@
     flex-direction: column;
     align-items: center;
     text-align: center;
+    flex: 0 0 76px;
     min-width: 76px;
     color: #333333;
     text-decoration: none;
@@ -54,7 +58,7 @@
     border: 2px solid #ffffff;
 }
 
-/* 🛠️ [버그 수정 추가] 메인 홈 화면 원형 안의 사람 이모티콘 크기를 꽉 차게 키워줍니다! */
+/*  메인 홈 화면 원형 안의 사람 이모티콘 크기를 꽉 차게 키워줍니다! */
 .insta-story-no-img i {
     font-size: 2.2rem !important;
     color: #ffffff;
@@ -465,3 +469,4 @@
 .story-progress-bar-fill.watched {
     width: 100% !important;
 }
+
