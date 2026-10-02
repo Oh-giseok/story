@@ -7,11 +7,96 @@
 {% block head %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
 <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js" defer></script>
+<style>
+    .mypage-container {
+        max-width: 1200px;
+    }
+    .mypage-tab {
+        border-bottom: 1px solid transparent !important;
+    }
+    .mypage-tab[aria-selected="true"] {
+        border-bottom-color: #000 !important;
+        font-weight: 600;
+        padding-bottom: 10px;
+    }
+    .mypage-profile-heading {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .mypage-profile-stats {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        margin-left: auto;
+    }
+    .mypage-profile-stat {
+        display: inline-flex;
+        align-items: baseline;
+        gap: .35rem;
+        padding: 0;
+        border: 0;
+        background: none;
+        color: #212529;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+    .mypage-profile-stat-count {
+        font-size: .9rem;
+        font-weight: 700;
+    }
+    .mypage-profile-stat-label {
+        color: #6c757d;
+        font-size: .9rem;
+        font-weight: 500;
+    }
+    .mypage-profile-stat:hover,
+    .mypage-profile-stat:focus-visible {
+        color: #212529;
+        text-decoration: underline;
+    }
+    .mypage-account-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .mypage-account-action {
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        color: #6c757d;
+        font-size: .9rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: color .15s ease;
+    }
+    .mypage-account-action:hover,
+    .mypage-account-action:focus-visible {
+        color: #212529;
+        text-decoration: underline;
+    }
+    .mypage-account-action i {
+        font-size: 1rem;
+    }
+    .mypage-account-divider {
+        width: 1px;
+        height: 15px;
+        background: #dee2e6;
+    }
+    @media (max-width: 767.98px) {
+        .mypage-profile-stats {
+            margin-right: 0;
+            gap: 1.5rem;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <h5 class="my-3 border-bottom pb-2">My Page</h5>
+<div class="container mypage-container">
+    <h5 class="my-3 border-bottom pb-2">마이페이지</h5>
 
     <div class="d-flex align-items-start gap-4">
         <!-- 프로필 이미지 -->
@@ -28,31 +113,173 @@
         </div>
         {% endif %}
 
-        <div>
-            <h2 class="h4 mb-2">{{ user.name or user.username }}</h2>
+        <div class="flex-grow-1 min-w-0">
+            <div class="mypage-profile-heading mb-3">
+                <h2 class="h4 mb-0">{{ user.name or user.username }}</h2>
+                {% if is_own_profile %}
+                <div class="mypage-profile-stats">
+                    <button type="button" class="mypage-profile-stat" data-bs-toggle="modal" data-bs-target="#friendsListModal">
+                        <span class="mypage-profile-stat-label">친구</span>
+                        <span class="mypage-profile-stat-count">{{ friends|length }}</span>
+                    </button>
+                    <button type="button" class="mypage-profile-stat" data-bs-toggle="modal" data-bs-target="#friendRequestsModal">
+                        <span class="mypage-profile-stat-label">친구 요청</span>
+                        <span class="mypage-profile-stat-count">{{ incoming_requests|length }}</span>
+                    </button>
+                </div>
+                {% endif %}
+            </div>
             <p class="mb-0 text-break">{{ user.intro or '자기소개가 없습니다.' }}</p>
             {% if is_own_profile %}
+            <div class="mypage-account-actions mt-3">
+                <a href="{{ url_for('auth.profile_edit') }}" class="mypage-account-action">
+                    <i class="bi bi-person-gear" aria-hidden="true"></i>회원정보 수정
+                </a>
+                <span class="mypage-account-divider" aria-hidden="true"></span>
+                <a href="{{ url_for('auth.logout') }}" class="mypage-account-action">
+                    <i class="bi bi-box-arrow-right" aria-hidden="true"></i>로그아웃
+                </a>
+            </div>
+            {% else %}
             <div class="d-flex flex-wrap gap-2 mt-3">
-                <a href="{{ url_for('auth.profile_edit') }}" class="btn btn-outline-primary">회원정보 수정</a>
-                <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-secondary">로그아웃</a>
+                {% if friendship and friendship.status == 'accepted' %}
+                <form method="post" action="{{ url_for('auth.update_friendship', target_id=user.id, action='remove') }}">
+                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-danger">친구 삭제</button>
+                </form>
+                {% elif friendship and friendship.status == 'pending' and friendship.requested_by_id == g.user.id %}
+                <form method="post" action="{{ url_for('auth.update_friendship', target_id=user.id, action='cancel') }}">
+                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-secondary">요청 대기 · 취소</button>
+                </form>
+                {% elif friendship and friendship.status == 'pending' %}
+                <form method="post" action="{{ url_for('auth.update_friendship', target_id=user.id, action='accept') }}">
+                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                    <button type="submit" class="btn btn-primary">친구 요청 수락</button>
+                </form>
+                <form method="post" action="{{ url_for('auth.update_friendship', target_id=user.id, action='reject') }}">
+                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-secondary">거절</button>
+                </form>
+                {% else %}
+                <form method="post" action="{{ url_for('auth.send_friend_request', target_id=user.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                    <button type="submit" class="btn btn-primary">친구 추가</button>
+                </form>
+                {% endif %}
             </div>
             {% endif %}
         </div>
     </div>
 
-    <!-- POST = Post 모델, REELS = Reels 모델, STORY = Story 모델 -->
-    <div class="d-flex mt-4 border-bottom" role="tablist" aria-label="내 게시물 종류">
-        <button type="button" class="btn flex-fill rounded-0 border-0 bg-dark text-white fw-bold"
-                onclick="showPosts('posts', this)" aria-selected="true">POST</button>
-        <button type="button" class="btn flex-fill rounded-0 border-0"
-                onclick="showPosts('reels', this)" aria-selected="false">REELS</button>
-        <button type="button" class="btn flex-fill rounded-0 border-0"
-                onclick="showPosts('stories', this)" aria-selected="false">STORY</button>
+    {% if is_own_profile %}
+    <div class="modal fade" id="friendsListModal" tabindex="-1" aria-labelledby="friendsListModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="friendsListModalTitle">친구 {{ friends|length }}명</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+                </div>
+                <div class="modal-body p-0">
+                    {% if friends %}
+                    <div class="list-group list-group-flush">
+                        {% for friend in friends %}
+                        <div class="list-group-item d-flex align-items-center gap-3 py-3">
+                            <a href="{{ url_for('auth.mypage', user_id=friend.id) }}" class="d-flex align-items-center gap-3 text-decoration-none text-dark flex-grow-1 min-w-0">
+                                {% if friend.profile_img_url %}
+                                <img src="{{ url_for('static', filename=friend.profile_img_url) }}" alt="" class="rounded-circle flex-shrink-0" width="42" height="42" style="object-fit: cover;">
+                                {% else %}
+                                <i class="bi bi-person-circle fs-2 text-secondary flex-shrink-0" aria-hidden="true"></i>
+                                {% endif %}
+                                <span class="fw-semibold">{{ friend.username }}</span>
+                            </a>
+                            <form method="post" action="{{ url_for('auth.update_friendship', target_id=friend.id, action='remove') }}" class="flex-shrink-0">
+                                <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                                <input type="hidden" name="return_to" value="self">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">친구 삭제</button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center my-4">아직 친구가 없습니다.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     </div>
 
-    <section id="posts-content" class="row g-3 mt-2">
+    <div class="modal fade" id="friendRequestsModal" tabindex="-1" aria-labelledby="friendRequestsModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="friendRequestsModalTitle">받은 친구 요청 {{ incoming_requests|length }}명</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+                </div>
+                <div class="modal-body p-0">
+                    {% if incoming_requests %}
+                    <div class="list-group list-group-flush">
+                        {% for relation, friend_user in incoming_requests %}
+                        <div class="list-group-item d-flex align-items-center gap-3 py-3">
+                            <a href="{{ url_for('auth.mypage', user_id=friend_user.id) }}" class="d-flex align-items-center gap-3 text-decoration-none text-dark flex-grow-1 min-w-0">
+                                {% if friend_user.profile_img_url %}
+                                <img src="{{ url_for('static', filename=friend_user.profile_img_url) }}" alt="" class="rounded-circle flex-shrink-0" width="42" height="42" style="object-fit: cover;">
+                                {% else %}
+                                <i class="bi bi-person-circle fs-2 text-secondary flex-shrink-0" aria-hidden="true"></i>
+                                {% endif %}
+                                <span class="fw-semibold">{{ friend_user.username }}</span>
+                            </a>
+                            <div class="d-flex gap-2 flex-shrink-0">
+                                <form method="post" action="{{ url_for('auth.update_friendship', target_id=friend_user.id, action='accept') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                                    <input type="hidden" name="return_to" value="self">
+                                    <button type="submit" class="btn btn-sm btn-primary">수락</button>
+                                </form>
+                                <form method="post" action="{{ url_for('auth.update_friendship', target_id=friend_user.id, action='reject') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                                    <input type="hidden" name="return_to" value="self">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">거절</button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center my-4">받은 친구 요청이 없습니다.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- POST, REELS, STORY, REPOST 탭 -->
+    <div class="d-flex border-bottom" role="tablist" aria-label="내 게시물 종류" style="margin-top: 60px">
+        <button type="button" class="btn flex-fill rounded-0 border-0 mypage-tab"
+                onclick="showPosts('posts', this)" aria-selected="true">
+            <svg class="me-1" aria-label="게시물" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><title>게시물</title><rect height="6" rx="1" ry="1" width="4.667" x="3" y="1"></rect><rect height="6" rx="1" ry="1" width="4.667" x="16.333" y="1"></rect><rect height="6" rx="1" ry="1" width="4.667" x="9.667" y="1"></rect><rect height="6" rx="1" ry="1" width="4.667" x="3" y="9"></rect><rect height="6" rx="1" ry="1" width="4.667" x="16.333" y="9"></rect><rect height="6" rx="1" ry="1" width="4.667" x="9.667" y="9"></rect><rect height="6" rx="1" ry="1" width="4.667" x="3" y="17"></rect><rect height="6" rx="1" ry="1" width="4.667" x="16.333" y="17"></rect><rect height="6" rx="1" ry="1" width="4.667" x="9.667" y="17"></rect></svg>
+            게시물
+        </button>
+        <button type="button" class="btn flex-fill rounded-0 border-0 mypage-tab"
+                onclick="showPosts('reels', this)" aria-selected="false">
+            <svg class="me-1" aria-label="릴스" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><title>릴스</title><path d="M22.935 7.468c-.063-1.36-.307-2.142-.512-2.67a5.341 5.341 0 0 0-1.27-1.95 5.345 5.345 0 0 0-1.95-1.27c-.53-.206-1.311-.45-2.672-.513C15.333 1.012 14.976 1 12 1s-3.333.012-4.532.065c-1.36.063-2.142.307-2.67.512-.77.298-1.371.69-1.95 1.27a5.36 5.36 0 0 0-1.27 1.95c-.206.53-.45 1.311-.513 2.672C1.012 8.667 1 9.024 1 12s.012 3.333.065 4.532c.063 1.36.307 2.142.512 2.67.297.77.69 1.372 1.27 1.95.58.581 1.181.974 1.95 1.27.53.206 1.311.45 2.672.513C8.667 22.988 9.024 23 12 23s3.333-.012 4.532-.065c1.36-.063 2.142-.307 2.67-.512a5.33 5.33 0 0 0 1.95-1.27 5.356 5.356 0 0 0 1.27-1.95c.206-.53.45-1.311.513-2.672.053-1.198.065-1.555.065-4.531s-.012-3.333-.065-4.532Zm-1.998 8.972c-.05 1.07-.228 1.652-.38 2.04-.197.51-.434.874-.82 1.258a3.362 3.362 0 0 1-1.258.82c-.387.151-.97.33-2.038.379-1.162.052-1.51.063-4.441.063s-3.28-.01-4.44-.063c-1.07-.05-1.652-.228-2.04-.38a3.354 3.354 0 0 1-1.258-.82 3.362 3.362 0 0 1-.82-1.258c-.151-.387-.33-.97-.379-2.038C3.011 15.28 3 14.931 3 12s.01-3.28.063-4.44c.05-1.07.228-1.652.38-2.04.197-.51.434-.875.82-1.26a3.372 3.372 0 0 1 1.258-.819c.387-.15.97-.329 2.038-.378C8.72 3.011 9.069 3 12 3s3.28.01 4.44.063c1.07.05 1.652.228 2.04.38.51.197.874.433 1.258.82.385.382.622.747.82 1.258.151.387.33.97.379 2.038C20.989 8.72 21 9.069 21 12s-.01 3.28-.063 4.44Zm-4.584-6.828-5.25-3a2.725 2.725 0 0 0-2.745.01A2.722 2.722 0 0 0 6.988 9v6c0 .992.512 1.88 1.37 2.379.432.25.906.376 1.38.376.468 0 .937-.123 1.365-.367l5.25-3c.868-.496 1.385-1.389 1.385-2.388s-.517-1.892-1.385-2.388Zm-.993 3.04-5.25 3a.74.74 0 0 1-.748-.003.74.74 0 0 1-.374-.649V9a.74.74 0 0 1 .374-.65.737.737 0 0 1 .748-.002l5.25 3c.341.196.378.521.378.652s-.037.456-.378.651Z"></path></svg>
+            릴스
+        </button>
+        <button type="button" class="btn flex-fill rounded-0 border-0 mypage-tab"
+                onclick="showPosts('stories', this)" aria-selected="false">
+            <svg class="me-1" aria-label="스토리" fill="currentColor" height="22" role="img" viewBox="0 0 24 24" width="22"><title>스토리</title><path d="M3.914 5.32q.338-.406.714-.778m-3.122 7.855a9.903 9.903 0 0 1-.007-.386 10.49 10.49 0 0 1 .517-3.265m3.242 11.337a10.568 10.568 0 0 1-2.89-3.864m14.482 5.109a10.535 10.535 0 0 1-8.162.649M12.001 1.51a10.505 10.505 0 0 1 7.926 17.392" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path><line fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" x1="12" x2="12" y1="8.006" y2="16.006"></line><line fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" x1="16" x2="8" y1="12.006" y2="12.006"></line></svg>
+            스토리
+        </button>
+        <button type="button" class="btn flex-fill rounded-0 border-0 mypage-tab"
+                onclick="showPosts('reposts', this)" aria-selected="false">
+            <svg class="me-1" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" role="img" title="리포스트" class="x14rh7hd" style="--x-color: rgb(var(--ig-secondary-icon));"><title>리포스트</title><path d="M19.998 9.497a1 1 0 0 0-1 1v4.228a3.274 3.274 0 0 1-3.27 3.27h-5.313l1.791-1.787a1 1 0 0 0-1.412-1.416L7.29 18.287a1.004 1.004 0 0 0-.294.707v.001c0 .023.012.042.013.065a.923.923 0 0 0 .281.643l3.502 3.504a1 1 0 0 0 1.414-1.414l-1.797-1.798h5.318a5.276 5.276 0 0 0 5.27-5.27v-4.228a1 1 0 0 0-1-1zm-6.41-3.496-1.795 1.795a1 1 0 1 0 1.414 1.414l3.5-3.5a1.003 1.003 0 0 0 0-1.417l-3.5-3.5a1 1 0 0 0-1.414 1.414l1.794 1.794H8.27A5.277 5.277 0 0 0 3 9.271V13.5a1 1 0 0 0 2 0V9.271a3.275 3.275 0 0 1 3.271-3.27z"></path></svg>
+            리포스트
+        </button>
+    </div>
+
+    <section id="posts-content" class="row row-cols-2 row-cols-md-5 g-3 mt-2">
         {% for post in posts %}
-        <div class="col-6 col-md-3">
+        <div class="col">
             <!-- 게시물 카드 (클릭 시 모달 열기) -->
             <div class="post-card position-relative overflow-hidden rounded cursor-pointer"
                  style="cursor: pointer;"
@@ -163,6 +390,59 @@
         </div>
         {% else %}<p class="text-muted text-center py-4">등록한 스토리가 없습니다.</p>{% endfor %}
     </section>
+
+    <section id="reposts-content" class="row g-3 mt-2" hidden>
+        {% for repost in reposts %}
+        {% set post = repost.post %}
+        <div class="col-6 col-md-3">
+            <div class="post-card position-relative overflow-hidden rounded cursor-pointer"
+                 style="cursor: pointer;"
+                 onclick="openPostDetailModal({{ post.id }}, this)"
+                 id="repost-card-{{ post.id }}"
+                 data-post-id="{{ post.id }}"
+                 data-user-id="{{ post.user_id }}"
+                 data-user-name="{{ post.user.username }}"
+                 data-user-img="{{ url_for('static', filename=post.user.profile_img_url) if post.user.profile_img_url else '' }}">
+                {% set img_url = post.thumbnail_url or post.media_url %}
+                {% set first_img = img_url.split(',')[0] if img_url else '' %}
+                {% if first_img.lower().endswith(('.mp4', '.mov', '.webm')) %}
+                    <div class="w-100 rounded bg-dark text-white d-flex align-items-center justify-content-center" style="aspect-ratio: 1;">
+                        <i class="bi bi-play-circle fs-1" aria-label="동영상 게시물"></i>
+                    </div>
+                {% elif first_img %}
+                    {% if first_img.startswith('http') %}
+                        {% set repost_thumbnail_src = first_img %}
+                    {% else %}
+                        {% set repost_clean_path = first_img.replace('/static/', '').replace('static/', '') %}
+                        {% set repost_thumbnail_src = url_for('static', filename=repost_clean_path) %}
+                    {% endif %}
+                    <img src="{{ repost_thumbnail_src }}" alt="리포스트 게시물" class="w-100 rounded" style="aspect-ratio: 1; object-fit: cover;">
+                {% else %}
+                    <div class="w-100 rounded bg-secondary d-flex align-items-center justify-content-center text-white" style="aspect-ratio: 1;">
+                        <i class="bi bi-image fs-3" aria-label="이미지 없음"></i>
+                    </div>
+                {% endif %}
+                <div class="post-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center text-white bg-dark bg-opacity-25 opacity-0 hover-opacity-100 transition-all">
+                    <i class="bi bi-heart-fill me-2"></i> {{ post.likes|length if post.likes else 0 }}
+                    <i class="bi bi-chat-fill ms-3 me-2"></i> {{ post.comments|length if post.comments else 0 }}
+                </div>
+                <div class="d-none raw-post-data">
+                    <div class="raw-caption">{{ post.caption or '' }}</div>
+                    <div class="raw-images">{{ post.media_url or '' }}</div>
+                    <div class="raw-comments">
+                        {% for comment in post.comments %}
+                        <div class="comment-item" data-comment-id="{{ comment.id }}" data-user-id="{{ comment.user_id }}"
+                             data-user-name="{{ comment.user.username }}"
+                             data-user-img="{{ url_for('static', filename=comment.user.profile_img_url) if comment.user.profile_img_url else '' }}">{{ comment.content }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <p class="text-muted text-center py-4">리포스트한 게시물이 없습니다.</p>
+        {% endfor %}
+    </section>
 </div>
 
 <!-- 공통 모달 포함 -->
@@ -174,14 +454,12 @@
 <script>
     // 9. 탭 전환 (POST / REELS / STORY)
     function showPosts(type, selectedButton) {
-        ['posts', 'reels', 'stories'].forEach((name) => {
+        ['posts', 'reels', 'stories', 'reposts'].forEach((name) => {
             document.getElementById(`${name}-content`).hidden = name !== type;
         });
         document.querySelectorAll('[aria-label="내 게시물 종류"] button').forEach((button) => {
-            button.classList.remove('bg-dark', 'text-white', 'fw-bold');
             button.setAttribute('aria-selected', 'false');
         });
-        selectedButton.classList.add('bg-dark', 'text-white', 'fw-bold');
         selectedButton.setAttribute('aria-selected', 'true');
     }
 </script>

@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='story/favicon.png') }}">
     <title>{% block title %}Story{% endblock %}</title>
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
@@ -17,7 +17,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link
         rel="stylesheet"
-        href="{{ url_for('static', filename='story/story_style.css') }}">
+        href="{{ url_for('static', filename='css/story_style.css') }}">
 
     <style>
         body, button, input, select, textarea {
@@ -78,7 +78,7 @@
             text-decoration: none;
             font-size: 0.8rem;
             font-weight: 600;
-            transition: background-color 0.2s;
+            transition: color 0.2s, background-color 0.2s;
         }
         .bottom-nav-item:hover {
             background-color: #f8f9fa;
@@ -86,29 +86,33 @@
         }
         /* 현재 페이지 또는 선택한 메뉴 */
         .bottom-nav-item.active {
-            background-color: #a06e52;
-            color: #ffffff;
+            background-color: transparent;
+            color: #212529;
         }
         .bottom-nav-item.active:hover {
-            background-color: #8c5d43;
-            color: #ffffff;
+            background-color: #f8f9fa;
+            color: #212529;
+        }
+        .bottom-nav-item.active svg {
+            stroke: currentColor;
+            stroke-width: 0.55px;
+            paint-order: stroke;
+        }
+        .bottom-nav-item.active i::before {
+            font-weight: 700 !important;
+            -webkit-text-stroke: 0.35px currentColor;
         }
         .bottom-nav-avatar {
             width: 27px;
             height: 27px;
             border-radius: 50%;
             object-fit: cover;
-            border: 1px solid rgba(0, 0, 0, 0.12);
         }
-        .bottom-nav-item.active .bottom-nav-avatar {
-            outline: 2px solid #ffffff;
-            outline-offset: 1px;
-        }
+
         .upload-choice-modal .modal-content {
             border: 0;
             border-radius: 20px;
             overflow: hidden;
-            box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.18);
         }
         .upload-choice-modal .modal-header { border: 0; padding: 1.25rem 1.25rem .5rem; }
         .upload-choice-modal .modal-body { padding: .25rem 1.25rem 1.25rem; }
@@ -216,17 +220,22 @@
             }
         }
 
-        body{
+        html {
             scrollbar-gutter: stable;
-                max-width: 1900px;
+        }
+        body{
+            max-width: 1900px;
             margin: 0 auto;
             overflow-x: hidden;
+        }
+        body.modal-open {
+            padding-right: 0 !important;
         }
     </style>
     {% block head %}{% endblock %}
 </head>
 
-<body class="bg-light">
+<body>
 
     {% if current_user.is_authenticated and request.endpoint in ['main.index', 'post._list', 'reels.reels', 'dm.user_list', 'main.search'] %}
     <div class="page-search-area">
@@ -274,7 +283,7 @@
     <aside class="left-dm-sidebar">
         <div class="card shadow-sm border-0 rounded-3">
             <div class="card-header bg-white fw-bold py-3 border-bottom d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-chat-dots text-primary me-1"></i> 최근 대화</span>
+                <span><i class="bi bi-chat-dots text-dark me-1"></i> 최근 대화</span>
             </div>
 
             <div class="list-group list-group-flush overflow-auto" style="max-height: 650px;">
@@ -369,6 +378,12 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
     <script>
+        const resetModalBodyPadding = () => {
+            document.body.style.setProperty('padding-right', '0px', 'important');
+        };
+        document.addEventListener('shown.bs.modal', resetModalBodyPadding);
+        document.addEventListener('hidden.bs.modal', resetModalBodyPadding);
+
         document.querySelectorAll('.bottom-nav').forEach(nav => {
             nav.querySelectorAll('.bottom-nav-item').forEach(item => {
                 item.addEventListener('click', () => {

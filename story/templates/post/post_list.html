@@ -6,6 +6,17 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/story_style.css') }}">
 
 <style>
+    .notification-widget { position: fixed; top: 24px; right: 32px; z-index: 1045; }
+    .notification-trigger { position: relative; width: 46px; height: 46px; border: 1px solid #dee2e6; border-radius: 50%; background: #fff; color: #212529; box-shadow: 0 3px 12px rgba(0,0,0,.12); font-size: 1.25rem; }
+    .notification-trigger:hover { background: #f8f9fa; }
+    .notification-badge { position: absolute; top: -4px; right: -5px; min-width: 20px; }
+    .notification-list { max-height: min(65vh, 520px); overflow-y: auto; }
+    .notification-item { color: inherit; text-decoration: none; }
+    .notification-item:hover { background: #f8f9fa; }
+    .notification-item.unread { background: #f2f7ff; }
+    .notification-avatar { width: 42px; height: 42px; object-fit: cover; flex: 0 0 42px; }
+    @media (max-width: 992px) { .notification-widget { top: 14px; right: 14px; } }
+    @media (max-width: 576px) { .notification-widget { top: 10px; right: 10px; } }
     .modal-content { border-radius: 12px; overflow: hidden; }
     .upload-box { min-height: 380px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; }
     .preview-img { max-height: 400px; width: 100%; object-fit: contain; background-color: #000; }
@@ -66,6 +77,8 @@
     .comment-input { border: none; font-size: 0.9rem; }
     .comment-input:focus { outline: none; box-shadow: none; }
     .btn-like i, .btn-open-detail i { pointer-events: none; }
+    .btn-like i::before, .btn-open-detail i::before { font-weight: 600 !important; }
+    .btn-repost svg { pointer-events: none; }
 
     .btn-edit-comment {
         font-size: 0.75rem;
@@ -78,6 +91,10 @@
     .post-detail-modal .btn-close {
         cursor: pointer !important;
         pointer-events: auto !important;
+    }
+
+    .feed-card{
+        border: 0;
     }
 
     /* 모바일 환경(768px 이하)에서 상세보기 모달 레이아웃 변경 (이미지 숨김 및 댓글 영역 확대) */
@@ -141,6 +158,41 @@
     const currentUserImg = "{{ url_for('static', filename=g.user.profile_img_url) if (g.user and g.user.profile_img_url) else '' }}";
 </script>
 
+<div class="notification-widget">
+    <button type="button" class="notification-trigger" id="notificationTrigger" data-bs-toggle="modal" data-bs-target="#notificationModal" aria-label="알림 열기">
+        <i class="bi bi-bell" aria-hidden="true"></i>
+        <span class="badge rounded-pill text-bg-danger notification-badge {% if unread_notification_count == 0 %}d-none{% endif %}" id="notificationBadge">{{ unread_notification_count }}</span>
+    </button>
+</div>
+
+<div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="notificationModalTitle">알림</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+            </div>
+            <div class="modal-body notification-list" id="notificationList">
+                {% for notification in notifications %}
+                <a class="list-group-item list-group-item-action d-flex align-items-center gap-3 notification-item {% if not notification.is_read %}unread{% endif %}"
+                   href="{{ url_for('auth.mypage', user_id=notification.actor_id) }}" data-notification-id="{{ notification.id }}">
+                    {% if notification.actor.profile_img_url %}
+                    <img class="notification-avatar rounded-circle" src="{{ notification.actor.profile_img_url|profile_img }}" alt="">
+                    {% else %}
+                    <i class="bi bi-person-circle notification-avatar fs-2 text-secondary" aria-hidden="true"></i>
+                    {% endif %}
+                    <span class="flex-grow-1">{{ notification.actor.username }}님이 친구 요청을 보냈습니다.</span>
+                    <small class="text-muted text-nowrap">{{ notification.created_at|kst_datetime('%m-%d %H:%M') }}</small>
+                </a>
+                {% else %}
+                <p class="text-muted text-center my-4" id="notificationEmpty">새로운 알림이 없습니다.</p>
+                {% endfor %}
+            </div>
+            <input type="hidden" id="notificationCsrfToken" value="{{ global_csrf_token() }}">
+        </div>
+    </div>
+</div>
+
 <!-- 상단 헤더 -->
 {#<div class="bg-white border-bottom mb-4 py-2 sticky-top" style="top: 0; z-index: 1020;">#}
 {#    <div class="container d-flex justify-content-between align-items-center" style="max-width: 500px">#}
@@ -155,7 +207,7 @@
 <div class="container py-2" style="max-width: 500px">
     {% include 'story/_story_strip.html' %}
     {% for post in posts %}
-    <div class="card shadow-sm mb-4" id="post-card-{{ post.id }}"
+    <div class="feed-card card mb-4" id="post-card-{{ post.id }}"
          data-user-id="{{ post.user_id }}"
          data-user-name="{{ post.user.username }}"
          data-user-img="{{ url_for('static', filename=post.user.profile_img_url) if post.user.profile_img_url else '' }}">
@@ -203,9 +255,20 @@
                     {% endif %}
                 </button>
 
-                <button type="button" class="btn btn-link text-dark p-0 border-0 d-flex align-items-center btn-open-detail" data-post-id="{{ post.id }}">
+                <button type="button" class="btn btn-link text-dark text-decoration-none p-0 border-0 d-flex align-items-center btn-open-detail" data-post-id="{{ post.id }}">
                     <i class="bi bi-chat fs-5 me-1"></i>
                     <span class="fw-bold small comment-count-text">{{ post.comments|length }}</span>
+                </button>
+
+                <button type="button" class="btn btn-link text-dark p-0 ms-2 border-0 btn-repost"
+                        data-post-id="{{ post.id }}" aria-label="리포스트"
+                        aria-pressed="{{ 'true' if post.id in reposted_post_ids else 'false' }}"
+                        title="리포스트">
+                    {% if post.id in reposted_post_ids %}
+                    <svg aria-label="리포스트" class="x1lliihq x1n2onr6 xyb1xck" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><title>리포스트</title><path d="M16 6.001a1 1 0 0 0 .924-1.382.998.998 0 0 0-.217-.326l-3.5-3.5a1 1 0 1 0-1.414 1.414l1.794 1.794H8.27A5.277 5.277 0 0 0 3 9.271V13.5a1 1 0 1 0 2 0V9.271a3.275 3.275 0 0 1 3.271-3.27h7.73Zm3.998 3.496a1 1 0 0 0-1 1v4.228a3.274 3.274 0 0 1-3.27 3.27H7.996a1.001 1.001 0 0 0-.706 1.708l3.502 3.504a.997.997 0 0 0 1.414 0 1 1 0 0 0 0-1.414l-1.797-1.798h5.317a5.276 5.276 0 0 0 5.271-5.27v-4.228a1 1 0 0 0-1-1Zm-5.205-.51-3.905 3.906-1.681-1.681a1 1 0 1 0-1.414 1.414l2.388 2.388a1 1 0 0 0 1.414 0l4.612-4.614a1 1 0 1 0-1.414-1.414Z"></path></svg>
+                    {% else %}
+                    <svg aria-label="리포스트" class="x1lliihq x1n2onr6 xyb1xck" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><title>리포스트</title><path d="M19.998 9.497a1 1 0 0 0-1 1v4.228a3.274 3.274 0 0 1-3.27 3.27h-5.313l1.791-1.787a1 1 0 0 0-1.412-1.416L7.29 18.287a1.004 1.004 0 0 0-.294.707v.001c0 .023.012.042.013.065a.923.923 0 0 0 .281.643l3.502 3.504a1 1 0 0 0 1.414-1.414l-1.797-1.798h5.318a5.276 5.276 0 0 0 5.27-5.27v-4.228a1 1 0 0 0-1-1Zm-6.41-3.496-1.795 1.795a1 1 0 1 0 1.414 1.414l3.5-3.5a1.003 1.003 0 0 0 0-1.417l-3.5-3.5a1 1 0 0 0-1.414 1.414l1.794 1.794H8.27A5.277 5.277 0 0 0 3 9.271V13.5a1 1 0 0 0 2 0V9.271a3.275 3.275 0 0 1 3.271-3.27Z"></path></svg>
+                    {% endif %}
                 </button>
             </div>
 
@@ -274,6 +337,7 @@
 {% endblock %}
 
 {% block script %}
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         // 1. 피드 Swiper 초기화
@@ -313,12 +377,109 @@
             const caption = wrap.querySelector('.post-caption');
             const moreButton = wrap.querySelector('.post-caption-more');
 
+        const repostIcon = '<svg aria-label="리포스트" class="x1lliihq x1n2onr6 xyb1xck" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><title>리포스트</title><path d="M19.998 9.497a1 1 0 0 0-1 1v4.228a3.274 3.274 0 0 1-3.27 3.27h-5.313l1.791-1.787a1 1 0 0 0-1.412-1.416L7.29 18.287a1.004 1.004 0 0 0-.294.707v.001c0 .023.012.042.013.065a.923.923 0 0 0 .281.643l3.502 3.504a1 1 0 0 0 1.414-1.414l-1.797-1.798h5.318a5.276 5.276 0 0 0 5.27-5.27v-4.228a1 1 0 0 0-1-1Zm-6.41-3.496-1.795 1.795a1 1 0 1 0 1.414 1.414l3.5-3.5a1.003 1.003 0 0 0 0-1.417l-3.5-3.5a1 1 0 0 0-1.414 1.414l1.794 1.794H8.27A5.277 5.277 0 0 0 3 9.271V13.5a1 1 0 0 0 2 0V9.271a3.275 3.275 0 0 1 3.271-3.27Z"></path></svg>';
+        const repostedIcon = '<svg aria-label="리포스트" class="x1lliihq x1n2onr6 xyb1xck" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><title>리포스트</title><path d="M16 6.001a1 1 0 0 0 .924-1.382.998.998 0 0 0-.217-.326l-3.5-3.5a1 1 0 1 0-1.414 1.414l1.794 1.794H8.27A5.277 5.277 0 0 0 3 9.271V13.5a1 1 0 1 0 2 0V9.271a3.275 3.275 0 0 1 3.271-3.27h7.73Zm3.998 3.496a1 1 0 0 0-1 1v4.228a3.274 3.274 0 0 1-3.27 3.27H7.996a1.001 1.001 0 0 0-.706 1.708l3.502 3.504a.997.997 0 0 0 1.414 0 1 1 0 0 0 0-1.414l-1.797-1.798h5.317a5.276 5.276 0 0 0 5.271-5.27v-4.228a1 1 0 0 0-1-1Zm-5.205-.51-3.905 3.906-1.681-1.681a1 1 0 1 0-1.414 1.414l2.388 2.388a1 1 0 0 0 1.414 0l4.612-4.614a1 1 0 1 0-1.414-1.414Z"></path></svg>';
+
+        document.querySelectorAll('.btn-repost').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const postId = this.dataset.postId;
+                if (this.disabled) return;
+                this.disabled = true;
+                try {
+                    const response = await fetch(`/post/repost/${postId}`, { method: 'POST' });
+                    const responseText = await response.text();
+                    let data;
+                    try {
+                        data = JSON.parse(responseText);
+                    } catch {
+                        throw new Error(response.redirected
+                            ? '로그인이 풀렸습니다. 새로고침 후 다시 로그인해 주세요.'
+                            : `서버 요청 오류 (${response.status})`);
+                    }
+                    if (!response.ok || !data.success) {
+                        alert(data.message || '리포스트에 실패했습니다.');
+                        return;
+                    }
+                    this.setAttribute('aria-pressed', String(data.reposted));
+                    this.innerHTML = data.reposted ? repostedIcon : repostIcon;
+                } catch (error) {
+                    console.error('리포스트 요청 실패:', error);
+                    alert(error.message || '리포스트 처리 중 오류가 발생했습니다.');
+                } finally {
+                    this.disabled = false;
+                }
+            });
+        });
+
             if (!caption || !moreButton) return;
 
             if (caption.scrollHeight > caption.clientHeight + 1) {
                 moreButton.style.display = 'inline-block';
             }
         });
+
+        const notificationModal = document.getElementById('notificationModal');
+        const notificationList = document.getElementById('notificationList');
+        const notificationBadge = document.getElementById('notificationBadge');
+        const notificationCsrfToken = document.getElementById('notificationCsrfToken').value;
+
+        const setUnreadCount = (count) => {
+            const unreadCount = Math.max(0, Number(count) || 0);
+            notificationBadge.textContent = unreadCount;
+            notificationBadge.classList.toggle('d-none', unreadCount === 0);
+        };
+
+        notificationModal.addEventListener('shown.bs.modal', async () => {
+            if (Number(notificationBadge.textContent) === 0) return;
+            try {
+                const response = await fetch("{{ url_for('auth.mark_notifications_read') }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ csrf_token: notificationCsrfToken })
+                });
+                if (response.ok) {
+                    const result = await response.json();
+                    setUnreadCount(result.unread_count);
+                    notificationList.querySelectorAll('.notification-item.unread').forEach(item => item.classList.remove('unread'));
+                }
+            } catch (error) {
+                console.error('알림 읽음 처리 실패:', error);
+            }
+        });
+
+        if (typeof io === 'function') {
+            const notificationSocket = io();
+            notificationSocket.on('new_notification', (notification) => {
+                if (!notification || notification.type !== 'friend_request') return;
+                if (notificationList.querySelector(`[data-notification-id="${notification.id}"]`)) return;
+                document.getElementById('notificationEmpty')?.remove();
+
+                const item = document.createElement('a');
+                item.className = 'list-group-item list-group-item-action d-flex align-items-center gap-3 py-3 notification-item unread';
+                item.href = notification.url;
+                item.dataset.notificationId = notification.id;
+
+                if (notification.actor_profile_img_url) {
+                    const avatar = document.createElement('img');
+                    avatar.className = 'notification-avatar rounded-circle';
+                    avatar.src = `{{ url_for('static', filename='') }}${notification.actor_profile_img_url.replace(/^\//, '')}`;
+                    avatar.alt = '';
+                    item.appendChild(avatar);
+                } else {
+                    const avatar = document.createElement('i');
+                    avatar.className = 'bi bi-person-circle notification-avatar fs-2 text-secondary';
+                    avatar.setAttribute('aria-hidden', 'true');
+                    item.appendChild(avatar);
+                }
+
+                const message = document.createElement('span');
+                message.className = 'flex-grow-1';
+                message.textContent = notification.message;
+                item.appendChild(message);
+                notificationList.prepend(item);
+                setUnreadCount(notification.unread_count);
+            });
+        }
     });
 </script>
 {% endblock %}

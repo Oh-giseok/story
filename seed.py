@@ -1,235 +1,186 @@
-"""
-5tory development seed data
+"""Create repeatable demo accounts and their connected content.
 
-IMPORTANT:
-- This script ONLY INSERTS seed records. It never deletes or updates existing rows.
-- Seed users use password: 1234 (stored as a password hash).
-- Re-running the script skips any seed username that already exists.
-- Run from the Flask project root: python seed.py
+Run from the repository root with ``.venv\\Scripts\\python seed.py``.
+All demo accounts use the password ``1234``. Existing non-demo rows are kept.
 """
 from __future__ import annotations
 
-import os
-import random
+import math
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import cv2
+import numpy as np
 from werkzeug.security import generate_password_hash
 
-try:
-    from story import create_app, db
-except ImportError as exc:
-    raise SystemExit(
-        "story.create_app를 불러오지 못했습니다. seed.py를 Flask 프로젝트 루트에 두고 실행하세요."
-    ) from exc
-
+from story import create_app, db
 from story.models import (
-    User, Post, PostLike, PostComment,
-    Reels, Reels_Likes, Comments,
-    Story,
+    Comments, Post, PostComment, PostLike, Reels, Reels_Likes, Story, User,
 )
 
-SEED_PREFIX = "seed_"
 PASSWORD = "1234"
-RANDOM_SEED = 5_010_2026
-
-USERS = [
-    {"username":"mori_cafe","name":"김서윤","intro":"카페와 디저트 찾아다니는 기록 ☕️","interest":"커피 · 베이커리 · 사진","gender":"여"},
-    {"username":"film_jun","name":"박준호","intro":"주말마다 영화관과 전시를 돌아다녀요 🎬","interest":"영화 · 전시 · 책","gender":"남"},
-    {"username":"run_haru","name":"이하루","intro":"퇴근 후 러닝 5km를 꾸준히! 🏃","interest":"러닝 · 운동 · 건강","gender":"여"},
-    {"username":"trip_min","name":"최민재","intro":"시간만 나면 여행 계획부터 세우는 사람 ✈️","interest":"여행 · 풍경 · 맛집","gender":"남"},
-    {"username":"plant_nana","name":"정나은","intro":"집에서 작은 정글 만드는 중 🌿","interest":"식물 · 인테리어 · 집꾸미기","gender":"여"},
-    {"username":"food_tae","name":"강태윤","intro":"맛있는 건 일단 사진부터 📷","interest":"맛집 · 요리 · 야식","gender":"남"},
-    {"username":"draw_jiu","name":"윤지우","intro":"매일 조금씩 그림 그리는 취미생활 🎨","interest":"그림 · 디자인 · 드로잉","gender":"여"},
-    {"username":"music_ian","name":"한이안","intro":"플레이리스트 만드는 걸 좋아합니다 🎧","interest":"음악 · 공연 · 기타","gender":"남"},
-    {"username":"fashion_roe","name":"서로운","intro":"깔끔한 데일리룩과 소소한 쇼핑 👟","interest":"패션 · 쇼핑 · 일상","gender":"여"},
-    {"username":"pet_dodo","name":"오도현","intro":"강아지 도도랑 사는 평범한 하루 🐶","interest":"반려견 · 산책 · 일상","gender":"남"},
+TARGET_PER_TYPE = 5
+PEOPLE = [
+    ("mori_cafe", "김서윤", "카페와 디저트 찾아다니는 기록", "카페", "☕"),
+    ("film_jun", "박준호", "영화와 전시를 즐기는 주말", "영화", "🎬"),
+    ("run_haru", "이하루", "퇴근 후 러닝을 꾸준히", "러닝", "🏃"),
+    ("trip_min", "최민재", "시간만 나면 떠나는 여행", "여행", "✈"),
+    ("plant_nana", "정나은", "집에서 작은 정글 만드는 중", "식물", "🌿"),
+    ("food_tae", "강태윤", "맛있는 건 일단 사진부터", "요리", "🍜"),
+    ("draw_jiu", "윤지우", "매일 조금씩 그림 그리기", "그림", "🎨"),
+    ("music_ian", "한이안", "플레이리스트와 공연 기록", "음악", "🎧"),
+    ("fashion_roe", "서로운", "깔끔한 데일리룩 기록", "패션", "👟"),
+    ("pet_dodo", "오도현", "강아지 도도와 보내는 하루", "반려견", "🐶"),
 ]
-
-INTEREST_POSTS = [
-    ['아침에 발견한 작은 카페','오늘의 라떼는 성공','퇴근 후 디저트 한 접시','주말 카페 투어','빵 냄새에 이끌려 들어간 곳','조용한 카페에서 보낸 오후'],
-    ['이번 주에 본 영화','전시에서 마음에 남은 장면','영화관 가는 날','주말 독서 기록','좋았던 영화 OST','비 오는 날엔 영화 한 편'],
-    ['오늘도 5km 완료','러닝 전에 가볍게 스트레칭','운동 후 먹는 저녁','새 러닝 코스 발견','아침 러닝 성공','천천히 오래 달리기'],
-    ['주말 여행 준비','기차 타고 떠나는 날','처음 가본 동네','여행 중 만난 풍경','여행지 맛집 기록','다음 여행지는 어디로'],
-    ['오늘의 초록이','새 화분 들이기','햇빛 좋은 창가','식물 잎 닦는 날','작은 집 꾸미기','방 분위기 바꾸기'],
-    ['오늘의 점심','퇴근 후 맛집','집에서 만든 한 끼','새로 찾은 분식집','야식은 못 참지','주말 브런치'],
-    ['오늘의 드로잉','색연필 연습','낙서에서 시작한 그림','카페에서 그림 그리기','새 스케치북 시작','작업실 정리'],
-    ['오늘의 플레이리스트','기타 연습 20분','공연 다녀온 날','퇴근길에 듣는 노래','새로운 앨범 발견','밤에 듣기 좋은 곡'],
-    ['오늘의 데일리룩','운동화 하나 장만','무채색 코디','가볍게 쇼핑한 날','출근룩 기록','주말 캐주얼'],
-    ['도도 산책 완료','강아지 낮잠 시간','새 장난감 테스트','공원에서 뛰어놀기','도도와 주말 보내기','산책 중 만난 친구'],
-]
-
-POST_COUNTS = [5,6,4,7,5,6,4,5,6,5]
-REEL_COUNTS = [3,4,2,5,3,4,2,3,4,3]
-STORY_COUNTS = [3,4,3,5,3,4,3,4,3,4]
-
-POST_COMMENTS = [
-    "분위기 너무 좋다!", "여기 어디야? 저장해둘래.", "사진만 봐도 힐링된다.",
-    "다음에 나도 같이 가고 싶어.", "이 취향 너무 좋다 ㅋㅋ", "진짜 잘 찍었다.",
-    "나도 요즘 이거 관심 있어!", "오늘도 좋은 기록이다."
-]
-REEL_COMMENTS = [
-    "영상 분위기 좋다!", "이거 계속 보게 되네 ㅋㅋ", "다음 편도 기대된다.",
-    "아이디어 좋다.", "음악이랑 잘 어울린다.", "짧은데 임팩트 있다."
-]
+PALETTES = [(89, 91, 173), (164, 99, 75), (69, 143, 111), (194, 132, 63),
+            (76, 132, 83), (65, 119, 192), (150, 91, 160), (176, 97, 120),
+            (94, 112, 154), (152, 125, 73)]
 
 
-def project_path(app, *parts):
-    return Path(app.root_path).joinpath(*parts)
+def asset_dirs(root: Path):
+    dirs = {name: root / "static" / "seed_media" / name for name in ("posts", "stories", "profiles")}
+    # Reels are served by the uploaded_file route from app.config['UPLOAD_FOLDER'].
+    dirs["videos"] = root / "reels_uploads" / "videos"
+    dirs["thumbs"] = root / "reels_uploads" / "thumbnails"
+    for directory in dirs.values():
+        directory.mkdir(parents=True, exist_ok=True)
+    return dirs
 
 
-def static_url(*parts):
-    return "/static/" + "/".join(parts)
+def create_card(path: Path, username: str, name: str, topic: str, index: int, kind: str, color):
+    """Write a unique SVG card, keeping media grouped by content type."""
+    if path.exists():
+        return
+    hue = (index * 29 + len(username) * 11) % 360
+    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1100" viewBox="0 0 900 1100">
+<defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="hsl({hue},55%,78%)"/><stop offset="1" stop-color="hsl({(hue+65)%360},48%,38%)"/></linearGradient></defs>
+<rect width="900" height="1100" fill="url(#g)"/><circle cx="720" cy="260" r="190" fill="white" opacity=".18"/>
+<path d="M0 800 Q230 630 450 820 T900 760 V1100 H0Z" fill="white" opacity=".22"/>
+<text x="72" y="120" fill="white" font-size="34" font-family="sans-serif">5TORY · {kind.upper()} #{index:02}</text>
+<text x="72" y="670" fill="white" font-size="92" font-weight="700" font-family="sans-serif">{topic}</text>
+<text x="76" y="755" fill="white" font-size="40" font-family="sans-serif">{name} · @{username}</text>
+<text x="76" y="1010" fill="white" font-size="30" font-family="sans-serif">오늘의 {topic} 기록</text></svg>'''
+    path.write_text(svg, encoding="utf-8")
 
 
-def ensure_assets(app):
-    """Verify bundled seed assets exist in the project after extraction/copy."""
-    required = [
-        project_path(app, "static",  "profiles"),
-        project_path(app, "static", "posts"),
-        project_path(app, "static", "stories"),
-        project_path(app, "static","reels_uploads", "videos"),
-        project_path(app, "static","reels_uploads", "thumbnails"),
-    ]
-    missing = [str(p) for p in required if not p.exists()]
-    if missing:
-        raise SystemExit("시드 이미지/영상 폴더가 없습니다:\n" + "\n".join(missing))
+def create_reel(path: Path, username: str, topic: str, index: int, color):
+    """Generate a short topic-titled MP4 so each reel has a real video asset."""
+    if path.exists() and path.stat().st_size > 1000:
+        return
+    width, height, fps, frames = 360, 640, 15, 45
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
+    if not writer.isOpened():
+        raise RuntimeError(f"MP4 writer unavailable: {path}")
+    for frame_no in range(frames):
+        frame = np.zeros((height, width, 3), dtype=np.uint8)
+        t = frame_no / frames
+        for y in range(height):
+            blend = y / height
+            frame[y, :] = [int(color[0] * (1-blend) + 38 * blend),
+                           int(color[1] * (1-blend) + 44 * blend),
+                           int(color[2] * (1-blend) + 87 * blend)]
+        x = int(180 + 78 * math.sin(t * math.tau))
+        cv2.circle(frame, (x, 255), 66, (235, 238, 244), -1, cv2.LINE_AA)
+        cv2.circle(frame, (x, 255), 48, color, -1, cv2.LINE_AA)
+        cv2.putText(frame, topic, (28, 410), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255,255,255), 2, cv2.LINE_AA)
+        cv2.putText(frame, f"@{username}  /  REEL {index:02}", (28, 458), cv2.FONT_HERSHEY_SIMPLEX, .43, (235,235,235), 1, cv2.LINE_AA)
+        cv2.putText(frame, "5TORY DAILY", (28, 570), cv2.FONT_HERSHEY_SIMPLEX, .55, (225,225,225), 1, cv2.LINE_AA)
+        writer.write(frame)
+    writer.release()
 
 
-def make_comment_text(pool, user_idx, item_idx):
-    return pool[(user_idx * 3 + item_idx) % len(pool)]
+def create_thumbnail(path: Path, username: str, topic: str, index: int, color):
+    if path.exists():
+        return
+    canvas = np.zeros((640, 360, 3), dtype=np.uint8)
+    canvas[:] = color
+    cv2.circle(canvas, (180, 225), 108, (255, 255, 255), -1, cv2.LINE_AA)
+    cv2.circle(canvas, (180, 225), 91, color, -1, cv2.LINE_AA)
+    cv2.putText(canvas, topic, (25, 420), cv2.FONT_HERSHEY_SIMPLEX, .9, (255,255,255), 2, cv2.LINE_AA)
+    cv2.putText(canvas, f"@{username} REEL {index:02}", (25, 470), cv2.FONT_HERSHEY_SIMPLEX, .43, (245,245,245), 1, cv2.LINE_AA)
+    cv2.imwrite(str(path), canvas, [cv2.IMWRITE_JPEG_QUALITY, 88])
+
+
+def ensure_assets(root: Path):
+    dirs = asset_dirs(root)
+    for i, (username, name, _, topic, _) in enumerate(PEOPLE):
+        create_card(dirs["profiles"] / f"{username}.svg", username, name, topic, 0, "profile", PALETTES[i])
+        for index in range(1, TARGET_PER_TYPE + 1):
+            create_card(dirs["posts"] / f"{username}_post_{index}.svg", username, name, topic, index, "post", PALETTES[i])
+            create_card(dirs["stories"] / f"{username}_story_{index}.svg", username, name, topic, index, "story", PALETTES[i])
+            create_reel(dirs["videos"] / f"{username}_reel_{index}.mp4", username, topic, index, PALETTES[i])
+            create_thumbnail(dirs["thumbs"] / f"{username}_reel_{index}.jpg", username, topic, index, PALETTES[i])
+    return dirs
 
 
 def seed():
-    random.seed(RANDOM_SEED)
     app = create_app()
     with app.app_context():
-        ensure_assets(app)
-
-        # Existing DB data is NEVER deleted or modified.
-        created_users = []
-        skipped = []
-        for i, data in enumerate(USERS):
-            username = SEED_PREFIX + data["username"]
-            existing = User.query.filter_by(username=username).first()
-            if existing:
-                skipped.append(username)
-                continue
-            user = User(
-                username=username,
-                password_hash=generate_password_hash(PASSWORD),
-                email=f"{username}@seed.5tory.local",
-                name=data["name"],
-                intro=data["intro"],
-                profile_img_url=f"seed_media/profiles/{data['username']}.svg",
-                birth=f"199{(i % 9) + 1}-0{(i % 8) + 1}-1{(i % 8) + 1}",
-                status="active",
-                last_activity_at=datetime.utcnow(),
-            )
-            db.session.add(user)
-            created_users.append((i, user))
-
-        if not created_users:
-            print("이미 모든 seed 사용자가 존재합니다. 기존 DB는 변경하지 않았습니다.")
-            if skipped:
-                print("건너뜀:", ", ".join(skipped))
-            return
-
+        dirs = ensure_assets(Path(app.root_path))
+        seed_users = []
+        for i, (username, name, intro, topic, _) in enumerate(PEOPLE):
+            login_name = f"seed_{username}"
+            user = User.query.filter_by(username=login_name).first()
+            if user is None:
+                user = User(username=login_name, email=f"{login_name}@5tory.local")
+                db.session.add(user)
+            user.password_hash = generate_password_hash(PASSWORD)
+            user.name, user.intro = name, f"{intro} · 관심사: {topic}"
+            user.profile_img_url = f"seed_media/profiles/{username}.svg"
+            user.birth = f"199{(i % 9) + 1}-0{(i % 8) + 1}-15"
+            user.status = "active"
+            seed_users.append((i, username, topic, user))
         db.session.flush()
 
-        all_users = [u for _, u in created_users]
-        posts = []
-        reels = []
-        stories = []
+        new_posts, new_reels, new_stories = [], [], []
+        now = datetime.utcnow()
+        for i, username, topic, user in seed_users:
+            existing_posts = Post.query.filter_by(user_id=user.id).count()
+            for j in range(existing_posts, TARGET_PER_TYPE):
+                created = now - timedelta(days=i + j + 1, hours=j)
+                item = Post(user_id=user.id, caption=f"{topic} 기록 #{j+1} — 오늘의 작은 순간을 담았어요.",
+                            media_url=f"/static/seed_media/posts/{username}_post_{j+1}.svg",
+                            thumbnail_url=f"/static/seed_media/posts/{username}_post_{j+1}.svg",
+                            created_at=created, updated_at=created)
+                db.session.add(item); new_posts.append(item)
+            existing_reels = Reels.query.filter_by(user_id=user.id).count()
+            for j in range(existing_reels, TARGET_PER_TYPE):
+                created = now - timedelta(days=i + j + 1, hours=j)
+                item = Reels(user_id=user.id, video_url=f"{username}_reel_{j+1}.mp4",
+                             thumbnail_url=f"{username}_reel_{j+1}.jpg",
+                             caption=f"{topic} 릴스 #{j+1}", duration=3.0,
+                             created_at=created, updated_at=created)
+                db.session.add(item); new_reels.append(item)
+            existing_stories = Story.query.filter_by(user_id=user.id).count()
+            for j in range(existing_stories, TARGET_PER_TYPE):
+                # Recent and unexpired so stories appear immediately in the app.
+                created = now - timedelta(minutes=(TARGET_PER_TYPE-j) * 8)
+                db.session.add(Story(user_id=user.id,
+                    media_url=f"/static/seed_media/stories/{username}_story_{j+1}.svg",
+                    thumbnail_url=f"/static/seed_media/stories/{username}_story_{j+1}.svg",
+                    caption=f"{topic} 스토리 #{j+1}", create_date=created,
+                    expires_at=created + timedelta(hours=24)))
+                new_stories.append(user.id)
 
-        for ui, user in created_users:
-            uname = USERS[ui]["username"]
-            interest = USERS[ui]["interest"]
-
-            for j in range(POST_COUNTS[ui]):
-                title = INTEREST_POSTS[ui][j % len(INTEREST_POSTS[ui])]
-                images = [static_url("seed_media", "posts", f"{uname}_post_{j+1}.svg")]
-                if (j + ui) % 4 == 0:
-                    images.append(static_url("seed_media", "posts", f"{uname}_post_{j+1}_2.svg"))
-                created = datetime.utcnow() - timedelta(days=(ui * 2 + j + 1), hours=j * 2)
-                posts.append(Post(
-                    user_id=user.id,
-                    caption=f"{title} · {interest}. 오늘의 작은 기록을 남겨봅니다.",
-                    media_url=",".join(images),
-                    thumbnail_url=images[0],
-                    created_at=created,
-                    updated_at=created,
-                ))
-
-            for j in range(REEL_COUNTS[ui]):
-                base = f"{uname}_reel_{j+1}"
-                reels.append(Reels(
-                    user_id=user.id,
-                    video_url=f"{base}.mp4",
-                    thumbnail_url=f"{base}.jpg",
-                    caption=f"{INTEREST_POSTS[ui][j % len(INTEREST_POSTS[ui])]} — {interest}",
-                    duration=2.5 + ((ui + j) % 4) * 0.5,
-                    created_at=datetime.utcnow() - timedelta(days=(ui + j + 1), hours=j),
-                    updated_at=datetime.utcnow() - timedelta(days=(ui + j + 1), hours=j),
-                ))
-
-            for j in range(STORY_COUNTS[ui]):
-                created = datetime.utcnow() - timedelta(hours=(j + 1) * 3)
-                stories.append(Story(
-                    user_id=user.id,
-                    media_url=static_url("seed_media", "stories", f"{uname}_story_{j+1}.svg"),
-                    thumbnail_url=static_url("seed_media", "stories", f"{uname}_story_{j+1}.svg"),
-                    caption=f"오늘의 스토리 · {interest}",
-                    create_date=created,
-                    expires_at=created + timedelta(hours=24),
-                ))
-
-        db.session.add_all(posts + reels + stories)
         db.session.flush()
-
-        # Post likes/comments: only among the 10 newly-created seed users.
-        for post in posts:
-            possible = [u for u in all_users if u.id != post.user_id]
-            random.shuffle(possible)
-            for liker in possible[:random.randint(2, min(7, len(possible)))]:
-                db.session.add(PostLike(post_id=post.id, user_id=liker.id))
-            for ci in range(random.randint(1, 4)):
-                commenter = possible[ci % len(possible)]
-                db.session.add(PostComment(
-                    post_id=post.id,
-                    user_id=commenter.id,
-                    content=make_comment_text(POST_COMMENTS, commenter.id, ci),
-                    created_at=post.created_at + timedelta(hours=ci + 1),
-                    updated_at=post.created_at + timedelta(hours=ci + 1),
-                ))
-
-        # Reel likes/comments: also only among seed users.
-        for reel in reels:
-            possible = [u for u in all_users if u.id != reel.user_id]
-            random.shuffle(possible)
-            for liker in possible[:random.randint(1, min(6, len(possible)))]:
-                db.session.add(Reels_Likes(reel_id=reel.id, user_id=liker.id))
-            for ci in range(random.randint(1, 3)):
-                commenter = possible[ci % len(possible)]
-                db.session.add(Comments(
-                    reel_id=reel.id,
-                    user_id=commenter.id,
-                    content=make_comment_text(REEL_COMMENTS, commenter.id, ci),
-                    created_at=reel.created_at + timedelta(hours=ci + 1),
-                    updated_at=reel.created_at + timedelta(hours=ci + 1),
-                ))
-
+        # Connect demo users to one another through likes and comments.
+        demo_ids = [u.id for _, _, _, u in seed_users]
+        for post in new_posts:
+            for liker_id in demo_ids:
+                if liker_id != post.user_id and PostLike.query.filter_by(post_id=post.id, user_id=liker_id).first() is None:
+                    db.session.add(PostLike(post_id=post.id, user_id=liker_id))
+                    break
+            commenter = next(uid for uid in demo_ids if uid != post.user_id)
+            db.session.add(PostComment(post_id=post.id, user_id=commenter, content="멋진 기록이야!"))
+        for reel in new_reels:
+            commenter = next(uid for uid in demo_ids if uid != reel.user_id)
+            db.session.add(Reels_Likes(reel_id=reel.id, user_id=commenter))
+            db.session.add(Comments(reel_id=reel.id, user_id=commenter, content="영상 분위기 좋다!"))
         db.session.commit()
 
-        print("\n=== 5tory seed 완료 ===")
-        print(f"새 유저: {len(created_users)}")
-        print(f"게시물: {len(posts)}")
-        print(f"릴스: {len(reels)}")
-        print(f"스토리: {len(stories)}")
-        print("비밀번호: 1234")
-        if skipped:
-            print("이미 존재해서 건너뛴 seed 유저:", ", ".join(skipped))
-        print("기존 DB 데이터는 삭제/수정하지 않았습니다.")
+        print("시드 생성 완료: demo 계정 10개, 계정별 게시물/릴스/스토리 최소 5개")
+        print("계정: seed_mori_cafe 등 / 공통 비밀번호: 1234")
+        print(f"이번 실행 추가: 게시물 {len(new_posts)}, 릴스 {len(new_reels)}, 스토리 {len(new_stories)}")
 
 
 if __name__ == "__main__":

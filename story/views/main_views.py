@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, session, g, request
 from flask_login import current_user
-from sqlalchemy import or_
-from story.models import Post, Reels, Story, User
+from sqlalchemy import and_, or_
+from story.models import Friendship, Notification, Post, Reels, Story, User
 from story.time_utils import kst_now_naive
 from story.views import dmviews
 
@@ -41,15 +41,34 @@ def index():
         print(f"[Story Query Error]: {e}")
 
     posts = []
+    notifications = []
+    unread_notification_count = 0
+    reposted_post_ids = set()
     try:
         posts = Post.query.order_by(Post.id.desc()).all()
+        if current_uid:
+            reposted_post_ids = {
+                repost.post_id
+                for repost in PostRepost.query.filter_by(user_id=current_uid).all()
+            }
     except Exception:
         pass
+    if current_uid:
+        notifications = Notification.query.filter_by(recipient_id=current_uid).order_by(
+            Notification.created_at.desc()
+        ).limit(30).all()
+        unread_notification_count = Notification.query.filter_by(
+            recipient_id=current_uid,
+            is_read=False,
+        ).count()
     return render_template(
         'post/post_list.html',
         posts=posts,
+        reposted_post_ids=reposted_post_ids,
         story_list=stories,
-        active_chat_users=active_chat_users
+        active_chat_users=active_chat_users,
+        notifications=notifications,
+        unread_notification_count=unread_notification_count,
     )
 
 @bp.route('/search')
@@ -78,10 +97,22 @@ def search():
     posts = []
     reels = []
     reel_users = {}
+    user_friendships = {}
     if query:
         pattern = f'%{query}%'
         if category == 'users':
             users = User.query.filter(User.username.ilike(pattern)).order_by(User.username.asc()).limit(60).all()
+            if current_uid and users:
+                user_ids = [user.id for user in users if user.id != current_uid]
+                if user_ids:
+                    relationships = Friendship.query.filter(or_(
+                        and_(Friendship.user_low_id.in_(user_ids), Friendship.user_high_id == current_uid),
+                        and_(Friendship.user_low_id == current_uid, Friendship.user_high_id.in_(user_ids)),
+                    )).all()
+                    user_friendships = {
+                        row.user_high_id if row.user_low_id == current_uid else row.user_low_id: row
+                        for row in relationships
+                    }
         elif category == 'posts':
             posts = Post.query.join(User, Post.user_id == User.id).filter(
                 or_(Post.caption.ilike(pattern), User.username.ilike(pattern))
@@ -103,5 +134,7 @@ def search():
         posts=posts,
         reels=reels,
         reel_users=reel_users,
+        user_friendships=user_friendships,
+        current_user_id=current_uid,
         active_chat_users=active_chat_users
     )

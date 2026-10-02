@@ -22,6 +22,48 @@ class User(db.Model, UserMixin):
     updated_at = db.Column(db.DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 
 
+class Friendship(db.Model):
+    """A single directed request / accepted friendship for an unordered user pair."""
+    __tablename__ = 'friendship'
+    __table_args__ = (
+        db.UniqueConstraint('user_low_id', 'user_high_id', name='unique_friendship_pair'),
+        db.CheckConstraint('user_low_id < user_high_id', name='check_friendship_user_order'),
+        db.CheckConstraint("status IN ('pending', 'accepted')", name='check_friendship_status'),
+        db.CheckConstraint(
+            'requested_by_id = user_low_id OR requested_by_id = user_high_id',
+            name='check_friendship_requester_pair'
+        ),
+        {'extend_existing': True}
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_low_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    user_high_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    requested_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='pending')
+    created_at = db.Column(db.DateTime, nullable=False, default=utc_now_naive)
+    updated_at = db.Column(db.DateTime, nullable=False, default=utc_now_naive, onupdate=utc_now_naive)
+
+
+class Notification(db.Model):
+    __tablename__ = 'notification'
+    __table_args__ = (
+        db.UniqueConstraint('friendship_id', 'recipient_id', 'type', name='unique_friend_request_notification'),
+        {'extend_existing': True}
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    actor_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    friendship_id = db.Column(db.Integer, db.ForeignKey('friendship.id', ondelete='CASCADE'), nullable=False, index=True)
+    type = db.Column(db.String(40), nullable=False, default='friend_request')
+    is_read = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=utc_now_naive, index=True)
+
+    recipient = db.relationship('User', foreign_keys=[recipient_id])
+    actor = db.relationship('User', foreign_keys=[actor_id])
+
+
 class Conversation(db.Model):
     __tablename__ = 'conversation'
     __table_args__ = (
@@ -91,6 +133,22 @@ class Post(db.Model):
     updated_at = db.Column(db.DateTime, nullable=False, default=utc_now_naive, onupdate=utc_now_naive)
 
     user = db.relationship('User', backref=db.backref('post_set', cascade='all, delete-orphan'))
+
+
+class PostRepost(db.Model):
+    __tablename__ = 'post_reposts'
+    __table_args__ = (
+        db.UniqueConstraint('post_id', 'user_id', name='unique_post_user_repost'),
+        {'extend_existing': True}
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=utc_now_naive)
+
+    post = db.relationship('Post', backref=db.backref('reposts', cascade='all, delete-orphan'))
+    user = db.relationship('User', backref=db.backref('post_reposts', cascade='all, delete-orphan'))
 
 
 class PostLike(db.Model):
