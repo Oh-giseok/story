@@ -1,9 +1,7 @@
-import datetime
-
 from flask import Blueprint, render_template, session, g, request
 from flask_login import current_user
 from sqlalchemy import and_, or_
-from story.models import Friendship, Notification, Post, Reels, Story, User
+from story.models import Friendship, Notification, Post, PostComment, Reels, Story, User
 from story.time_utils import kst_now_naive
 from story.views import dmviews
 
@@ -28,7 +26,7 @@ def index():
             print(f"[DM Query Error in main_views.py]: {e}")
     stories = []
     try:
-        now_time = datetime.now()
+        now_time = kst_now_naive()
         all_stories = Story.query.filter(
             Story.expires_at > now_time
         ).order_by(
@@ -62,6 +60,16 @@ def index():
         notifications = Notification.query.filter_by(recipient_id=current_uid).order_by(
             Notification.created_at.desc()
         ).limit(30).all()
+        for notification in notifications:
+            notification.display_message = notification.message or ''
+            if notification.type == 'post_comment' and not notification.display_message and notification.post_id:
+                prior_comment = PostComment.query.filter(
+                    PostComment.post_id == notification.post_id,
+                    PostComment.user_id == notification.actor_id,
+                    PostComment.created_at <= notification.created_at,
+                ).order_by(PostComment.created_at.desc(), PostComment.id.desc()).first()
+                if prior_comment:
+                    notification.display_message = prior_comment.content
         unread_notification_count = Notification.query.filter_by(
             recipient_id=current_uid,
             is_read=False,

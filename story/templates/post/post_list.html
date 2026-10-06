@@ -15,6 +15,7 @@
     .notification-item:hover { background: #f8f9fa; }
     .notification-item.unread { background: #f2f7ff; }
     .notification-avatar { width: 42px; height: 42px; object-fit: cover; flex: 0 0 42px; }
+    .notification-copy { min-width: 0; overflow-wrap: anywhere; }
     @media (max-width: 992px) { .notification-widget { top: 14px; right: 14px; } }
     @media (max-width: 576px) { .notification-widget { top: 10px; right: 10px; } }
     .modal-content { border-radius: 12px; overflow: hidden; }
@@ -181,7 +182,7 @@
                     {% else %}
                     <i class="bi bi-person-circle notification-avatar fs-2 text-secondary" aria-hidden="true"></i>
                     {% endif %}
-                    <span class="flex-grow-1">{{ notification.actor.username }}님이 친구 요청을 보냈습니다.</span>
+                    <span class="flex-grow-1 notification-copy">{% if notification.type == 'friend_request' %}{{ notification.actor.username }}님이 친구 요청을 보냈습니다.{% elif notification.type == 'post_like' %}{{ notification.actor.username }}님이 회원님의 게시물을 좋아합니다.{% elif notification.type == 'post_comment' %}{% set comment_text = notification.display_message or '' %}{{ notification.actor.username }}님이 댓글을 남겼습니다.<br><span class="text-muted">“{{ comment_text[:10] }}{% if comment_text|length > 10 %}...{% endif %}”</span>{% else %}새 알림이 있습니다.{% endif %}</span>
                     <small class="text-muted text-nowrap">{{ notification.created_at|kst_datetime('%m-%d %H:%M') }}</small>
                 </a>
                 {% else %}
@@ -450,7 +451,7 @@
         if (typeof io === 'function') {
             const notificationSocket = io();
             notificationSocket.on('new_notification', (notification) => {
-                if (!notification || notification.type !== 'friend_request') return;
+                if (!notification) return;
                 if (notificationList.querySelector(`[data-notification-id="${notification.id}"]`)) return;
                 document.getElementById('notificationEmpty')?.remove();
 
@@ -473,8 +474,18 @@
                 }
 
                 const message = document.createElement('span');
-                message.className = 'flex-grow-1';
-                message.textContent = notification.message;
+                message.className = 'flex-grow-1 notification-copy';
+                if (notification.type === 'post_comment') {
+                    const headline = document.createElement('span');
+                    headline.textContent = `${notification.actor_username}님이 댓글을 남겼습니다.`;
+                    const content = document.createElement('span');
+                    content.className = 'd-block text-muted';
+                    const comment = notification.comment_content || '';
+                    content.textContent = `“${comment.slice(0, 10)}${comment.length > 10 ? '...' : ''}”`;
+                    message.append(headline, content);
+                } else {
+                    message.textContent = notification.message;
+                }
                 item.appendChild(message);
                 notificationList.prepend(item);
                 setUnreadCount(notification.unread_count);
