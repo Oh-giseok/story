@@ -7,8 +7,14 @@
         height: 128px;
         object-fit: cover;
     }
+    .availability-message { display: block; min-height: 1.25rem; font-size: .82rem; margin-top: .25rem; }
+    .availability-message.available { color: #198754; }
+    .availability-message.unavailable { color: #dc3545; }
 </style>
 <div class="container py-3" style="max-width: 640px;">
+    <a href="{{ url_for('auth.login') }}" class="btn btn-link text-secondary p-0 mb-2" aria-label="로그인 페이지로 돌아가기" title="로그인으로 돌아가기">
+        <i class="bi bi-arrow-left fs-4" aria-hidden="true"></i>
+    </a>
     <h5 class="my-3 border-bottom pb-2">회원 가입</h5>
     <section class="card">
         <div class="card-body p-4">
@@ -29,7 +35,8 @@
 
                 <div class="mb-3">
                     {{ form.username.label(class="form-label") }}
-                    {{ form.username(class="form-control") }}
+                    {{ form.username(class="form-control", id="signup-username", autocomplete="username") }}
+                    <small id="username-availability" class="availability-message" aria-live="polite"></small>
                 </div>
 
                 <div class="mb-3">
@@ -40,11 +47,13 @@
                 <div class="mb-3">
                     {{ form.password_hash2.label(class="form-label") }}
                     {{ form.password_hash2(class="form-control") }}
+                    <small id="password-match-message" class="availability-message" aria-live="polite"></small>
                 </div>
 
                 <div class="mb-3">
                     {{ form.email.label(class="form-label") }}
-                    {{ form.email(class="form-control") }}
+                    {{ form.email(class="form-control", id="signup-email", autocomplete="email") }}
+                    <small id="email-availability" class="availability-message" aria-live="polite"></small>
                 </div>
 
                 <div class="mb-3">
@@ -62,7 +71,7 @@
                     {{ form.birth(class="form-control") }}
                 </div>
 
-                {{ form.submit(class="btn auth-primary-btn w-100") }}
+                {{ form.submit(class="btn auth-primary-btn w-100", id="signup-submit", disabled=true) }}
             </form>
         </div>
     </section>
@@ -94,5 +103,90 @@
         profileImagePreview.classList.remove('d-none');
         profilePreviewPlaceholder.classList.add('d-none');
     });
+
+    const availabilityChecks = [
+        { input: document.getElementById('signup-username'), output: document.getElementById('username-availability'), field: 'username', minLength: 2 },
+        { input: document.getElementById('signup-email'), output: document.getElementById('email-availability'), field: 'email', minLength: 1 }
+    ];
+    const signupSubmit = document.getElementById('signup-submit');
+    const availability = { username: null, email: null };
+    const updateSubmitState = () => {
+        signupSubmit.disabled = !availability.username || !availability.email ||
+            availability.username.value !== document.getElementById('signup-username').value.trim() ||
+            availability.email.value !== document.getElementById('signup-email').value.trim();
+    };
+    availabilityChecks.forEach(({ input, output, field, minLength }) => {
+        let timer;
+        let controller;
+        const check = async () => {
+            const value = input.value.trim();
+            input.classList.remove('is-valid', 'is-invalid');
+            availability[field] = null;
+            updateSubmitState();
+            output.className = 'availability-message';
+            output.textContent = '';
+            if (field === 'username' && value && !/^[A-Za-z0-9]+$/.test(value)) {
+                input.classList.add('is-invalid');
+                output.classList.add('unavailable');
+                output.textContent = 'ID는 영어와 숫자만 사용할 수 있습니다.';
+                return;
+            }
+            if (value.length < minLength || (field === 'email' && !input.validity.valid)) return;
+            if (controller) controller.abort();
+            controller = new AbortController();
+            try {
+                const url = new URL("{{ url_for('auth.check_signup_value') }}", window.location.origin);
+                url.searchParams.set('field', field);
+                url.searchParams.set('value', value);
+                const response = await fetch(url, { signal: controller.signal, headers: { 'Accept': 'application/json' } });
+                if (!response.ok) return;
+                const result = await response.json();
+                if (input.value.trim() !== value) return;
+                availability[field] = result.available ? { value } : null;
+                input.classList.add(result.available ? 'is-valid' : 'is-invalid');
+                output.classList.add(result.available ? 'available' : 'unavailable');
+                output.textContent = result.message;
+                updateSubmitState();
+            } catch (error) {
+                if (error.name !== 'AbortError') console.error('회원가입 중복 확인에 실패했습니다.', error);
+            }
+        };
+        input.addEventListener('input', () => {
+            clearTimeout(timer);
+            input.classList.remove('is-valid', 'is-invalid');
+            availability[field] = null;
+            updateSubmitState();
+            output.className = 'availability-message';
+            output.textContent = '';
+            timer = setTimeout(check, 350);
+        });
+        input.addEventListener('blur', check);
+    });
+
+    const passwordInput = document.getElementById('{{ form.password_hash.id }}');
+    const passwordConfirmInput = document.getElementById('{{ form.password_hash2.id }}');
+    const passwordMatchMessage = document.getElementById('password-match-message');
+    const checkPasswordMatch = () => {
+        const hasBothValues = passwordInput.value.length > 0 && passwordConfirmInput.value.length > 0;
+        const matches = passwordInput.value === passwordConfirmInput.value;
+        passwordInput.classList.remove('is-valid', 'is-invalid');
+        passwordConfirmInput.classList.remove('is-valid', 'is-invalid');
+        passwordMatchMessage.className = 'availability-message';
+        passwordMatchMessage.textContent = '';
+        if (!hasBothValues) return;
+        if (!matches) {
+            passwordInput.classList.add('is-invalid');
+            passwordConfirmInput.classList.add('is-invalid');
+            passwordMatchMessage.classList.add('unavailable');
+            passwordMatchMessage.textContent = '비밀번호가 일치하지 않습니다.';
+        } else {
+            passwordInput.classList.add('is-valid');
+            passwordConfirmInput.classList.add('is-valid');
+            passwordMatchMessage.classList.add('available');
+            passwordMatchMessage.textContent = '비밀번호가 일치합니다.';
+        }
+    };
+    passwordInput.addEventListener('input', checkPasswordMatch);
+    passwordConfirmInput.addEventListener('input', checkPasswordMatch);
 </script>
 {% endblock %}

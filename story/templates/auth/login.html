@@ -145,6 +145,10 @@
 
                 {% include 'form_errors.html' %}
 
+                {% if login_error %}
+                <div id="login-error" class="alert alert-danger" role="alert">{{ login_error }}</div>
+                {% endif %}
+
                 <!-- 아이디 -->
                 <div class="mb-3">
                     {{ form.username.label(class="form-label") }}
@@ -190,4 +194,17 @@
 
 </div>
 
+{% endblock %}
+{% block script %}
+{% if login_error %}
+<script>
+    window.setTimeout(() => {
+        const error = document.getElementById('login-error');
+        if (!error) return;
+        error.style.transition = 'opacity 200ms ease';
+        error.style.opacity = '0';
+        window.setTimeout(() => error.remove(), 200);
+    }, 5000);
+</script>
+{% endif %}
 {% endblock %}
