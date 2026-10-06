@@ -236,31 +236,36 @@
     border-radius: 12px;
     overflow: hidden;
     z-index: 20;
+    transition: transform 0.45s ease;
 }
-
 
 /* 스토리 이미지 */
 .story-viewer-image {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: #000000;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    inset: 0;
     z-index: 1;
+    overflow: hidden;
+    background: #000000;
 }
 
-
 /* 스토리 이미지 */
-.story-viewer-image img {
+.story-viewer-image img,
+.story-viewer-image video {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
+    opacity: 0;
+    z-index: 1;
 }
 
+/* 스토리 이미지 / 영상 표시 */
+.story-viewer-image img.is-visible,
+.story-viewer-image video.is-visible {
+    opacity: 1;
+    z-index: 2;
+}
 
 /* 닫기 버튼 */
 .story-viewer-close {
@@ -273,7 +278,6 @@
     text-decoration: none;
     z-index: 10000;
 }
-
 
 /* 작성자 정보 */
 .story-viewer-user {
@@ -292,14 +296,12 @@
     box-sizing: border-box;
 }
 
-
 /* 작성자 정보 안의 아이디와 시간 묶음 방 가로 정렬 */
 .story-viewer-user > div {
     display: flex;
     align-items: center;
     gap: 8px;
 }
-
 
 /* 프로필 이미지 */
 .story-viewer-profile {
@@ -309,7 +311,6 @@
     object-fit: cover;
     border: 2px solid #ffffff;
 }
-
 
 /* 프로필 이미지가 없을 때 */
 .story-viewer-profile-default {
@@ -323,13 +324,11 @@
     align-items: center;
 }
 
-
 /* 프로필 기본 아이콘 */
 .story-viewer-profile-default i {
     color: #ffffff;
     font-size: 18px;
 }
-
 
 /* 작성자 아이디 */
 .story-viewer-username {
@@ -338,14 +337,12 @@
     font-weight: 600;
 }
 
-
 /* 작성 시간 */
 .story-viewer-time {
     color: rgba(255, 255, 255, 0.75);
     font-size: 14px;
     margin-left: 0px;
 }
-
 
 /* 스토리 문구 */
 .story-viewer-caption {
@@ -361,7 +358,6 @@
     z-index: 30;
 }
 
-
 /* 수정 / 삭제 버튼 */
 .story-viewer-buttons {
     position: absolute;
@@ -371,7 +367,6 @@
     gap: 8px;
     z-index: 40;
 }
-
 
 /* 이전 / 다음 스토리 정보 */
 .adjacent-info-overlay {
@@ -386,7 +381,6 @@
     z-index: 5;
 }
 
-
 /* 이전 / 다음 스토리 프로필 */
 .adjacent-profile-img {
     width: 48px;
@@ -395,7 +389,6 @@
     object-fit: cover;
     border: 2px solid #ffffff;
 }
-
 
 /* 이전 / 다음 스토리 기본 프로필 */
 .adjacent-profile-default {
@@ -409,7 +402,6 @@
     border: 2px solid #ffffff;
 }
 
-
 /* 이전 / 다음 스토리 아이디 */
 .adjacent-username {
     display: block;
@@ -422,7 +414,6 @@
     white-space: nowrap;
 }
 
-
 /* 이전 / 다음 스토리 작성 시간 */
 .adjacent-time {
     display: block;
@@ -430,7 +421,6 @@
     font-size: 11px;
     margin-top: 2px;
 }
-
 
 /* 스토리 게이지 바 컨테이너 */
 .story-progress-bar-container {
@@ -445,7 +435,6 @@
     box-sizing: border-box;
 }
 
-
 /* 스토리 게이지 바 기본 트랙 */
 .story-progress-bar-track {
     flex: 1;
@@ -456,7 +445,6 @@
     position: relative;
 }
 
-
 /* 스토리 게이지 바 */
 .story-progress-bar-fill {
     width: 0%;
@@ -464,9 +452,37 @@
     background-color: #ffffff;
 }
 
-
 /* 완료된 스토리 게이지 */
 .story-progress-bar-fill.watched {
     width: 100% !important;
 }
 
+/* 스토리 이동 슬라이드 애니메이션 */
+.story-adjacent-card {
+    transition: transform 0.7s ease;
+}
+
+/* 가운데로 이동하는 스토리 카드 */
+.story-moving-card {
+    position: fixed;
+    z-index: 999999;
+    overflow: hidden;
+    border-radius: 12px;
+    background-color: #000000;
+    pointer-events: none;
+    opacity: 1;
+}
+
+/* 이동하는 카드 안의 이미지 */
+.story-moving-card img,
+.story-moving-card video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* 현재 스토리가 왼쪽으로 빠지는 효과 */
+.story-viewer.story-slide-out {
+    transition: transform 0.7s ease;
+    transform: translateX(-210px);
+}

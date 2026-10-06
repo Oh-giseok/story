@@ -78,6 +78,9 @@ def detail(story_id):
     user_stories = user_groups[current_story.user_id]
     user_stories.sort(key=lambda x: x.create_date)
 
+    if current_story.user_id not in ordered_user_ids:
+        return redirect(url_for('story.story_list'))
+
     current_user_idx = ordered_user_ids.index(current_story.user_id)
     story = Story.query.get_or_404(story_id)
 
