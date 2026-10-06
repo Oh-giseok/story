@@ -212,6 +212,7 @@
         .createReelModal .modal-dialog.caption-step { max-width: 850px; }
         .createReelModal .modal-dialog.caption-step .modal-content { width: 100%; margin: 0 auto; }
         .createReelModal .modal-title { padding-left: 32px; }
+        #createStoryModal .modal-content { border-radius: 12px; overflow: hidden; }
 
         @media (max-width: 768px) {
             .bottom-nav-item {
@@ -415,12 +416,18 @@
                         <span class="upload-choice-copy"><strong>릴스 만들기</strong><small>짧은 동영상을 릴스로 공유해요.</small></span>
                         <i class="bi bi-chevron-right upload-choice-arrow" aria-hidden="true"></i>
                     </button>
+                    <button type="button" class="upload-choice-option w-100" data-open-composer="#createStoryModal" aria-label="스토리 만들기">
+                        <span class="upload-choice-icon"><i class="bi bi-circle" aria-hidden="true"></i></span>
+                        <span class="upload-choice-copy"><strong>스토리 만들기</strong><small>사진이나 동영상을 24시간 동안 공유해요.</small></span>
+                        <i class="bi bi-chevron-right upload-choice-arrow" aria-hidden="true"></i>
+                    </button>
                 </div>
             </div>
         </div>
     </div>
     {% include 'post/post_create_modal.html' %}
     {% include 'reels/reel_create_modal.html' %}
+    {% include 'story/story_create_modal.html' %}
     {% endif %}
 
     <!-- Bootstrap JS -->
@@ -593,6 +600,39 @@
                 nextButton.classList.add('d-none'); backButton.classList.add('d-none'); submitButton.classList.add('d-none');
             });
         }
+
+        const storyMediaInput = document.getElementById('storyMediaInput');
+        const storyPreviewWrap = document.getElementById('storyMediaPreviewWrap');
+        const storyImagePreview = document.getElementById('storyImagePreview');
+        const storyVideoPreview = document.getElementById('storyVideoPreview');
+        const storyComposer = document.getElementById('createStoryModal');
+        let storyPreviewUrl = null;
+        const resetStoryPreview = () => {
+            if (storyPreviewUrl) URL.revokeObjectURL(storyPreviewUrl);
+            storyPreviewUrl = null;
+            storyImagePreview.removeAttribute('src');
+            storyVideoPreview.pause();
+            storyVideoPreview.removeAttribute('src');
+            storyVideoPreview.load();
+            storyImagePreview.classList.add('d-none');
+            storyVideoPreview.classList.add('d-none');
+            storyPreviewWrap.classList.add('d-none');
+        };
+        storyMediaInput?.addEventListener('change', () => {
+            resetStoryPreview();
+            const file = storyMediaInput.files && storyMediaInput.files[0];
+            if (!file) return;
+            storyPreviewUrl = URL.createObjectURL(file);
+            storyPreviewWrap.classList.remove('d-none');
+            if (file.type.startsWith('video/')) {
+                storyVideoPreview.src = storyPreviewUrl;
+                storyVideoPreview.classList.remove('d-none');
+            } else if (file.type.startsWith('image/')) {
+                storyImagePreview.src = storyPreviewUrl;
+                storyImagePreview.classList.remove('d-none');
+            }
+        });
+        storyComposer?.addEventListener('hidden.bs.modal', resetStoryPreview);
     </script>
     {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage'] %}
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>

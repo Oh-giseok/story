@@ -13,9 +13,8 @@
      <div class="insta-story-container">
 
          <!-- 새 스토리 올리기 -->
-         <a href="{{ url_for('story.story_create') }}"
-            class="insta-story-item"
-            style="text-decoration: none;">
+         <button type="button" class="insta-story-item border-0 bg-transparent"
+                 data-bs-toggle="modal" data-bs-target="#createStoryModal">
 
              <div class="insta-story-ring"
                   style="background: #e0e0e0; padding: 0;">
@@ -38,7 +37,7 @@
         올리기
     </div>
 
-</a>
+</button>
         {% if story_list %}
 
             {% for story in story_list %}
