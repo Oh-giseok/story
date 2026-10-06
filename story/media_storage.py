@@ -29,14 +29,21 @@ def upload_media(file_storage, folder, resource_type='image'):
         base_url, service_key, bucket = settings
         object_key = secrets.token_urlsafe(16)
 
-        guessed_type = mimetypes.guess_type(original_name)[0]
+        # 💡 [안정성 강화] NoneType 에러가 발생하지 않도록 튜플 추출 방식을 안전하게 수정했습니다.
+        guessed_type_tuple = mimetypes.guess_type(original_name)
+        guessed_type = guessed_type_tuple[0] if guessed_type_tuple else None
+
         content_type = (
             getattr(file_storage, 'mimetype', None)
             or guessed_type
             or 'application/octet-stream'
         )
 
+        # 💡 파일 데이터를 바이트 단위로 읽어옵니다.
         body = file_storage.read()
+        if isinstance(body, str):
+            body = body.encode('utf-8')
+
         headers = {
             'apikey': service_key,
             'Content-Type': content_type,
