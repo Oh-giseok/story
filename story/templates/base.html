@@ -212,7 +212,10 @@
         .createReelModal .modal-dialog.caption-step { max-width: 850px; }
         .createReelModal .modal-dialog.caption-step .modal-content { width: 100%; margin: 0 auto; }
         .createReelModal .modal-title { padding-left: 32px; }
-        #createStoryModal .modal-content { border-radius: 12px; overflow: hidden; }
+        .createStoryModal .modal-content { width: 80%; margin: 0 auto; }
+        .createStoryModal .modal-dialog.caption-step { max-width: 850px; }
+        .createStoryModal .modal-dialog.caption-step .modal-content { width: 100%; margin: 0 auto; }
+        .createStoryModal .modal-title { padding-left: 32px; }
 
         @media (max-width: 768px) {
             .bottom-nav-item {
@@ -306,16 +309,43 @@
                 </div>
                 <div class="modal-body notification-list" id="notificationList">
                     {% for notification in notifications %}
-                    <a class="list-group-item list-group-item-action d-flex align-items-center gap-3 notification-item {% if not notification.is_read %}unread{% endif %}"
-                       href="{{ url_for('auth.mypage', user_id=notification.actor_id) }}" data-notification-id="{{ notification.id }}">
+                    <div class="list-group-item d-flex align-items-center gap-3 notification-item {% if not notification.is_read %}unread{% endif %}"
+                         data-notification-id="{{ notification.id }}">
+                        <a href="{{ url_for('auth.mypage', user_id=notification.actor_id) }}" aria-label="{{ notification.actor.username }}님의 마이페이지" class="flex-shrink-0">
                         {% if notification.actor.profile_img_url %}
                         <img class="notification-avatar rounded-circle" src="{{ notification.actor.profile_img_url|profile_img }}" alt="">
                         {% else %}
                         <i class="bi bi-person-circle notification-avatar fs-2 text-secondary" aria-hidden="true"></i>
                         {% endif %}
-                        <span class="flex-grow-1 notification-copy">{% if notification.type == 'friend_request' %}{{ notification.actor.username }}님이 친구 요청을 보냈습니다.{% elif notification.type == 'post_like' %}{{ notification.actor.username }}님이 회원님의 게시물을 좋아합니다.{% elif notification.type == 'post_comment' %}{% set comment_text = notification.display_message or '' %}{{ notification.actor.username }}님이 댓글을 남겼습니다.<br><span class="text-muted">“{{ comment_text[:10] }}{% if comment_text|length > 10 %}...{% endif %}”</span>{% else %}새 알림이 있습니다.{% endif %}</span>
+                        </a>
+                        <div class="flex-grow-1 notification-copy">
+                        {% if notification.type in ['post_like', 'post_comment'] and notification.post_id %}
+                            <a href="{{ url_for('auth.mypage', user_id=notification.actor_id) }}" class="fw-semibold text-dark text-decoration-none">{{ notification.actor.username }}</a>
+                            <button type="button" class="btn btn-link text-start text-dark text-decoration-none p-0 notification-open-post" data-open-post-id="{{ notification.post_id }}">
+                                {% if notification.type == 'post_like' %}님이 회원님의 게시물을 좋아합니다.{% else %}님이 댓글을 남겼습니다.<span class="d-block small text-muted">“{{ (notification.display_message or '')[:10] }}{% if (notification.display_message or '')|length > 10 %}...{% endif %}”</span>{% endif %}
+                            </button>
+                        {% else %}
+                            <a href="{{ url_for('auth.mypage', user_id=notification.actor_id) }}" class="text-dark text-decoration-none">
+                                {% if notification.type == 'friend_request' %}{{ notification.actor.username }}님이 친구 요청을 보냈습니다.{% else %}새 알림이 있습니다.{% endif %}
+                            </a>
+                        {% endif %}
+                        </div>
+                        {% if notification.type == 'friend_request' and notification.friendship_pending %}
+                        <div class="d-flex flex-row gap-1 flex-shrink-0">
+                            <form method="post" action="{{ url_for('auth.update_friendship', target_id=notification.actor_id, action='accept') }}">
+                                <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                                <input type="hidden" name="return_to" value="notifications">
+                                <button type="submit" class="btn btn-sm btn-primary">수락</button>
+                            </form>
+                            <form method="post" action="{{ url_for('auth.update_friendship', target_id=notification.actor_id, action='reject') }}">
+                                <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                                <input type="hidden" name="return_to" value="notifications">
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">삭제</button>
+                            </form>
+                        </div>
+                        {% endif %}
                         <small class="text-muted text-nowrap">{{ notification.created_at|kst_datetime('%m-%d %H:%M') }}</small>
-                    </a>
+                    </div>
                     {% else %}
                     <p class="text-muted text-center my-4" id="notificationEmpty">새로운 알림이 없습니다.</p>
                     {% endfor %}
@@ -324,6 +354,7 @@
             </div>
         </div>
     </div>
+    {% include 'post/post_detail_modal.html' %}
     {% endif %}
 
     <!-- 하단 고정 네비게이션 Bar (로그인 상태 및 특정 페이지 조건부 노출) -->
@@ -601,38 +632,70 @@
             });
         }
 
-        const storyMediaInput = document.getElementById('storyMediaInput');
-        const storyPreviewWrap = document.getElementById('storyMediaPreviewWrap');
-        const storyImagePreview = document.getElementById('storyImagePreview');
-        const storyVideoPreview = document.getElementById('storyVideoPreview');
         const storyComposer = document.getElementById('createStoryModal');
-        let storyPreviewUrl = null;
-        const resetStoryPreview = () => {
-            if (storyPreviewUrl) URL.revokeObjectURL(storyPreviewUrl);
-            storyPreviewUrl = null;
-            storyImagePreview.removeAttribute('src');
-            storyVideoPreview.pause();
-            storyVideoPreview.removeAttribute('src');
-            storyVideoPreview.load();
-            storyImagePreview.classList.add('d-none');
-            storyVideoPreview.classList.add('d-none');
-            storyPreviewWrap.classList.add('d-none');
-        };
-        storyMediaInput?.addEventListener('change', () => {
-            resetStoryPreview();
-            const file = storyMediaInput.files && storyMediaInput.files[0];
-            if (!file) return;
-            storyPreviewUrl = URL.createObjectURL(file);
-            storyPreviewWrap.classList.remove('d-none');
-            if (file.type.startsWith('video/')) {
-                storyVideoPreview.src = storyPreviewUrl;
-                storyVideoPreview.classList.remove('d-none');
-            } else if (file.type.startsWith('image/')) {
-                storyImagePreview.src = storyPreviewUrl;
-                storyImagePreview.classList.remove('d-none');
-            }
-        });
-        storyComposer?.addEventListener('hidden.bs.modal', resetStoryPreview);
+        if (storyComposer) {
+            const storyForm = document.getElementById('createStoryForm');
+            const storyMediaInput = document.getElementById('storyMediaInput');
+            const chooseStoryMedia = document.getElementById('chooseStoryMedia');
+            const storyStep1 = document.getElementById('storyUploadStep1');
+            const storyStep2 = document.getElementById('storyUploadStep2');
+            const storyBack = document.getElementById('storyUploadBack');
+            const storySubmit = document.getElementById('storyUploadSubmit');
+            const selectionWrap = document.getElementById('storySelectionPreviewWrap');
+            const selectionImage = document.getElementById('storySelectionImage');
+            const selectionVideo = document.getElementById('storySelectionVideo');
+            const previewImage = document.getElementById('storyImagePreview');
+            const previewVideo = document.getElementById('storyVideoPreview');
+            let storyPreviewUrl = null;
+
+            const clearStoryPreview = () => {
+                if (storyPreviewUrl) URL.revokeObjectURL(storyPreviewUrl);
+                storyPreviewUrl = null;
+                [selectionImage, previewImage].forEach(image => { image.removeAttribute('src'); image.classList.add('d-none'); });
+                [selectionVideo, previewVideo].forEach(video => { video.pause(); video.removeAttribute('src'); video.load(); video.classList.add('d-none'); });
+                selectionWrap.classList.add('d-none');
+            };
+            const resetStoryComposer = () => {
+                clearStoryPreview();
+                storyForm.reset();
+                storyStep1.classList.remove('d-none');
+                storyStep2.classList.add('d-none');
+                storyComposer.querySelector('.modal-dialog').classList.remove('caption-step');
+                storyBack.classList.add('d-none');
+                storySubmit.classList.add('d-none');
+            };
+            chooseStoryMedia.addEventListener('click', () => storyMediaInput.click());
+            storyMediaInput.addEventListener('change', () => {
+                const file = storyMediaInput.files && storyMediaInput.files[0];
+                if (!file) return;
+                clearStoryPreview();
+                storyPreviewUrl = URL.createObjectURL(file);
+                selectionWrap.classList.remove('d-none');
+                if (file.type.startsWith('video/')) {
+                    selectionVideo.src = storyPreviewUrl;
+                    previewVideo.src = storyPreviewUrl;
+                    selectionVideo.classList.remove('d-none');
+                    previewVideo.classList.remove('d-none');
+                } else if (file.type.startsWith('image/')) {
+                    selectionImage.src = storyPreviewUrl;
+                    previewImage.src = storyPreviewUrl;
+                    selectionImage.classList.remove('d-none');
+                    previewImage.classList.remove('d-none');
+                }
+                storyComposer.querySelector('.modal-dialog').classList.add('caption-step');
+                storyStep1.classList.add('d-none');
+                storyStep2.classList.remove('d-none');
+                storyBack.classList.remove('d-none');
+                storySubmit.classList.remove('d-none');
+            });
+            storyBack.addEventListener('click', () => {
+                storyComposer.querySelector('.modal-dialog').classList.remove('caption-step');
+                storyStep2.classList.add('d-none');
+                storyStep1.classList.remove('d-none');
+                storySubmit.classList.add('d-none');
+            });
+            storyComposer.addEventListener('hidden.bs.modal', resetStoryComposer);
+        }
     </script>
     {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage'] %}
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
@@ -649,6 +712,19 @@
                 notificationBadge.textContent = unreadCount;
                 notificationBadge.classList.toggle('d-none', unreadCount === 0);
             };
+
+            notificationList.addEventListener('click', (event) => {
+                const postButton = event.target.closest('[data-open-post-id]');
+                if (!postButton) return;
+                event.preventDefault();
+                const openPost = () => window.openPostDetailModal?.(postButton.dataset.openPostId);
+                if (notificationModal.classList.contains('show')) {
+                    notificationModal.addEventListener('hidden.bs.modal', openPost, { once: true });
+                    bootstrap.Modal.getOrCreateInstance(notificationModal).hide();
+                } else {
+                    openPost();
+                }
+            });
 
             notificationModal.addEventListener('shown.bs.modal', async () => {
                 if (Number(notificationBadge.textContent) === 0) return;
@@ -672,36 +748,77 @@
             notificationSocket.on('new_notification', (notification) => {
                 if (!notification || notificationList.querySelector(`[data-notification-id="${notification.id}"]`)) return;
                 document.getElementById('notificationEmpty')?.remove();
-                const item = document.createElement('a');
-                item.className = 'list-group-item list-group-item-action d-flex align-items-center gap-3 py-3 notification-item unread';
-                item.href = notification.url;
+                const item = document.createElement('div');
+                item.className = 'list-group-item d-flex align-items-center gap-3 notification-item unread';
                 item.dataset.notificationId = notification.id;
+                const profileLink = document.createElement('a');
+                profileLink.href = `{{ url_for('auth.mypage') }}?user_id=${encodeURIComponent(notification.actor_id)}`;
+                profileLink.className = 'flex-shrink-0';
                 if (notification.actor_profile_img_url) {
                     const avatar = document.createElement('img');
                     avatar.className = 'notification-avatar rounded-circle';
-                    avatar.src = `{{ url_for('static', filename='') }}${notification.actor_profile_img_url.replace(/^\//, '')}`;
+                    const imagePath = notification.actor_profile_img_url;
+                    avatar.src = /^(https?:)?\/\//i.test(imagePath) || imagePath.startsWith('/')
+                        ? imagePath : `{{ url_for('static', filename='') }}${imagePath.replace(/^\//, '')}`;
                     avatar.alt = '';
-                    item.appendChild(avatar);
+                    profileLink.appendChild(avatar);
                 } else {
                     const avatar = document.createElement('i');
                     avatar.className = 'bi bi-person-circle notification-avatar fs-2 text-secondary';
                     avatar.setAttribute('aria-hidden', 'true');
-                    item.appendChild(avatar);
+                    profileLink.appendChild(avatar);
                 }
+                item.appendChild(profileLink);
                 const message = document.createElement('span');
                 message.className = 'flex-grow-1 notification-copy';
-                if (notification.type === 'post_comment') {
-                    const headline = document.createElement('span');
-                    headline.textContent = `${notification.actor_username}님이 댓글을 남겼습니다.`;
-                    const content = document.createElement('span');
-                    content.className = 'd-block text-muted';
-                    const comment = notification.comment_content || '';
-                    content.textContent = `“${comment.slice(0, 10)}${comment.length > 10 ? '...' : ''}”`;
-                    message.append(headline, content);
+                if (notification.type === 'friend_request') {
+                    const profileText = document.createElement('a');
+                    profileText.href = profileLink.href;
+                    profileText.className = 'text-dark text-decoration-none';
+                    profileText.textContent = `${notification.actor_username}님이 친구 요청을 보냈습니다.`;
+                    message.appendChild(profileText);
                 } else {
-                    message.textContent = notification.message;
+                    const actorName = document.createElement('a');
+                    actorName.href = profileLink.href;
+                    actorName.className = 'fw-semibold text-dark text-decoration-none';
+                    actorName.textContent = notification.actor_username || '';
+                    const openPost = document.createElement('button');
+                    openPost.type = 'button';
+                    openPost.className = 'btn btn-link text-start text-dark text-decoration-none p-0 notification-open-post';
+                    openPost.dataset.openPostId = notification.post_id || '';
+                    if (notification.type === 'post_comment') {
+                        openPost.append(document.createTextNode('님이 댓글을 남겼습니다.'));
+                        const comment = document.createElement('span');
+                        comment.className = 'd-block small text-muted';
+                        const content = notification.comment_content || '';
+                        comment.textContent = `“${content.slice(0, 10)}${content.length > 10 ? '...' : ''}”`;
+                        openPost.append(comment);
+                    } else {
+                        openPost.textContent = '님이 회원님의 게시물을 좋아합니다.';
+                    }
+                    message.append(actorName, document.createTextNode(' '), openPost);
                 }
                 item.appendChild(message);
+                if (notification.type === 'friend_request' && notification.friendship_pending && notification.friendship_id) {
+                    const actions = document.createElement('div');
+                    actions.className = 'd-flex flex-row gap-1 flex-shrink-0';
+                    ['accept', 'reject'].forEach(action => {
+                        const form = document.createElement('form');
+                        form.method = 'post';
+                        form.action = `/auth/friend/${encodeURIComponent(notification.actor_id)}/${action}`;
+                        const csrf = document.createElement('input');
+                        csrf.type = 'hidden'; csrf.name = 'csrf_token'; csrf.value = csrfInput.value;
+                        const returnTo = document.createElement('input');
+                        returnTo.type = 'hidden'; returnTo.name = 'return_to'; returnTo.value = 'notifications';
+                        const button = document.createElement('button');
+                        button.type = 'submit';
+                        button.className = action === 'accept' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline-secondary';
+                        button.textContent = action === 'accept' ? '수락' : '삭제';
+                        form.append(csrf, returnTo, button);
+                        actions.appendChild(form);
+                    });
+                    item.appendChild(actions);
+                }
                 notificationList.prepend(item);
                 setUnreadCount(notification.unread_count);
             });
