@@ -87,9 +87,10 @@ def signup():
     form = UserCreateForm()
 
     if request.method == 'POST' and form.validate_on_submit():
-        user = User.query.filter_by(username=form.username.data).first()
+        username_exists = User.query.filter_by(username=form.username.data.strip()).first()
+        email_exists = User.query.filter_by(email=form.email.data.strip()).first()
 
-        if not user:
+        if not username_exists and not email_exists:
             profile_img_url = None
             image = form.profile_img_url.data
 
@@ -104,9 +105,9 @@ def signup():
                 profile_img_url = f'profile/{filename}'
             user = User(
                 profile_img_url=profile_img_url,
-                username=form.username.data,
+                username=form.username.data.strip(),
                 password_hash=generate_password_hash(form.password_hash.data),
-                email=form.email.data,
+                email=form.email.data.strip(),
                 name=form.name.data,
                 intro=form.intro.data,
                 birth=form.birth.data,
@@ -121,14 +122,40 @@ def signup():
 
             return redirect(url_for('main.index'))
         else:
-            flash('이미 존재하는 사용자입니다.')
+            if username_exists:
+                form.username.errors.append('이미 사용 중인 ID입니다.')
+            if email_exists:
+                form.email.errors.append('이미 사용 중인 이메일입니다.')
 
     return render_template('auth/signup.html', form=form)
+
+
+@bp.route('/check_signup_value')
+def check_signup_value():
+    field = request.args.get('field', '')
+    value = request.args.get('value', '').strip()
+    if field not in {'username', 'email'} or not value:
+        return jsonify({'available': False, 'message': ''})
+    if field == 'username' and not value.isascii() or field == 'username' and not value.isalnum():
+        return jsonify({'available': False, 'message': 'ID는 영어와 숫자만 사용할 수 있습니다.'})
+    query = User.query.filter_by(**{field: value})
+    if request.args.get('context') == 'profile' and g.user:
+        query = query.filter(User.id != g.user.id)
+    exists = query.first() is not None
+    return jsonify({
+        'available': not exists,
+        'message': '이미 사용 중인 ID입니다.' if exists and field == 'username' else (
+            '이미 사용 중인 이메일입니다.' if exists else (
+                '사용 가능한 ID입니다.' if field == 'username' else '사용 가능합니다.'
+            )
+        )
+    })
 
 
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
     form = UserLoginForm()
+    login_error = None
     if request.method == 'POST' and form.validate_on_submit():
         error = None
         user = User.query.filter_by(username=form.username.data).first()
@@ -161,8 +188,8 @@ def login():
                     return redirect(next_url)
 
             return redirect(url_for('main.index'))
-        flash(error)
-    return render_template('auth/login.html', form=form)
+        login_error = error
+    return render_template('auth/login.html', form=form, login_error=login_error)
 
 
 @bp.route('/find_info', methods=['GET', 'POST'])
@@ -228,17 +255,28 @@ def profile_edit():
         form.intro.data = g.user.intro
 
     if form.validate_on_submit():
-        if form.username.data:
-            user = User.query.filter(
-                User.username == form.username.data,
-                User.id != g.user.id
-            ).first()
+        username = (form.username.data or '').strip()
+        email = (form.email.data or '').strip()
+        username_user = User.query.filter(
+            User.username == username, User.id != g.user.id
+        ).first() if username else None
+        email_user = User.query.filter(
+            User.email == email, User.id != g.user.id
+        ).first() if email else None
 
-            if user:
+        if username_user or email_user:
+            if username_user:
                 flash('이미 사용 중인 아이디입니다.')
-                return redirect(url_for('auth.profile_edit'))
+            if email_user:
+                flash('이미 사용 중인 이메일입니다.')
+            form.username.data = username or g.user.username
+            form.email.data = email or g.user.email
+            return render_template(
+                'auth/profile_edit.html', form=form, account_form=FlaskForm()
+            )
 
-            g.user.username = form.username.data
+        if username:
+            g.user.username = username
 
         if form.name.data:
             g.user.name = form.name.data
@@ -246,17 +284,8 @@ def profile_edit():
         if form.birth.data:
             g.user.birth = form.birth.data
 
-        if form.email.data:
-            user = User.query.filter(
-                User.email == form.email.data,
-                User.id != g.user.id
-            ).first()
-
-            if user:
-                flash('이미 사용 중인 이메일입니다.')
-                return redirect(url_for('auth.profile_edit'))
-
-            g.user.email = form.email.data
+        if email:
+            g.user.email = email
 
         g.user.intro = form.intro.data
 
@@ -373,6 +402,13 @@ def _friend_action_form_is_valid():
 
 
 def _friend_profile_redirect(user_id):
+    if request.form.get('return_to') == 'search':
+        category = request.form.get('search_type', 'users')
+        if category not in {'users', 'posts', 'reels'}:
+            category = 'users'
+        return redirect(url_for(
+            'main.search', q=request.form.get('search_query', ''), type=category
+        ))
     return redirect(url_for('auth.mypage', user_id=user_id))
 
 
@@ -431,7 +467,6 @@ def send_friend_request(target_id):
         'created_at': now.isoformat(),
         'unread_count': unread_count,
     }, to=f'user_{target.id}')
-    flash('친구 요청을 보냈습니다.')
     return _friend_profile_redirect(target_id)
 
 
@@ -467,7 +502,6 @@ def update_friendship(target_id, action):
             Notification.query.filter_by(friendship_id=friendship.id).delete(synchronize_session=False)
             db.session.delete(friendship)
             db.session.commit()
-            flash('친구 요청을 정리했습니다.')
         else:
             flash('이 요청을 처리할 권한이 없습니다.')
     elif action == 'remove' and friendship.status == 'accepted':

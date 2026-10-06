@@ -3,8 +3,8 @@ import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify, session, g, flash
 from werkzeug.utils import secure_filename
 from story import db
-from story.models import Post, User, PostLike, PostComment, PostRepost, Story
-from story.time_utils import utc_isoformat, kst_now_naive
+from story.models import Post, User, PostLike, PostComment, PostRepost, Story, Notification
+from story.time_utils import utc_isoformat, kst_now_naive, utc_now_naive
 
 # /post 경로로 들어오는 요청들을 처리할 블루프린트 생성
 bp = Blueprint('post', __name__, url_prefix='/post')
@@ -96,6 +96,7 @@ def like(post_id):
     if not user_id:
         return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
 
+    post = Post.query.get_or_404(post_id)
     existing_like = PostLike.query.filter_by(post_id=post_id, user_id=user_id).first()
 
     if existing_like:
@@ -105,8 +106,19 @@ def like(post_id):
         new_like = PostLike(post_id=post_id, user_id=user_id)
         db.session.add(new_like)
         liked = True
+        if post.user_id != user_id:
+            actor = g.user if (hasattr(g, 'user') and g.user) else User.query.get(user_id)
+            notification = Notification(
+                recipient_id=post.user_id, actor_id=user_id, post_id=post.id,
+                type='post_like', is_read=False, created_at=utc_now_naive(),
+            )
+            db.session.add(notification)
+    notification = notification if liked and post.user_id != user_id else None
 
     db.session.commit()
+
+    if notification:
+        _emit_post_notification(notification, actor, post, '님이 회원님의 게시물을 좋아합니다.')
 
     like_count = PostLike.query.filter_by(post_id=post_id).count()
 
@@ -143,6 +155,7 @@ def comment(post_id):
     if not user_id:
         return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
 
+    post = Post.query.get_or_404(post_id)
     content = request.form.get('content')
 
     if content and content.strip():
@@ -159,6 +172,18 @@ def comment(post_id):
         # 작성자 정보 구하기 (g.user 우선, 없으면 DB 조회)
         user = g.user if (hasattr(g, 'user') and g.user) else User.query.get(user_id)
         user_name = user.username if user else session.get('username', '')
+        if post.user_id != user_id:
+            notification = Notification(
+                recipient_id=post.user_id, actor_id=user_id, post_id=post.id,
+                message=new_comment.content,
+                type='post_comment', is_read=False, created_at=utc_now_naive(),
+            )
+            db.session.add(notification)
+            db.session.commit()
+            _emit_post_notification(
+                notification, user, post, '님이 회원님의 게시물에 댓글을 남겼습니다.',
+                comment_content=new_comment.content,
+            )
 
         # profile_img_url 경로 생성 (Flask static 파일 경로 처리)
         profile_img_url = url_for('static', filename=user.profile_img_url) if (user and user.profile_img_url) else ''
@@ -178,6 +203,23 @@ def comment(post_id):
         })
 
     return jsonify({'success': False, 'message': '내용을 입력해주세요.'}), 400
+
+
+def _emit_post_notification(notification, actor, post, action, comment_content=None):
+    from story.events import socketio
+    unread_count = Notification.query.filter_by(recipient_id=notification.recipient_id, is_read=False).count()
+    socketio.emit('new_notification', {
+        'id': notification.id,
+        'type': notification.type,
+        'actor_id': actor.id,
+        'actor_username': actor.username,
+        'actor_profile_img_url': actor.profile_img_url,
+        'message': f'{actor.username}{action}',
+        'comment_content': comment_content if notification.type == 'post_comment' else None,
+        'url': url_for('main.index'),
+        'created_at': notification.created_at.isoformat(),
+        'unread_count': unread_count,
+    }, to=f'user_{notification.recipient_id}')
 
 
 # 5. 댓글 수정 기능

@@ -5,8 +5,17 @@
 {% endblock %}
 
 {% block content %}
+<style>
+    .availability-message { display: block; min-height: 1.25rem; font-size: .82rem; margin-top: -.6rem; margin-bottom: .5rem; }
+    .availability-message.available { color: #198754; }
+    .availability-message.unavailable { color: #dc3545; }
+</style>
 
 <div class="container">
+
+    <a href="{{ url_for('auth.mypage') }}" class="btn btn-link text-secondary p-0 mb-2" aria-label="마이페이지로 돌아가기" title="마이페이지로 돌아가기">
+        <i class="bi bi-arrow-left fs-4" aria-hidden="true"></i>
+    </a>
 
     <h5 class="my-3 border-bottom pb-2">
         회원정보 수정
@@ -21,7 +30,8 @@
 
         <!-- 아이디 -->
         {{ form.username.label }}
-        {{ form.username(class="form-control mb-3") }}
+        {{ form.username(class="form-control mb-3", id="profile-username", autocomplete="username") }}
+        <small id="username-availability" class="availability-message" aria-live="polite"></small>
 
 
         <!-- 이름 -->
@@ -36,7 +46,8 @@
 
         <!-- 이메일 -->
         {{ form.email.label }}
-        {{ form.email(class="form-control mb-3") }}
+        {{ form.email(class="form-control mb-3", id="profile-email", autocomplete="email") }}
+        <small id="email-availability" class="availability-message" aria-live="polite"></small>
 
         <!-- 현재 프로필 이미지 -->
         {% if g.user.profile_img_url %}
@@ -58,7 +69,7 @@
 
 
         <!-- 저장 -->
-        {{ form.submit(class="btn btn-primary") }}
+        {{ form.submit(class="btn btn-primary", id="profile-submit", disabled=true) }}
     </form>
 
     <section class="card mt-4">
@@ -80,4 +91,69 @@
 
 </div>
 
+{% endblock %}
+
+{% block script %}
+<script>
+    const profileChecks = [
+        { input: document.getElementById('profile-username'), output: document.getElementById('username-availability'), field: 'username', minLength: 2 },
+        { input: document.getElementById('profile-email'), output: document.getElementById('email-availability'), field: 'email', minLength: 1 }
+    ];
+    const profileSubmit = document.getElementById('profile-submit');
+    const availableValues = { username: null, email: null };
+    const updateProfileSubmit = () => {
+        profileSubmit.disabled = !availableValues.username || !availableValues.email ||
+            availableValues.username.value !== document.getElementById('profile-username').value.trim() ||
+            availableValues.email.value !== document.getElementById('profile-email').value.trim();
+    };
+    profileChecks.forEach(({ input, output, field, minLength }) => {
+        let timer;
+        let controller;
+        const check = async () => {
+            const value = input.value.trim();
+            input.classList.remove('is-valid', 'is-invalid');
+            availableValues[field] = null;
+            updateProfileSubmit();
+            output.className = 'availability-message';
+            output.textContent = '';
+            if (field === 'username' && value && !/^[A-Za-z0-9]+$/.test(value)) {
+                input.classList.add('is-invalid');
+                output.classList.add('unavailable');
+                output.textContent = 'ID는 영어와 숫자만 사용할 수 있습니다.';
+                return;
+            }
+            if (value.length < minLength || (field === 'email' && !input.validity.valid)) return;
+            if (controller) controller.abort();
+            controller = new AbortController();
+            try {
+                const url = new URL("{{ url_for('auth.check_signup_value') }}", window.location.origin);
+                url.searchParams.set('field', field);
+                url.searchParams.set('value', value);
+                url.searchParams.set('context', 'profile');
+                const response = await fetch(url, { signal: controller.signal, headers: { 'Accept': 'application/json' } });
+                if (!response.ok) return;
+                const result = await response.json();
+                if (input.value.trim() !== value) return;
+                availableValues[field] = result.available ? { value } : null;
+                input.classList.add(result.available ? 'is-valid' : 'is-invalid');
+                output.classList.add(result.available ? 'available' : 'unavailable');
+                output.textContent = result.message;
+                updateProfileSubmit();
+            } catch (error) {
+                if (error.name !== 'AbortError') console.error('회원정보 중복 확인에 실패했습니다.', error);
+            }
+        };
+        input.addEventListener('input', () => {
+            clearTimeout(timer);
+            input.classList.remove('is-valid', 'is-invalid');
+            availableValues[field] = null;
+            updateProfileSubmit();
+            output.className = 'availability-message';
+            output.textContent = '';
+            timer = setTimeout(check, 350);
+        });
+        input.addEventListener('blur', check);
+        check();
+    });
+</script>
 {% endblock %}

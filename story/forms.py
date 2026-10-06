@@ -1,12 +1,12 @@
 from flask_wtf import FlaskForm
 from wtforms.fields.simple import StringField,TextAreaField,PasswordField,EmailField,SubmitField, FileField
-from wtforms.validators import DataRequired, Length, EqualTo, Email
+from wtforms.validators import DataRequired, Length, EqualTo, Email, Regexp, Optional
 from flask_wtf.file import FileAllowed
 
 #회원가입
 class UserCreateForm(FlaskForm):
     profile_img_url = FileField('프로필 이미지', validators=[FileAllowed(['jpg', 'jpeg', 'png', 'gif', 'webp'],'이미지파일만 업로드할 수 있습니다.')])
-    username = StringField('ID', validators=[DataRequired(), Length(min=2, max=20)])
+    username = StringField('ID', validators=[DataRequired(), Length(min=2, max=20), Regexp(r'^[A-Za-z0-9]+$', message='ID는 영어와 숫자만 사용할 수 있습니다.')])
     password_hash = PasswordField('비밀번호',validators=[DataRequired(), EqualTo('password_hash2',message='비밀번호가 일치하지 않습니다')])
     password_hash2 = PasswordField('비밀번호 재입력',validators=[DataRequired()])
     email = EmailField('이메일',validators=[DataRequired(),Email()])
@@ -18,8 +18,8 @@ class UserCreateForm(FlaskForm):
 #로그인
 class UserLoginForm(FlaskForm):
     # Keep the login username limits aligned with UserCreateForm.
-    username = StringField('아이디',validators=[DataRequired(),Length(min=2,max=20)])
-    password = PasswordField('비밀번호',validators=[DataRequired()])
+    username = StringField('아이디',validators=[DataRequired(message='아이디를 입력해 주세요.'),Length(min=2,max=20)])
+    password = PasswordField('비밀번호',validators=[DataRequired(message='비밀번호를 입력해 주세요.')])
     submit = SubmitField('로그인')
 
 # 릴스 생성 폼
@@ -67,16 +67,16 @@ class CommentsForm(FlaskForm):
     submit = SubmitField('등록')
 #회원정보수정
 class ProfileEditForm(FlaskForm):
-    username = StringField('아이디')
+    username = StringField('아이디', validators=[Optional(), Regexp(r'^[A-Za-z0-9]+$', message='ID는 영어와 숫자만 사용할 수 있습니다.')])
     name = StringField('이름')
     birth = StringField('생년월일')
-    email = StringField('이메일')
+    email = EmailField('이메일', validators=[Email()])
     profile_img_url = FileField('프로필 이미지', validators=[FileAllowed(['jpg', 'jpeg', 'png', 'gif', 'webp'], '이미지파일만 업로드할 수 있습니다.')])
     intro = TextAreaField('자기소개', validators=[Length(max=500)])
     submit = SubmitField('저장하기')
 
 # 스토리 생성 폼
 class StoryForm(FlaskForm):
-    image = FileField('스토리 이미지', validators=[DataRequired()])
+    image = FileField('스토리 이미지', validators=[DataRequired(message='사진 또는 동영상을 선택해 주세요.')])
     caption = TextAreaField('스토리 문구')
     submit = SubmitField('업로드')

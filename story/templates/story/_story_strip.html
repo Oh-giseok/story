@@ -1,10 +1,14 @@
 <section class="mb-3" aria-label="스토리">
     <div class="d-flex align-items-center justify-content-between mb-2 px-1">
         <h2 class="h6 fw-bold mb-0">스토리</h2>
-        <a href="{{ url_for('story.story_create', return_to='home' if request.endpoint == 'main.index' else 'story') }}"
-           class="small text-decoration-none">새 스토리</a>
+        <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none"
+                data-bs-toggle="modal" data-bs-target="#createStoryModal">새 스토리</button>
     </div>
-    <div class="insta-story-container">
+    <div class="insta-story-slider">
+        <button type="button" class="insta-story-slide insta-story-slide-prev" aria-label="이전 스토리" hidden>
+            <i class="bi bi-chevron-left" aria-hidden="true"></i>
+        </button>
+        <div class="insta-story-container" id="homeStoryTrack">
         {% if story_list %}
             {% for story in story_list %}
                 <a class="insta-story-item text-decoration-none"
@@ -26,5 +30,30 @@
         {% else %}
             <div class="insta-story-empty">현재 활성화된 스토리가 없습니다.</div>
         {% endif %}
+        </div>
+        <button type="button" class="insta-story-slide insta-story-slide-next" aria-label="다음 스토리" hidden>
+            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+        </button>
     </div>
 </section>
+<script>
+    (() => {
+        const slider = document.currentScript.previousElementSibling.querySelector('.insta-story-slider');
+        if (!slider) return;
+        const track = slider.querySelector('.insta-story-container');
+        const previous = slider.querySelector('.insta-story-slide-prev');
+        const next = slider.querySelector('.insta-story-slide-next');
+        const update = () => {
+            const hasOverflow = track.scrollWidth > track.clientWidth + 1;
+            previous.hidden = !hasOverflow;
+            next.hidden = !hasOverflow;
+            previous.disabled = track.scrollLeft <= 1;
+            next.disabled = track.scrollLeft + track.clientWidth >= track.scrollWidth - 1;
+        };
+        previous.addEventListener('click', () => track.scrollBy({ left: -track.clientWidth * 0.8, behavior: 'smooth' }));
+        next.addEventListener('click', () => track.scrollBy({ left: track.clientWidth * 0.8, behavior: 'smooth' }));
+        track.addEventListener('scroll', update, { passive: true });
+        window.addEventListener('resize', update);
+        update();
+    })();
+</script>

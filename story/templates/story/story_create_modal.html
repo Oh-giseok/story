@@ -1,0 +1,28 @@
+<div class="modal fade" id="createStoryModal" tabindex="-1" aria-labelledby="createStoryModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('story.story_create') }}" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5 fw-bold" id="createStoryModalTitle">새 스토리</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                    <input type="hidden" name="return_to" value="{{ 'home' if request.endpoint == 'main.index' else 'story' }}">
+                    <label for="storyMediaInput" class="form-label">사진 또는 동영상</label>
+                    <input class="form-control" type="file" id="storyMediaInput" name="image" accept="image/*,video/*" required>
+                    <div id="storyMediaPreviewWrap" class="mt-3 d-none text-center">
+                        <img id="storyImagePreview" class="img-fluid rounded d-none" alt="스토리 미리보기" style="max-height: 420px;">
+                        <video id="storyVideoPreview" class="img-fluid rounded d-none" controls playsinline style="max-height: 420px;"></video>
+                    </div>
+                    <label for="storyCaptionInput" class="form-label mt-3">문구</label>
+                    <textarea class="form-control" id="storyCaptionInput" name="caption" rows="3" maxlength="500" placeholder="스토리에 문구를 추가하세요."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="submit" class="btn btn-primary">스토리 공유</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
