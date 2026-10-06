@@ -100,6 +100,66 @@ def create_app():
                     'UPDATE user SET deletion_requested_at = deleted_date '
                     'WHERE deleted_date IS NOT NULL'
                 ))
+        table_names = set(inspect(db.engine).get_table_names())
+        if 'notification_new' in table_names:
+            # Recover an interrupted prior run: keep the original table when it exists;
+            # if it was already dropped, promote the copied table back to its name.
+            with db.engine.begin() as connection:
+                if 'notification' in table_names:
+                    connection.exec_driver_sql('DROP TABLE notification_new')
+                else:
+                    connection.exec_driver_sql('ALTER TABLE notification_new RENAME TO notification')
+        notification_columns = {column['name']: column for column in inspect(db.engine).get_columns('notification')}
+        if ('post_id' not in notification_columns or 'message' not in notification_columns
+                or notification_columns.get('friendship_id', {}).get('nullable') is False):
+            # Existing databases predate post notifications; rebuild this small table so
+            # friendship_id can be empty while preserving existing friend notifications.
+            if db.engine.dialect.name == 'sqlite':
+                db.session.commit()
+                raw_connection = db.engine.raw_connection()
+                try:
+                    cursor = raw_connection.cursor()
+                    cursor.execute('PRAGMA foreign_keys=OFF')
+                    cursor.execute('DROP TABLE IF EXISTS notification_new')
+                    cursor.execute('''
+                        CREATE TABLE notification_new (
+                            id INTEGER NOT NULL PRIMARY KEY,
+                            recipient_id INTEGER NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+                            actor_id INTEGER NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+                            friendship_id INTEGER REFERENCES friendship(id) ON DELETE CASCADE,
+                            post_id INTEGER REFERENCES post(id) ON DELETE CASCADE,
+                            message TEXT,
+                            type VARCHAR(40) NOT NULL DEFAULT 'friend_request',
+                            is_read BOOLEAN NOT NULL DEFAULT 0,
+                            created_at DATETIME NOT NULL,
+                            CONSTRAINT unique_friend_request_notification UNIQUE (friendship_id, recipient_id, type)
+                        )
+                    ''')
+                    old_columns = set(notification_columns)
+                    post_expr = 'post_id' if 'post_id' in old_columns else 'NULL'
+                    message_expr = 'message' if 'message' in old_columns else 'NULL'
+                    cursor.execute(f'''INSERT INTO notification_new
+                        (id, recipient_id, actor_id, friendship_id, post_id, message, type, is_read, created_at)
+                        SELECT id, recipient_id, actor_id, friendship_id, {post_expr}, {message_expr}, type, is_read, created_at FROM notification''')
+                    cursor.execute('DROP TABLE notification')
+                    cursor.execute('ALTER TABLE notification_new RENAME TO notification')
+                    cursor.execute('CREATE INDEX ix_notification_recipient_id ON notification (recipient_id)')
+                    cursor.execute('CREATE INDEX ix_notification_friendship_id ON notification (friendship_id)')
+                    cursor.execute('CREATE INDEX ix_notification_post_id ON notification (post_id)')
+                    cursor.execute('CREATE INDEX ix_notification_is_read ON notification (is_read)')
+                    cursor.execute('CREATE INDEX ix_notification_created_at ON notification (created_at)')
+                    raw_connection.commit()
+                except Exception:
+                    raw_connection.rollback()
+                    raise
+                finally:
+                    try:
+                        cursor.execute('PRAGMA foreign_keys=ON')
+                    finally:
+                        raw_connection.close()
+            else:
+                raise RuntimeError('Notification schema migration is currently supported only for SQLite.')
+            schema_changed = False
         if schema_changed:
             db.session.commit()
         else:
@@ -158,7 +218,9 @@ def create_app():
                 g.user.last_activity_at = now
                 db.session.commit()
 
-        if request.endpoint == 'static' or request.endpoint in {'auth.login', 'auth.signup', 'auth.find_info'}:
+        if request.endpoint == 'static' or request.endpoint in {
+            'auth.login', 'auth.signup', 'auth.find_info', 'auth.check_signup_value'
+        }:
             return None
 
         if not current_user.is_authenticated or (g.user and g.user.status != 'active'):

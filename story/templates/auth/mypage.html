@@ -213,10 +213,24 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2 class="modal-title fs-5" id="friendRequestsModalTitle">받은 친구 요청 {{ incoming_requests|length }}명</h2>
+                    <h2 class="modal-title fs-5" id="friendRequestsModalTitle">친구 요청</h2>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
                 </div>
                 <div class="modal-body p-0">
+                    <ul class="nav nav-tabs nav-fill" id="friendRequestTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="incoming-requests-tab" data-bs-toggle="tab" data-bs-target="#incoming-requests" type="button" role="tab" aria-controls="incoming-requests" aria-selected="true">
+                                받은 요청 <span class="badge text-bg-secondary">{{ incoming_requests|length }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="outgoing-requests-tab" data-bs-toggle="tab" data-bs-target="#outgoing-requests" type="button" role="tab" aria-controls="outgoing-requests" aria-selected="false">
+                                보낸 요청 <span class="badge text-bg-secondary">{{ outgoing_requests|length }}</span>
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                    <div class="tab-pane fade show active" id="incoming-requests" role="tabpanel" aria-labelledby="incoming-requests-tab" tabindex="0">
                     {% if incoming_requests %}
                     <div class="list-group list-group-flush">
                         {% for relation, friend_user in incoming_requests %}
@@ -247,6 +261,33 @@
                     {% else %}
                     <p class="text-muted text-center my-4">받은 친구 요청이 없습니다.</p>
                     {% endif %}
+                    </div>
+                    <div class="tab-pane fade" id="outgoing-requests" role="tabpanel" aria-labelledby="outgoing-requests-tab" tabindex="0">
+                    {% if outgoing_requests %}
+                    <div class="list-group list-group-flush">
+                        {% for relation, friend_user in outgoing_requests %}
+                        <div class="list-group-item d-flex align-items-center gap-3 py-3">
+                            <a href="{{ url_for('auth.mypage', user_id=friend_user.id) }}" class="d-flex align-items-center gap-3 text-decoration-none text-dark flex-grow-1 min-w-0">
+                                {% if friend_user.profile_img_url %}
+                                <img src="{{ url_for('static', filename=friend_user.profile_img_url) }}" alt="" class="rounded-circle flex-shrink-0" width="42" height="42" style="object-fit: cover;">
+                                {% else %}
+                                <i class="bi bi-person-circle fs-2 text-secondary flex-shrink-0" aria-hidden="true"></i>
+                                {% endif %}
+                                <span class="fw-semibold">{{ friend_user.username }}</span>
+                            </a>
+                            <form method="post" action="{{ url_for('auth.update_friendship', target_id=friend_user.id, action='cancel') }}" class="flex-shrink-0">
+                                <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                                <input type="hidden" name="return_to" value="self">
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">요청 취소</button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center my-4">보낸 친구 요청이 없습니다.</p>
+                    {% endif %}
+                    </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -1,7 +1,9 @@
+import datetime
+
 from flask import Blueprint, render_template, session, g, request
 from flask_login import current_user
 from sqlalchemy import and_, or_
-from story.models import Friendship, Notification, Post, Reels, Story, User
+from story.models import Friendship, Notification, Post, PostComment, Reels, Story, User
 from story.time_utils import kst_now_naive
 from story.views import dmviews
 
@@ -26,7 +28,10 @@ def index():
             print(f"[DM Query Error in main_views.py]: {e}")
     stories = []
     try:
-        all_stories = Story.query.order_by(
+        now_time = kst_now_naive()
+        all_stories = Story.query.filter(
+            Story.expires_at > now_time
+        ).order_by(
             Story.create_date.asc()
         ).all()
 
