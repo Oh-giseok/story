@@ -45,7 +45,8 @@ def _create():
         return redirect(url_for('auth.login'))  # 사용하시는 로그인 라우트명으로 맞추어 사용해주세요.
 
     if request.method == 'GET':
-        return render_template('post/post_form.html')
+        # 게시물 작성 UI는 공통 모달에 있으므로 홈에서 모달을 연다.
+        return redirect(url_for('main.index', open_post_composer='1'))
 
     caption = request.form.get('caption')
     media_files = request.files.getlist('media_file')

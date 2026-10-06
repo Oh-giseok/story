@@ -415,6 +415,9 @@
 
         const postComposer = document.getElementById('createPostModal');
         if (postComposer) {
+            if (new URLSearchParams(window.location.search).get('open_post_composer') === '1') {
+                bootstrap.Modal.getOrCreateInstance(postComposer).show();
+            }
             const fileInput = document.getElementById('fileInput');
             const dropArea = document.getElementById('dropArea');
             const step1 = document.getElementById('step1');
