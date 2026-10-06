@@ -3,7 +3,7 @@ import datetime
 from flask import Blueprint, render_template, session, g, request
 from flask_login import current_user
 from sqlalchemy import and_, or_
-from story.models import Friendship, Notification, Post, PostComment, Reels, Story, User
+from story.models import Friendship, Post, Reels, Story, User
 from story.time_utils import kst_now_naive
 from story.views import dmviews
 
