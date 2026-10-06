@@ -34,15 +34,15 @@ def upload_media(file_storage, folder, resource_type='image'):
             or 'application/octet-stream'
         )
         body = file_storage.read()
+
+        # 💡 인증 오류를 해결하기 위해 최신 Supabase 규격에 맞춰 헤더를 필수 고정 항목으로 수정했습니다.
         headers = {
             'apikey': service_key,
             'Content-Type': content_type,
             'x-upsert': 'false',
+            'Authorization': f'Bearer {service_key}'
         }
-        # Current sb_secret_* keys are API keys, not JWTs. Supabase rejects them
-        # when they are also sent as an Authorization bearer token.
-        if not service_key.startswith(('sb_secret_', 'sb_publishable_')):
-            headers['Authorization'] = f'Bearer {service_key}'
+
         request = Request(
             f"{base_url}/storage/v1/object/{quote(bucket, safe='')}/{quote(object_key, safe='')}",
             data=body,
