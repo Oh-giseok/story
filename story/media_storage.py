@@ -29,7 +29,6 @@ def upload_media(file_storage, folder, resource_type='image'):
         base_url, service_key, bucket = settings
         object_key = secrets.token_urlsafe(16)
 
-        # 💡 [안정성 강화] NoneType 에러가 발생하지 않도록 튜플 추출 방식을 안전하게 수정했습니다.
         guessed_type_tuple = mimetypes.guess_type(original_name)
         guessed_type = guessed_type_tuple[0] if guessed_type_tuple else None
 
