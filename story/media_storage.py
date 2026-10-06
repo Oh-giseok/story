@@ -28,14 +28,15 @@ def upload_media(file_storage, folder, resource_type='image'):
     if settings:
         base_url, service_key, bucket = settings
         object_key = secrets.token_urlsafe(16)
+
+        guessed_type = mimetypes.guess_type(original_name)[0]
         content_type = (
             getattr(file_storage, 'mimetype', None)
-            or mimetypes.guess_type(original_name)[0]
+            or guessed_type
             or 'application/octet-stream'
         )
-        body = file_storage.read()
 
-        # 💡 인증 오류를 해결하기 위해 최신 Supabase 규격에 맞춰 헤더를 필수 고정 항목으로 수정했습니다.
+        body = file_storage.read()
         headers = {
             'apikey': service_key,
             'Content-Type': content_type,
