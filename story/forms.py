@@ -77,6 +77,6 @@ class ProfileEditForm(FlaskForm):
 
 # 스토리 생성 폼
 class StoryForm(FlaskForm):
-    image = FileField('스토리 이미지', validators=[DataRequired()])
+    image = FileField('스토리 이미지', validators=[DataRequired(message='사진 또는 동영상을 선택해 주세요.')])
     caption = TextAreaField('스토리 문구')
     submit = SubmitField('업로드')

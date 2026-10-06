@@ -68,6 +68,45 @@ def create_app():
         from flask_wtf.csrf import generate_csrf
         return {'global_csrf_token': generate_csrf}
 
+    @app.context_processor
+    def inject_global_notifications():
+        if not current_user.is_authenticated:
+            return {'notifications': [], 'unread_notification_count': 0}
+        from story.models import Friendship, Notification, PostComment
+        user_id = current_user.id
+        notifications = Notification.query.filter_by(
+            recipient_id=user_id
+        ).order_by(Notification.created_at.desc()).limit(30).all()
+        friendship_ids = {
+            notification.friendship_id for notification in notifications
+            if notification.type == 'friend_request' and notification.friendship_id
+        }
+        friendships = {
+            friendship.id: friendship
+            for friendship in Friendship.query.filter(Friendship.id.in_(friendship_ids)).all()
+        } if friendship_ids else {}
+        for notification in notifications:
+            relation = friendships.get(notification.friendship_id)
+            notification.friendship_pending = bool(
+                relation and relation.status == 'pending' and relation.requested_by_id == notification.actor_id
+            )
+            notification.display_message = notification.message or ''
+            if notification.type == 'post_comment' and not notification.display_message and notification.post_id:
+                prior_comment = PostComment.query.filter(
+                    PostComment.post_id == notification.post_id,
+                    PostComment.user_id == notification.actor_id,
+                    PostComment.created_at <= notification.created_at,
+                ).order_by(PostComment.created_at.desc(), PostComment.id.desc()).first()
+                if prior_comment:
+                    notification.display_message = prior_comment.content
+        unread_count = Notification.query.filter_by(
+            recipient_id=user_id, is_read=False
+        ).count()
+        return {
+            'notifications': notifications,
+            'unread_notification_count': unread_count,
+        }
+
     # 모델 로드
     from . import models
 

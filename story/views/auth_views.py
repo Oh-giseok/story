@@ -303,8 +303,7 @@ def profile_edit():
 
         db.session.commit()
 
-        flash('회원정보가 수정되었습니다.', 'profile_updated')
-        return redirect(url_for('main.index'))
+        return redirect(url_for('auth.mypage'))
 
     return render_template(
         'auth/profile_edit.html',
@@ -402,6 +401,18 @@ def _friend_action_form_is_valid():
 
 
 def _friend_profile_redirect(user_id):
+    if request.form.get('return_to') == 'notifications':
+        referrer = request.referrer
+        if referrer and urlparse(referrer).netloc == request.host:
+            return redirect(referrer)
+        return redirect(url_for('main.index'))
+    if request.form.get('return_to') == 'search':
+        category = request.form.get('search_type', 'users')
+        if category not in {'users', 'posts', 'reels'}:
+            category = 'users'
+        return redirect(url_for(
+            'main.search', q=request.form.get('search_query', ''), type=category
+        ))
     return redirect(url_for('auth.mypage', user_id=user_id))
 
 
@@ -452,6 +463,8 @@ def send_friend_request(target_id):
     socketio.emit('new_notification', {
         'id': notification.id,
         'type': notification.type,
+        'friendship_id': notification.friendship_id,
+        'friendship_pending': True,
         'actor_id': g.user.id,
         'actor_username': g.user.username,
         'actor_profile_img_url': g.user.profile_img_url,
@@ -460,7 +473,6 @@ def send_friend_request(target_id):
         'created_at': now.isoformat(),
         'unread_count': unread_count,
     }, to=f'user_{target.id}')
-    flash('친구 요청을 보냈습니다.')
     return _friend_profile_redirect(target_id)
 
 
@@ -488,7 +500,6 @@ def update_friendship(target_id, action):
             {Notification.is_read: True}, synchronize_session=False
         )
         db.session.commit()
-        flash('친구 요청을 수락했습니다.')
     elif action in {'reject', 'cancel'} and friendship.status == 'pending':
         is_incoming = friendship.requested_by_id == target.id
         is_outgoing = friendship.requested_by_id == g.user.id
@@ -496,14 +507,12 @@ def update_friendship(target_id, action):
             Notification.query.filter_by(friendship_id=friendship.id).delete(synchronize_session=False)
             db.session.delete(friendship)
             db.session.commit()
-            flash('친구 요청을 정리했습니다.')
         else:
             flash('이 요청을 처리할 권한이 없습니다.')
     elif action == 'remove' and friendship.status == 'accepted':
         Notification.query.filter_by(friendship_id=friendship.id).delete(synchronize_session=False)
         db.session.delete(friendship)
         db.session.commit()
-        flash('친구 관계를 삭제했습니다.')
     else:
         flash('현재 상태에서는 해당 작업을 할 수 없습니다.')
 

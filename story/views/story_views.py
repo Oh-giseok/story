@@ -148,7 +148,20 @@ def detail(story_id):
 def story_create():
     form = StoryForm()
 
-    if request.method == 'POST' and form.validate_on_submit():
+    if request.method == 'GET':
+        return redirect(url_for('main.index'))
+
+    if not form.validate_on_submit():
+        for errors in form.errors.values():
+            for error in errors:
+                flash(error)
+        if not form.errors:
+            flash('스토리를 등록할 수 없습니다. 다시 시도해 주세요.')
+        if request.form.get('return_to') == 'home':
+            return redirect(url_for('main.index'))
+        return redirect(url_for('story.story_list'))
+
+    if request.method == 'POST':
         image_file = form.image.data
         caption = form.caption.data
         image_path = None
@@ -192,10 +205,7 @@ def story_create():
 
         return redirect(url_for('story.story_list'))
 
-    return render_template(
-        'story/story_form.html',
-        form=form
-    )
+    return redirect(url_for('main.index'))
 
 
 # 스토리 수정
