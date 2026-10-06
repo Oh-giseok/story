@@ -87,7 +87,7 @@ def create_app():
     def static_or_remote(filename):
         if filename.startswith('sb:'):
             return redirect(media_url(filename))
-        return static_view(filename)
+        return static_view(filename=filename)
 
     app.view_functions['static'] = static_or_remote
 

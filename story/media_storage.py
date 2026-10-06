@@ -34,15 +34,19 @@ def upload_media(file_storage, folder, resource_type='image'):
             or 'application/octet-stream'
         )
         body = file_storage.read()
+        headers = {
+            'apikey': service_key,
+            'Content-Type': content_type,
+            'x-upsert': 'false',
+        }
+        # Current sb_secret_* keys are API keys, not JWTs. Supabase rejects them
+        # when they are also sent as an Authorization bearer token.
+        if not service_key.startswith(('sb_secret_', 'sb_publishable_')):
+            headers['Authorization'] = f'Bearer {service_key}'
         request = Request(
             f"{base_url}/storage/v1/object/{quote(bucket, safe='')}/{quote(object_key, safe='')}",
             data=body,
-            headers={
-                'Authorization': f'Bearer {service_key}',
-                'apikey': service_key,
-                'Content-Type': content_type,
-                'x-upsert': 'false',
-            },
+            headers=headers,
             method='POST',
         )
         try:
