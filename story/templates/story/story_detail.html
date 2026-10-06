@@ -131,14 +131,23 @@
 
 
         <!-- 스토리 닫기 -->
-        <a href="{{ url_for('story.story_list') }}"
+        <a href="{{ url_for('main.index') }}"
            class="story-viewer-close">
             ×
         </a>
 
+        <button type="button" class="story-nav-button story-nav-prev" id="storyPrevButton" aria-label="이전 스토리">
+            <i class="bi bi-chevron-left" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="story-nav-button story-nav-next" id="storyNextButton" aria-label="다음 스토리">
+            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+        </button>
+
 
         <!-- 작성자 정보 -->
-        <div class="story-viewer-user">
+        <a href="{{ url_for('auth.mypage', user_id=story.user_id) }}"
+           class="story-viewer-user text-decoration-none"
+           aria-label="{{ story.user.username }}님의 마이페이지">
 
             {% if story.user.profile_img_url %}
 
@@ -184,7 +193,7 @@
 
             </div>
 
-        </div>
+        </a>
 
 
         <!-- 현재 스토리 이미지 / 영상 -->
@@ -427,10 +436,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
         {% endif %};
 
+    const previousUserUrl =
+        {% if prev_story %}
+            {{ url_for('story.detail', story_id=prev_story.id) | tojson }}
+        {% else %}
+            null
+        {% endif %};
+
 
     const fills = document.querySelectorAll(
         '.story-progress-bar-fill'
     );
+
+    const previousButton = document.getElementById('storyPrevButton');
+    const nextButton = document.getElementById('storyNextButton');
 
 
     const mainImg = document.getElementById(
@@ -739,6 +758,22 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        // 여러 스토리를 올린 사용자는 현재 사용자의 다음 스토리로 바로 전환한다.
+        if (fills && fills[currentIdx]) {
+            fills[currentIdx].classList.remove('active');
+            fills[currentIdx].classList.add('watched');
+            fills[currentIdx].style.width = '100%';
+        }
+        currentIdx += 1;
+        if (fills && fills[currentIdx]) {
+            fills[currentIdx].classList.remove('watched');
+            fills[currentIdx].classList.add('active');
+            fills[currentIdx].style.width = '0%';
+        }
+        updateStoryNavigation();
+        await displayStory(stories[currentIdx]);
+        return;
+
         const viewer =
             document.querySelector('.story-viewer');
 
@@ -750,6 +785,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!viewer || !nextCard) {
 
             currentIdx += 1;
+            updateStoryNavigation();
 
             if (fills && fills[currentIdx]) {
 
@@ -878,6 +914,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         /* 다음 스토리로 변경 */
         currentIdx += 1;
+        updateStoryNavigation();
 
 
         if (fills && fills[currentIdx]) {
@@ -937,8 +974,61 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
     }
+
+    /* 이전 스토리 */
+    async function goPrevious() {
+        clearInterval(storyTimer);
+        if (currentIdx > 0) {
+            if (fills[currentIdx]) {
+                fills[currentIdx].classList.remove('active');
+                fills[currentIdx].classList.add('watched');
+                fills[currentIdx].style.width = '100%';
+            }
+            currentIdx -= 1;
+            if (fills[currentIdx]) {
+                fills[currentIdx].classList.remove('watched');
+                fills[currentIdx].classList.add('active');
+                fills[currentIdx].style.width = '0%';
+            }
+            await displayStory(stories[currentIdx]);
+            updateStoryNavigation();
+            return;
+        }
+        if (previousUserUrl) window.location.href = previousUserUrl;
+    }
+
+    function updateStoryNavigation() {
+        if (previousButton) {
+            previousButton.disabled = currentIdx <= 0 && !previousUserUrl;
+        }
+    }
+
+    let swipeActionTaken = false;
+    previousButton?.addEventListener('click', () => {
+        if (!swipeActionTaken) goPrevious();
+    });
+    nextButton?.addEventListener('click', () => {
+        if (!swipeActionTaken) goNext();
+    });
+
+    const storyViewer = document.querySelector('.story-viewer');
+    let swipeStartX = null;
+    storyViewer?.addEventListener('touchstart', (event) => {
+        swipeStartX = event.changedTouches[0].clientX;
+    }, { passive: true });
+    storyViewer?.addEventListener('touchend', (event) => {
+        if (swipeStartX === null) return;
+        const deltaX = event.changedTouches[0].clientX - swipeStartX;
+        swipeStartX = null;
+        if (Math.abs(deltaX) < 50) return;
+        swipeActionTaken = true;
+        window.setTimeout(() => { swipeActionTaken = false; }, 400);
+        if (deltaX < 0) goNext();
+        else goPrevious();
+    }, { passive: true });
     /* 첫 스토리 시작 */
     if (typeof currentIdx !== 'undefined' && currentIdx >= 0) {
+        updateStoryNavigation();
         displayStory(stories[currentIdx]);
     }
 
