@@ -185,9 +185,28 @@ def create_app():
                         cursor.execute('PRAGMA foreign_keys=ON')
                     finally:
                         raw_connection.close()
+            elif db.engine.dialect.name == 'postgresql':
+                # PostgreSQL can add the newer notification fields in place. Keep the
+                # existing rows and constraints intact instead of rebuilding the table.
+                if 'post_id' not in notification_columns:
+                    db.session.execute(text(
+                        'ALTER TABLE notification ADD COLUMN post_id INTEGER '
+                        'REFERENCES post(id) ON DELETE CASCADE'
+                    ))
+                if 'message' not in notification_columns:
+                    db.session.execute(text(
+                        'ALTER TABLE notification ADD COLUMN message TEXT'
+                    ))
+                if notification_columns.get('friendship_id', {}).get('nullable') is False:
+                    db.session.execute(text(
+                        'ALTER TABLE notification ALTER COLUMN friendship_id DROP NOT NULL'
+                    ))
+                db.session.execute(text(
+                    'CREATE INDEX IF NOT EXISTS ix_notification_post_id ON notification (post_id)'
+                ))
+                schema_changed = True
             else:
-                raise RuntimeError('Notification schema migration is currently supported only for SQLite.')
-            schema_changed = False
+                raise RuntimeError('Notification schema migration is unsupported for this database.')
         if schema_changed:
             db.session.commit()
         else:
