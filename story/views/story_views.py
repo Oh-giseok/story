@@ -3,12 +3,12 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 from datetime import timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, g
-from werkzeug.utils import secure_filename
 
 from story import db
 from story.forms import StoryForm
 from story.models import Story
 from story.time_utils import kst_now_naive
+from story.media_storage import upload_media
 
 bp = Blueprint('story', __name__, url_prefix='/story')
 
@@ -141,23 +141,7 @@ def story_create():
         image_path = None
 
         if image_file:
-            today = datetime.now().strftime('%Y%m%d')
-            upload_folder = os.path.join(
-                current_app.root_path,
-                'static/photo',
-                today
-            )
-
-            # 저장 경로 : 오늘 날짜로 폴더 생성
-            today = kst_now_naive().strftime('%Y%m%d')
-            upload_folder = os.path.join(current_app.root_path, 'static/photo', today)
-            os.makedirs(upload_folder, exist_ok=True)
-
-            filename = secure_filename(image_file.filename)
-            file_path = os.path.join(upload_folder, filename)
-            image_file.save(file_path)
-
-            image_path = f'photo/{today}/{filename}'
+            image_path = upload_media(image_file, 'story-posts', resource_type='image')
 
         now = kst_now_naive()
         expires_at = now + timedelta(days=1)
@@ -198,22 +182,7 @@ def modify(story_id):
         image_file = form.image.data
 
         if image_file:
-            today = datetime.now().strftime('%Y%m%d')
-            upload_folder = os.path.join(
-                current_app.root_path,
-                'static/photo',
-                today
-            )
-
-            today = kst_now_naive().strftime('%Y%m%d')
-            upload_folder = os.path.join(current_app.root_path, 'static/photo', today)
-            os.makedirs(upload_folder, exist_ok=True)
-
-            filename = secure_filename(image_file.filename)
-            file_path = os.path.join(upload_folder, filename)
-            image_file.save(file_path)
-
-            story.media_url = f'photo/{today}/{filename}'
+            story.media_url = upload_media(image_file, 'story-posts', resource_type='image')
 
         story.caption = form.caption.data
         db.session.commit()

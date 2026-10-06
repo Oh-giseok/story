@@ -73,7 +73,7 @@
              data-user-name="{{ post.user.username if post.user else '' }}"
              data-user-img="{{ url_for('static', filename=post.user.profile_img_url) if post.user and post.user.profile_img_url else '' }}">
             <div class="card-body d-flex align-items-center gap-3">
-                {% if post_media %}<img class="search-result-image rounded" src="{{ post_media }}" alt="포스트 미디어">{% endif %}
+                {% if post_media %}<img class="search-result-image rounded" src="{{ post_media | media_url }}" alt="포스트 미디어">{% endif %}
                 <div class="min-w-0">
                     <div class="fw-bold">{{ post.user.username if post.user else '사용자' }}</div>
                     <p class="mb-0 text-break">{{ post.caption }}</p>
@@ -81,7 +81,7 @@
             </div>
             <div class="d-none raw-post-data">
                 <div class="raw-caption">{{ post.caption or '' }}</div>
-                <div class="raw-images">{{ post.media_url or '' }}</div>
+                <div class="raw-images">{{ post.media_url | media_urls if post.media_url else '' }}</div>
                 <div class="raw-comments">
                     {% for comment in post.comments %}
                     <div class="comment-item" data-comment-id="{{ comment.id }}" data-user-id="{{ comment.user_id }}"

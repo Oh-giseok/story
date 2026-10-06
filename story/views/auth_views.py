@@ -3,7 +3,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import timedelta
 from urllib.parse import urlparse
 import os
-from werkzeug.utils import secure_filename
 from flask_login import login_user, logout_user
 from sqlalchemy import or_
 from story import db
@@ -16,6 +15,7 @@ from story.models import (
     Friendship,
     Notification,
 )
+from story.media_storage import upload_media
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -95,14 +95,7 @@ def signup():
             image = form.profile_img_url.data
 
             if image and getattr(image, "filename", ""):
-                filename = secure_filename(image.filename)
-                image.save(
-                    os.path.join(
-                        current_app.config['PROFILE_UPLOAD_FOLDER'],
-                        filename
-                    )
-                )
-                profile_img_url = f'profile/{filename}'
+                profile_img_url = upload_media(image, 'story-profiles', resource_type='image')
             user = User(
                 profile_img_url=profile_img_url,
                 username=form.username.data.strip(),
@@ -291,13 +284,7 @@ def profile_edit():
 
         image = form.profile_img_url.data
         if image and getattr(image, 'filename', ''):
-            filename = secure_filename(image.filename)
-            if not filename:
-                flash('사용할 수 없는 파일 이름입니다.')
-                return redirect(url_for('auth.profile_edit'))
-
-            image.save(os.path.join(current_app.config['PROFILE_UPLOAD_FOLDER'], filename))
-            g.user.profile_img_url = f'profile/{filename}'
+            g.user.profile_img_url = upload_media(image, 'story-profiles', resource_type='image')
 
         g.user.updated_at = utc_now_naive()
 

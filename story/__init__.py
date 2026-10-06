@@ -5,6 +5,7 @@ from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, current_user
 from story.time_utils import as_utc, utc_now_naive, kst_now_naive, format_kst
+from story.media_storage import media_url, media_urls
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -69,11 +70,26 @@ def create_app():
     def profile_img_filter(img_url):
         if not img_url:
             return url_for('static', filename='photo/default_profile.png')
+        if img_url.startswith('sb:'):
+            return url_for('static', filename=img_url)
         if img_url.startswith('http://') or img_url.startswith('https://') or img_url.startswith('/'):
             return img_url
         if img_url.startswith('profile/') or img_url.startswith('photo/'):
             return url_for('static', filename=img_url)
         return url_for('static', filename='profile/' + img_url)
+
+    app.add_template_filter(media_url, 'media_url')
+    app.add_template_filter(media_urls, 'media_urls')
+
+    # Preserve existing templates that use url_for('static', filename=...).
+    static_view = app.view_functions['static']
+
+    def static_or_remote(filename):
+        if filename.startswith('sb:'):
+            return redirect(media_url(filename))
+        return static_view(filename)
+
+    app.view_functions['static'] = static_or_remote
 
     @app.context_processor
     def inject_global_csrf_token():
