@@ -402,6 +402,13 @@ def _friend_action_form_is_valid():
 
 
 def _friend_profile_redirect(user_id):
+    if request.form.get('return_to') == 'search':
+        category = request.form.get('search_type', 'users')
+        if category not in {'users', 'posts', 'reels'}:
+            category = 'users'
+        return redirect(url_for(
+            'main.search', q=request.form.get('search_query', ''), type=category
+        ))
     return redirect(url_for('auth.mypage', user_id=user_id))
 
 
@@ -460,7 +467,6 @@ def send_friend_request(target_id):
         'created_at': now.isoformat(),
         'unread_count': unread_count,
     }, to=f'user_{target.id}')
-    flash('친구 요청을 보냈습니다.')
     return _friend_profile_redirect(target_id)
 
 
@@ -496,7 +502,6 @@ def update_friendship(target_id, action):
             Notification.query.filter_by(friendship_id=friendship.id).delete(synchronize_session=False)
             db.session.delete(friendship)
             db.session.commit()
-            flash('친구 요청을 정리했습니다.')
         else:
             flash('이 요청을 처리할 권한이 없습니다.')
     elif action == 'remove' and friendship.status == 'accepted':

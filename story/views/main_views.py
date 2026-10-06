@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, session, g, request
 from flask_login import current_user
 from sqlalchemy import and_, or_
-from story.models import Friendship, Notification, Post, PostComment, Reels, Story, User
+from story.models import Friendship, Post, Reels, Story, User
 from story.time_utils import kst_now_naive
 from story.views import dmviews
 
@@ -44,8 +44,6 @@ def index():
         print(f"[Story Query Error]: {e}")
 
     posts = []
-    notifications = []
-    unread_notification_count = 0
     reposted_post_ids = set()
     try:
         posts = Post.query.order_by(Post.id.desc()).all()
@@ -56,32 +54,12 @@ def index():
             }
     except Exception:
         pass
-    if current_uid:
-        notifications = Notification.query.filter_by(recipient_id=current_uid).order_by(
-            Notification.created_at.desc()
-        ).limit(30).all()
-        for notification in notifications:
-            notification.display_message = notification.message or ''
-            if notification.type == 'post_comment' and not notification.display_message and notification.post_id:
-                prior_comment = PostComment.query.filter(
-                    PostComment.post_id == notification.post_id,
-                    PostComment.user_id == notification.actor_id,
-                    PostComment.created_at <= notification.created_at,
-                ).order_by(PostComment.created_at.desc(), PostComment.id.desc()).first()
-                if prior_comment:
-                    notification.display_message = prior_comment.content
-        unread_notification_count = Notification.query.filter_by(
-            recipient_id=current_uid,
-            is_read=False,
-        ).count()
     return render_template(
         'post/post_list.html',
         posts=posts,
         reposted_post_ids=reposted_post_ids,
         story_list=stories,
         active_chat_users=active_chat_users,
-        notifications=notifications,
-        unread_notification_count=unread_notification_count,
     )
 
 @bp.route('/search')

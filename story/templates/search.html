@@ -9,6 +9,9 @@
     .search-result-card:hover { background: #f8f9fa; }
     .search-result-image { width: 96px; height: 96px; object-fit: cover; flex: 0 0 96px; }
     .search-user-avatar { width: 52px; height: 52px; object-fit: cover; flex: 0 0 52px; }
+    .search-caption-wrap { min-width: 0; overflow-wrap: anywhere; }
+    .search-caption { margin: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .search-caption-more { display: none; border: 0; background: none; color: #777; padding: 0; font-size: .82rem; }
 </style>
 {% endblock %}
 
@@ -45,15 +48,27 @@
                     {% if friendship and friendship.status == 'accepted' %}
                     <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" disabled>친구</button>
                     {% elif friendship and friendship.status == 'pending' and friendship.requested_by_id == current_user_id %}
-                    <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" disabled>요청 대기</button>
+                    <form method="post" action="{{ url_for('auth.update_friendship', target_id=user.id, action='cancel') }}" class="flex-shrink-0">
+                        <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                        <input type="hidden" name="return_to" value="search">
+                        <input type="hidden" name="search_query" value="{{ query }}">
+                        <input type="hidden" name="search_type" value="{{ category }}">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">요청 취소</button>
+                    </form>
                     {% elif friendship and friendship.status == 'pending' %}
                     <form method="post" action="{{ url_for('auth.update_friendship', target_id=user.id, action='accept') }}" class="flex-shrink-0">
                         <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                        <input type="hidden" name="return_to" value="search">
+                        <input type="hidden" name="search_query" value="{{ query }}">
+                        <input type="hidden" name="search_type" value="{{ category }}">
                         <button type="submit" class="btn btn-sm btn-primary">요청 수락</button>
                     </form>
                     {% else %}
                     <form method="post" action="{{ url_for('auth.send_friend_request', target_id=user.id) }}" class="flex-shrink-0">
                         <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                        <input type="hidden" name="return_to" value="search">
+                        <input type="hidden" name="search_query" value="{{ query }}">
+                        <input type="hidden" name="search_type" value="{{ category }}">
                         <button type="submit" class="btn btn-sm btn-primary">친구 추가</button>
                     </form>
                     {% endif %}
@@ -76,7 +91,10 @@
                 {% if post_media %}<img class="search-result-image rounded" src="{{ post_media }}" alt="포스트 미디어">{% endif %}
                 <div class="min-w-0">
                     <div class="fw-bold">{{ post.user.username if post.user else '사용자' }}</div>
-                    <p class="mb-0 text-break">{{ post.caption }}</p>
+                    <div class="search-caption-wrap">
+                        <p class="search-caption">{{ post.caption }}</p>
+                        <button type="button" class="search-caption-more" data-content-type="post" data-content-id="{{ post.id }}">더 보기</button>
+                    </div>
                 </div>
             </div>
             <div class="d-none raw-post-data">
@@ -113,7 +131,10 @@
                 <img class="search-result-image rounded" src="{{ reel_thumbnail_src }}" alt="릴스 썸네일">
                 <div class="min-w-0">
                     <div class="fw-bold">{{ reel_users.get(reel.user_id).username if reel_users.get(reel.user_id) else '사용자' }}</div>
-                    <p class="mb-0 text-break">{{ reel.caption }}</p>
+                    <div class="search-caption-wrap">
+                        <p class="search-caption">{{ reel.caption }}</p>
+                        <button type="button" class="search-caption-more" data-content-type="reel" data-content-id="{{ reel.id }}">더 보기</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -124,4 +145,25 @@
 </div>
 {% include 'post/post_detail_modal.html' %}
 {% include 'reels/reel_detail.modal.html' %}
+{% endblock %}
+{% block script %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.search-caption-wrap').forEach((wrap) => {
+            const caption = wrap.querySelector('.search-caption');
+            const button = wrap.querySelector('.search-caption-more');
+            if (caption && button && caption.scrollHeight > caption.clientHeight + 1) {
+                button.style.display = 'inline-block';
+            }
+        });
+        document.querySelectorAll('.search-caption-more').forEach((button) => {
+            button.addEventListener('click', (event) => {
+                event.stopPropagation();
+                const id = Number(button.dataset.contentId);
+                if (button.dataset.contentType === 'post') openPostDetailModal(id);
+                else openReelDetailModal(id);
+            });
+        });
+    });
+</script>
 {% endblock %}
