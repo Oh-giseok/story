@@ -72,12 +72,24 @@ def create_app():
     def inject_global_notifications():
         if not current_user.is_authenticated:
             return {'notifications': [], 'unread_notification_count': 0}
-        from story.models import Notification, PostComment
+        from story.models import Friendship, Notification, PostComment
         user_id = current_user.id
         notifications = Notification.query.filter_by(
             recipient_id=user_id
         ).order_by(Notification.created_at.desc()).limit(30).all()
+        friendship_ids = {
+            notification.friendship_id for notification in notifications
+            if notification.type == 'friend_request' and notification.friendship_id
+        }
+        friendships = {
+            friendship.id: friendship
+            for friendship in Friendship.query.filter(Friendship.id.in_(friendship_ids)).all()
+        } if friendship_ids else {}
         for notification in notifications:
+            relation = friendships.get(notification.friendship_id)
+            notification.friendship_pending = bool(
+                relation and relation.status == 'pending' and relation.requested_by_id == notification.actor_id
+            )
             notification.display_message = notification.message or ''
             if notification.type == 'post_comment' and not notification.display_message and notification.post_id:
                 prior_comment = PostComment.query.filter(

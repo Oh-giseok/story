@@ -1,26 +1,48 @@
-<div class="modal fade" id="createStoryModal" tabindex="-1" aria-labelledby="createStoryModalTitle" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+<div class="modal fade createStoryModal" id="createStoryModal" data-bs-backdrop="static" tabindex="-1" aria-labelledby="createStoryModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
-            <form method="post" action="{{ url_for('story.story_create') }}" enctype="multipart/form-data">
-                <div class="modal-header">
-                    <h2 class="modal-title fs-5 fw-bold" id="createStoryModalTitle">새 스토리</h2>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+            <form method="post" action="{{ url_for('story.story_create') }}" enctype="multipart/form-data" id="createStoryForm">
+                <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                <input type="hidden" name="return_to" value="{{ 'home' if request.endpoint == 'main.index' else 'story' }}">
+                <div class="modal-header py-2">
+                    <button type="button" class="btn btn-link text-dark p-0 d-none" id="storyUploadBack" aria-label="이전">
+                        <i class="bi bi-arrow-left fs-4"></i>
+                    </button>
+                    <h2 class="modal-title fs-6 fw-bold mx-auto" id="createStoryModalTitle">새 스토리 만들기</h2>
+                    <button type="submit" class="btn btn-link text-primary fw-bold text-decoration-none p-0 d-none" id="storyUploadSubmit">공유하기</button>
+                    <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="닫기"></button>
                 </div>
-                <div class="modal-body">
-                    <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
-                    <input type="hidden" name="return_to" value="{{ 'home' if request.endpoint == 'main.index' else 'story' }}">
-                    <label for="storyMediaInput" class="form-label">사진 또는 동영상</label>
-                    <input class="form-control" type="file" id="storyMediaInput" name="image" accept="image/*,video/*" required>
-                    <div id="storyMediaPreviewWrap" class="mt-3 d-none text-center">
-                        <img id="storyImagePreview" class="img-fluid rounded d-none" alt="스토리 미리보기" style="max-height: 420px;">
-                        <video id="storyVideoPreview" class="img-fluid rounded d-none" controls playsinline style="max-height: 420px;"></video>
+                <div class="modal-body p-0" id="storyUploadStep1">
+                    <div class="upload-box text-center p-4">
+                        <i class="bi bi-images display-1 text-secondary mb-3" aria-hidden="true"></i>
+                        <h3 class="h5">사진이나 동영상을 선택하세요</h3>
+                        <input class="d-none" type="file" id="storyMediaInput" name="image" accept="image/*,video/*" required>
+                        <button type="button" class="btn btn-primary fw-bold mt-3" id="chooseStoryMedia">컴퓨터에서 선택</button>
+                        <div id="storySelectionPreviewWrap" class="mt-3 d-none">
+                            <img id="storySelectionImage" class="img-fluid rounded d-none" alt="선택한 스토리 미리보기" style="max-height: 300px;">
+                            <video id="storySelectionVideo" class="img-fluid rounded d-none" controls playsinline style="max-height: 300px;"></video>
+                        </div>
                     </div>
-                    <label for="storyCaptionInput" class="form-label mt-3">문구</label>
-                    <textarea class="form-control" id="storyCaptionInput" name="caption" rows="3" maxlength="500" placeholder="스토리에 문구를 추가하세요."></textarea>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">취소</button>
-                    <button type="submit" class="btn btn-primary">스토리 공유</button>
+                <div class="modal-body p-0 d-none" id="storyUploadStep2">
+                    <div class="row g-0">
+                        <div class="col-md-7 bg-dark d-flex align-items-center justify-content-center" style="min-height: 420px;">
+                            <img id="storyImagePreview" class="w-100 h-100 d-none" alt="스토리 미리보기" style="max-height: 520px; object-fit: contain;">
+                            <video id="storyVideoPreview" class="w-100 h-100 d-none" controls playsinline style="max-height: 520px; object-fit: contain;"></video>
+                        </div>
+                        <div class="col-md-5 d-flex flex-column p-3" style="min-height: 420px;">
+                            <div class="d-flex align-items-center gap-3 border-bottom pb-3 mb-3">
+                                {% if g.user and g.user.profile_img_url %}
+                                <img src="{{ url_for('static', filename=g.user.profile_img_url) }}" alt="{{ g.user.username }} 프로필 이미지" class="rounded-circle" width="40" height="40" style="object-fit: cover;">
+                                {% else %}
+                                <i class="bi bi-person-circle fs-2 text-secondary" aria-hidden="true"></i>
+                                {% endif %}
+                                <span class="fw-semibold">{{ g.user.username if g.user else session.get('username', '') }}</span>
+                            </div>
+                            <label class="visually-hidden" for="storyCaptionInput">스토리 문구</label>
+                            <textarea class="form-control border-0 flex-grow-1 p-0" id="storyCaptionInput" name="caption" rows="7" maxlength="500" placeholder="문구 추가..." style="resize: none; box-shadow: none;"></textarea>
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>
