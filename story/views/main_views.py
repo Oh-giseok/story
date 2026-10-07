@@ -31,17 +31,12 @@ def index():
     notifications = []
     unread_notification_count = 0
     reposted_post_ids = set()
-    liked_post_ids = set()
     try:
         posts = Post.query.order_by(Post.id.desc()).all()
         if current_uid:
             reposted_post_ids = {
                 repost.post_id
                 for repost in PostRepost.query.filter_by(user_id=current_uid).all()
-            }
-            liked_post_ids = {
-                like.post_id
-                for like in PostLike.query.filter_by(user_id=current_uid).all()
             }
     except Exception:
         pass
@@ -57,7 +52,6 @@ def index():
         'post/post_list.html',
         posts=posts,
         reposted_post_ids=reposted_post_ids,
-        liked_post_ids=liked_post_ids,
         story_list=stories,
         active_chat_users=active_chat_users,
         notifications=notifications,
@@ -94,7 +88,7 @@ def search():
     if query:
         pattern = f'%{query}%'
         if category == 'users':
-            users = User.query.filter(User.username.ilike(pattern)).order_by(User.username.asc()).limit(60).all()
+            users = User.query.filter(or_(User.username.ilike(pattern),User.name.ilike(pattern))).order_by(User.username.asc()).limit(60).all()
             if current_uid and users:
                 user_ids = [user.id for user in users if user.id != current_uid]
                 if user_ids:
@@ -108,11 +102,11 @@ def search():
                     }
         elif category == 'posts':
             posts = Post.query.join(User, Post.user_id == User.id).filter(
-                or_(Post.caption.ilike(pattern), User.username.ilike(pattern))
+                or_(Post.caption.ilike(pattern), User.username.ilike(pattern), User.name.ilike(pattern))
             ).order_by(Post.created_at.desc()).limit(60).all()
         else:
             reels = Reels.query.join(User, Reels.user_id == User.id).filter(
-                or_(Reels.caption.ilike(pattern), User.username.ilike(pattern))
+                or_(Reels.caption.ilike(pattern), User.username.ilike(pattern), User.name.ilike(pattern))
             ).order_by(Reels.created_at.desc()).limit(60).all()
             reel_users = {
                 user.id: user

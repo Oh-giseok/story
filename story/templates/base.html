@@ -217,6 +217,10 @@
         .createStoryModal .modal-dialog.caption-step .modal-content { width: 100%; margin: 0 auto; }
         .createStoryModal .modal-title { padding-left: 32px; }
 
+        .swiper-pagination-bullet-active{
+            background-color: #4a5df9 !important;
+        }
+
         @media (max-width: 768px) {
             .bottom-nav-item {
                 font-size: 0.75rem;
@@ -512,8 +516,50 @@
             const btnBack = document.getElementById('btnBack');
             const btnSubmit = document.getElementById('btnSubmit');
             const previewWrapper = document.getElementById('uploadPreviewWrapper');
+            const postForm = document.getElementById('postForm');
+            const uploadProgress = document.getElementById('postUploadProgress');
+            const uploadStatus = document.getElementById('postUploadStatus');
+            const uploadPercent = document.getElementById('postUploadPercent');
+            const uploadProgressBar = document.getElementById('postUploadProgressBar');
             let previewSwiper = null;
             let previewUrls = [];
+            let postUploadInProgress = false;
+
+            const compressPostImage = async file => {
+                // 사진 원본만 축소하고, 동영상·애니메이션·투명 이미지 등은 그대로 보냅니다.
+                if (!/^image\/jpeg$/i.test(file.type) || file.size < 1_500_000) return file;
+                if (!('createImageBitmap' in window)) return file;
+                let bitmap;
+                try {
+                    bitmap = await createImageBitmap(file);
+                    const maxDimension = 2048;
+                    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+                    if (scale === 1) return file;
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = Math.round(bitmap.width * scale);
+                    canvas.height = Math.round(bitmap.height * scale);
+                    const context = canvas.getContext('2d', { alpha: false });
+                    if (!context) return file;
+                    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.82));
+                    if (!blob || blob.size >= file.size) return file;
+                    const name = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+                    return new File([blob], name, { type: 'image/jpeg', lastModified: file.lastModified });
+                } catch (error) {
+                    // 기기/브라우저가 이미지 디코딩을 지원하지 않으면 원본 업로드를 유지합니다.
+                    return file;
+                } finally {
+                    if (bitmap) bitmap.close();
+                }
+            };
+
+            const updatePostUploadProgress = percent => {
+                const value = Math.max(0, Math.min(100, Math.round(percent)));
+                uploadPercent.textContent = `${value}%`;
+                uploadProgressBar.style.width = `${value}%`;
+                uploadProgress.querySelector('[role="progressbar"]').setAttribute('aria-valuenow', value);
+            };
 
             const resetPostComposer = () => {
                 if (previewSwiper) { previewSwiper.destroy(true, true); previewSwiper = null; }
@@ -525,6 +571,11 @@
                 step2.classList.add('d-none');
                 btnBack.classList.add('d-none');
                 btnSubmit.classList.add('d-none');
+                btnBack.disabled = false;
+                uploadProgress.classList.add('d-none');
+                postUploadInProgress = false;
+                btnSubmit.disabled = false;
+                btnSubmit.textContent = '공유하기';
             };
 
             const showPostPreview = files => {
@@ -575,6 +626,62 @@
             });
             btnBack.addEventListener('click', resetPostComposer);
             postComposer.addEventListener('hidden.bs.modal', resetPostComposer);
+
+            postForm.addEventListener('submit', async event => {
+                event.preventDefault();
+                if (postUploadInProgress) return;
+                postUploadInProgress = true;
+                btnSubmit.disabled = true;
+                btnBack.disabled = true;
+                btnSubmit.textContent = '준비 중...';
+                uploadProgress.classList.remove('d-none');
+                uploadStatus.textContent = '사진을 빠르게 전송할 수 있도록 준비하는 중...';
+                updatePostUploadProgress(0);
+
+                try {
+                    const files = Array.from(fileInput.files);
+                    const optimizedFiles = await Promise.all(files.map(compressPostImage));
+                    const formData = new FormData(postForm);
+                    formData.delete('media_file');
+                    optimizedFiles.forEach(file => formData.append('media_file', file, file.name));
+
+                    uploadStatus.textContent = '게시물을 업로드하는 중...';
+                    btnSubmit.textContent = '업로드 중...';
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', postForm.action);
+                    xhr.upload.addEventListener('progress', progressEvent => {
+                        if (!progressEvent.lengthComputable) return;
+                        updatePostUploadProgress(progressEvent.loaded / progressEvent.total * 100);
+                    });
+                    xhr.addEventListener('load', () => {
+                        if (xhr.status >= 200 && xhr.status < 400) {
+                            uploadStatus.textContent = '저장 중...';
+                            updatePostUploadProgress(100);
+                            window.location.assign(xhr.responseURL || postForm.action);
+                            return;
+                        }
+                        postUploadInProgress = false;
+                        btnSubmit.disabled = false;
+                        btnBack.disabled = false;
+                        btnSubmit.textContent = '다시 시도';
+                        uploadStatus.textContent = `업로드에 실패했습니다. (${xhr.status}) 다시 시도해주세요.`;
+                    });
+                    xhr.addEventListener('error', () => {
+                        postUploadInProgress = false;
+                        btnSubmit.disabled = false;
+                        btnBack.disabled = false;
+                        btnSubmit.textContent = '다시 시도';
+                        uploadStatus.textContent = '네트워크 오류로 업로드하지 못했습니다. 연결을 확인한 뒤 다시 시도해주세요.';
+                    });
+                    xhr.send(formData);
+                } catch (error) {
+                    postUploadInProgress = false;
+                    btnSubmit.disabled = false;
+                    btnBack.disabled = false;
+                    btnSubmit.textContent = '다시 시도';
+                    uploadStatus.textContent = '사진을 준비하지 못했습니다. 다시 시도해주세요.';
+                }
+            });
         }
 
         const reelComposer = document.getElementById('createReelModal');
@@ -701,10 +808,9 @@
         }
     </script>
     {% if (current_user.is_authenticated or g.user) and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage'] %}
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
         document.addEventListener('DOMContentLoaded', () => {
-            if (!window.io) return;
             const notificationModal = document.getElementById('notificationModal');
             const notificationList = document.getElementById('notificationList');
             const notificationBadge = document.getElementById('notificationBadge');
@@ -716,6 +822,44 @@
                 notificationBadge.textContent = unreadCount;
                 notificationBadge.classList.toggle('d-none', unreadCount === 0);
             };
+
+            notificationList.addEventListener('submit', async (event) => {
+                const form = event.target.closest('form[action*="/auth/friend/"]');
+                if (!form) return;
+                event.preventDefault();
+                const button = form.querySelector('button[type="submit"]');
+                if (button?.disabled) return;
+                if (button) button.disabled = true;
+                try {
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        body: new FormData(form)
+                    });
+                    const result = await response.json();
+                    if (!response.ok || !result.success) {
+                        throw new Error(result.message || '친구 요청을 처리하지 못했습니다.');
+                    }
+                    const item = form.closest('.notification-item');
+                    if (result.action === 'reject') {
+                        item?.remove();
+                    } else {
+                        item?.querySelector('.d-flex.flex-row.gap-1')?.remove();
+                        if (item) item.classList.remove('unread');
+                    }
+                    if (!notificationList.querySelector('.notification-item')) {
+                        const empty = document.createElement('p');
+                        empty.id = 'notificationEmpty';
+                        empty.className = 'text-muted text-center my-4';
+                        empty.textContent = '새로운 알림이 없습니다.';
+                        notificationList.appendChild(empty);
+                    }
+                    setUnreadCount(result.unread_count);
+                } catch (error) {
+                    window.alert(error.message || '친구 요청을 처리하지 못했습니다.');
+                    if (button) button.disabled = false;
+                }
+            });
 
             notificationList.addEventListener('click', (event) => {
                 const postButton = event.target.closest('[data-open-post-id]');
@@ -735,11 +879,24 @@
                 try {
                     const response = await fetch("{{ url_for('auth.mark_notifications_read') }}", {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': csrfInput.value,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
                         body: new URLSearchParams({ csrf_token: csrfInput.value })
                     });
-                    if (!response.ok) return;
-                    const result = await response.json();
+                    const responseText = await response.text();
+                    let result;
+                    try {
+                        result = JSON.parse(responseText);
+                    } catch {
+                        throw new Error(`예상하지 못한 서버 응답 (HTTP ${response.status})`);
+                    }
+                    if (!response.ok || !result.success) {
+                        throw new Error(result.message || `읽음 처리 실패 (HTTP ${response.status})`);
+                    }
                     setUnreadCount(result.unread_count);
                     notificationList.querySelectorAll('.notification-item.unread').forEach(item => item.classList.remove('unread'));
                 } catch (error) {

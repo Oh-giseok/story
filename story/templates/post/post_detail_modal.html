@@ -8,6 +8,7 @@
         max-width: 900px;
         height: 600px;
     }
+
     .post-detail-modal .modal-content {
         height: 600px;
         border: none;
@@ -91,17 +92,34 @@
     }
     #deleteConfirmModal .modal-dialog { max-width: 560px; }
     #deleteConfirmModal .modal-content { border-radius: 24px; }
+    .comment-input{
+        border: 0;
+    }
     .comment-input-box {
-    flex-shrink: 0;
-    padding: 12px !important;
-    border-top: 1px solid #dee2e6;
-}
+        flex-shrink: 0;
+        padding: 12px !important;
+        border-top: 1px solid #dee2e6;
+    }
+
+    .post-detail-modal .modal-dialog > .btn-close {
+        z-index: 1070;
+        cursor: pointer !important;
+        top: 5rem;
+    }
+
+    @media (max-width: 768px) {
+        .post-detail-modal .modal-dialog > .btn-close {
+            top: 0.75rem !important;
+            margin: 0 !important;
+            transform: none;
+        }
+    }
 </style>
 
 <!-- 게시물 상세 & 댓글 보기 모달 -->
 <div class="modal fade post-detail-modal" id="postDetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered position-relative">
-        <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="Close" style="z-index: 1070; transform: translate(150%, -50%); cursor: pointer !important;pointer-events:auto"></button>
+        <button type="button" class="btn-close btn-close-white position-absolute end-0" data-bs-dismiss="modal" aria-label="Close"></button>
 
         <div class="modal-content">
             <div class="row g-0 h-100">
@@ -156,7 +174,7 @@
 
                     <!-- 댓글 입력 폼 -->
                    <div class="mt-auto comment-input-box p-2 border-top">
-    <form id="detailCommentForm" action="" method="post" class="d-flex align-items-end">
+    <form id="detailCommentForm" action="" method="post" class="d-flex">
         <input
             type="text"
             id="detailCommentInput"
