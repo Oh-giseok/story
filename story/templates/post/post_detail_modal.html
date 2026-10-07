@@ -40,17 +40,21 @@
     /* --- Swiper 커스텀 네비게이션 버튼 & 페이징 --- */
     .post-detail-modal .modal-feed-swiper .swiper-button-next,
     .post-detail-modal .modal-feed-swiper .swiper-button-prev {
-        color: #000 !important;
-        background-color: rgba(255, 255, 255, 0.7);
-        width: 30px !important;
-        height: 30px !important;
+        color: #343a40 !important;
+        background-color: rgba(255, 255, 255, 0.94) !important;
+        width: 36px !important;
+        height: 36px !important;
         border-radius: 50%;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-        transition: background-color 0.2s ease, transform 0.1s ease;
+        border: 1px solid rgba(33, 37, 41, 0.08);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+        transition: color .15s ease, background-color .15s ease, box-shadow .15s ease;
     }
     .post-detail-modal .modal-feed-swiper .swiper-button-next:hover,
     .post-detail-modal .modal-feed-swiper .swiper-button-prev:hover {
-        background-color: rgba(255, 255, 255, 0.9);
+        color: #0d6efd !important;
+        background-color: #fff !important;
+        transform: none !important;
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.28);
     }
     .post-detail-modal .modal-feed-swiper .swiper-button-next::after,
     .post-detail-modal .modal-feed-swiper .swiper-button-prev::after {
