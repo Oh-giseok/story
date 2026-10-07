@@ -22,6 +22,8 @@
       <input class="d-none" id="reelVideoInput" type="file" name="video_url" accept="video/mp4,video/quicktime,video/webm" required>
       <button type="button" class="btn btn-primary fw-bold mt-3" id="chooseReelVideo">컴퓨터에서 선택</button>
       <video id="reelSelectionPreview" class="d-none mt-3" style="max-width:100%;max-height:360px;" controls playsinline></video>
+      <small id="reelVideoSizeGuide" class="d-none text-muted mt-2" aria-live="polite"></small>
+      <small class="d-block text-muted mt-2">동영상이 50MB보다 크면 업로드에 시간이 더 걸릴 수 있어요.</small>
      </div>
     </div>
     <div class="modal-body p-0 d-none" id="reelUploadStep2">
@@ -51,6 +53,15 @@
       </div>
      </div>
     </div>
+   <div id="reelUploadProgress" class="d-none px-3 pb-3" role="status" aria-live="polite">
+    <div class="d-flex justify-content-between small mb-1">
+     <span id="reelUploadStatus">릴스를 준비하는 중...</span>
+     <span id="reelUploadPercent">0%</span>
+    </div>
+    <div class="progress" style="height:6px" role="progressbar" aria-label="릴스 업로드 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+     <div id="reelUploadProgressBar" class="progress-bar" style="width:0%"></div>
+    </div>
+   </div>
    </form>
   </div>
  </div>

@@ -1,9 +1,12 @@
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify, session, g, flash
+import os
+import secrets
 from story import db
-from story.models import Post, User, PostLike, PostComment, PostRepost, Notification
+from story.models import Post, User, PostLike, PostComment, PostRepost, Story, Notification
 from story.time_utils import utc_isoformat, kst_now_naive, utc_now_naive
-from story.media_storage import upload_media
+from story.media_storage import create_signed_upload_url, upload_media
+from story.media_storage import create_signed_upload_url, upload_media
 from story.views.story_views import get_unique_story_list
 
 # /post 경로로 들어오는 요청들을 처리할 블루프린트 생성
@@ -78,6 +81,48 @@ def _create():
         return redirect(url_for('main.index', open_post_composer='1'))
 
     caption = request.form.get('caption')
+
+    if request.is_json:
+        payload = request.get_json(silent=True) or {}
+        phase = payload.get('phase')
+
+        if phase == 'sign':
+            files = payload.get('files')
+            if not isinstance(files, list) or not files or len(files) > 10:
+                return jsonify({'error': '게시물 파일은 1개 이상 10개 이하로 선택해주세요.'}), 400
+
+            signed_uploads = []
+            allowed_extensions = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'webm'}
+            for item in files:
+                if not isinstance(item, dict):
+                    return jsonify({'error': '잘못된 파일 정보입니다.'}), 400
+                filename = os.path.basename(str(item.get('name') or ''))
+                extension = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+                size = item.get('size')
+                if extension not in allowed_extensions or not isinstance(size, int) or size <= 0:
+                    return jsonify({'error': '지원하지 않는 파일이거나 파일 크기가 올바르지 않습니다.'}), 400
+                object_key = f"{secrets.token_urlsafe(12)}.{extension}"
+                signed_upload = create_signed_upload_url(object_key)
+                if signed_upload is None:
+                    return jsonify({'available': False})
+                signed_uploads.append(signed_upload)
+            session['pending_post_upload_keys'] = [upload['key'] for upload in signed_uploads]
+            return jsonify({'available': True, 'uploads': signed_uploads})
+
+        if phase == 'publish':
+            keys = payload.get('keys')
+            if not isinstance(keys, list) or not keys or len(keys) > 10:
+                return jsonify({'error': '게시물 파일 정보가 올바르지 않습니다.'}), 400
+            pending_keys = session.get('pending_post_upload_keys', [])
+            if (any(not isinstance(key, str) or '..' in key or '/' in key for key in keys)
+                    or keys != pending_keys):
+                return jsonify({'error': '게시물 파일 정보가 올바르지 않습니다.'}), 400
+            post = Post(user_id=user_id, caption=payload.get('caption'), media_url=','.join(f'sb:{key}' for key in keys))
+            db.session.add(post)
+            db.session.commit()
+            session.pop('pending_post_upload_keys', None)
+            return jsonify({'redirect': url_for('main.index')})
+
     media_files = request.files.getlist('media_file')
     saved_urls = []
 
