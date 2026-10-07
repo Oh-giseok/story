@@ -1,6 +1,7 @@
 """Supabase Storage uploads with local filesystem fallback for development."""
 
 import mimetypes
+import json
 import os
 import secrets
 from urllib.error import HTTPError, URLError
@@ -81,6 +82,40 @@ def upload_media(file_storage, folder, resource_type='image'):
     if folder == 'story-reels':
         return file_path
     return relative.replace('\\', '/')
+
+
+def create_signed_upload_url(object_key):
+    """Create a one-time Supabase Storage URL for a browser-to-storage upload."""
+    settings = _storage_settings()
+    if not settings:
+        return None
+
+    base_url, service_key, bucket = settings
+    encoded_path = '/'.join(quote(part, safe='') for part in object_key.split('/'))
+    request = Request(
+        f'{base_url}/storage/v1/object/upload/sign/{quote(bucket, safe="")}/{encoded_path}',
+        data=b'{}',
+        headers={
+            'apikey': service_key,
+            'Authorization': f'Bearer {service_key}',
+            'Content-Type': 'application/json',
+        },
+        method='POST',
+    )
+    try:
+        with urlopen(request, timeout=20) as response:
+            payload = json.loads(response.read().decode('utf-8'))
+    except (HTTPError, URLError) as error:
+        detail = error.read().decode('utf-8', errors='replace') if isinstance(error, HTTPError) else str(error)
+        raise RuntimeError(f'Supabase Storage signed upload URL failed: {detail}') from error
+
+    signed_path = payload.get('url')
+    if not signed_path:
+        raise RuntimeError('Supabase Storage did not return a signed upload URL.')
+    return {
+        'key': object_key,
+        'url': f'{base_url}/storage/v1{signed_path}',
+    }
 
 
 def media_url(value):

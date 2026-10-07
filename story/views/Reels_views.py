@@ -1,6 +1,7 @@
 import os
 import cv2
 import tempfile
+import secrets
 
 from flask import (
     Blueprint,
@@ -20,7 +21,7 @@ from ..models import Reels, Comments, Reels_Likes, User
 from story.time_utils import utc_isoformat
 from ..forms import ReelsForm, CommentsForm, ReelsEditForm
 from .. import db
-from story.media_storage import media_url, upload_media
+from story.media_storage import create_signed_upload_url, media_url, upload_media
 from story.views import dmviews
 
 reels_bp = Blueprint(
@@ -113,6 +114,58 @@ def reels():
 @reels_bp.route('/upload', methods=['GET', 'POST'])
 def upload():
     form = ReelsForm()
+
+    if request.method == 'POST' and request.is_json:
+        payload = request.get_json(silent=True) or {}
+        phase = payload.get('phase')
+        if phase == 'sign':
+            files = payload.get('files')
+            if not isinstance(files, dict) or set(files) != {'video', 'thumbnail'}:
+                return jsonify({'error': '동영상과 대표이미지를 선택해주세요.'}), 400
+
+            signed_uploads = {}
+            allowed_extensions = {
+                'video': {'mp4', 'mov', 'webm'},
+                'thumbnail': {'jpg', 'jpeg', 'png', 'webp'},
+            }
+            for role, item in files.items():
+                if not isinstance(item, dict):
+                    return jsonify({'error': '잘못된 파일 정보입니다.'}), 400
+                filename = os.path.basename(str(item.get('name') or ''))
+                extension = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+                size = item.get('size')
+                if extension not in allowed_extensions[role] or not isinstance(size, int) or size <= 0:
+                    return jsonify({'error': '지원하지 않는 파일이거나 파일 크기가 올바르지 않습니다.'}), 400
+                object_key = f"{secrets.token_urlsafe(12)}.{extension}"
+                signed_upload = create_signed_upload_url(object_key)
+                if signed_upload is None:
+                    return jsonify({'available': False})
+                signed_uploads[role] = signed_upload
+            session['pending_reel_upload_keys'] = {role: upload['key'] for role, upload in signed_uploads.items()}
+            return jsonify({'available': True, 'uploads': signed_uploads})
+
+        if phase == 'publish':
+            keys = payload.get('keys')
+            pending_keys = session.get('pending_reel_upload_keys', {})
+            duration = payload.get('duration')
+            caption = payload.get('caption')
+            if (not isinstance(keys, dict) or keys != pending_keys
+                    or not isinstance(caption, str) or not caption.strip()
+                    or len(caption) > 2200
+                    or not isinstance(duration, (int, float)) or duration <= 0):
+                return jsonify({'error': '릴스 정보가 올바르지 않습니다.'}), 400
+
+            reel = Reels(
+                user_id=session['user_id'],
+                video_url=f"sb:{keys['video']}",
+                thumbnail_url=f"sb:{keys['thumbnail']}",
+                caption=caption.strip(),
+                duration=duration,
+            )
+            db.session.add(reel)
+            db.session.commit()
+            session.pop('pending_reel_upload_keys', None)
+            return jsonify({'redirect': url_for('reels.reels')})
 
     if form.validate_on_submit():
         video = form.video_url.data

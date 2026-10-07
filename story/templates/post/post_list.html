@@ -3,7 +3,6 @@
 {% block head %}
 <!-- Swiper.js CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
-<link rel="stylesheet" href="{{ url_for('static', filename='css/story_style.css') }}">
 
 <style>
     .modal-content { border-radius: 12px; overflow: hidden; }
@@ -274,19 +273,6 @@
 
 <!-- 공통 상세보기 및 삭제/수정 모달 불러오기 -->
 
-<!-- 삭제 확인 모달 -->
-<div class="modal fade confirm-modal" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content">
-            <div class="pt-4 pb-3 px-3">
-                <h6 class="fw-bold fs-5 mb-1">게시물을 삭제하시겠어요?</h6>
-                <small class="text-secondary">지금 나가면 수정 내용이 저장되지 않습니다.</small>
-            </div>
-            <button type="button" class="btn btn-action text-danger" id="btnConfirmDelete">삭제</button>
-            <button type="button" class="btn btn-action text-dark" data-bs-dismiss="modal">취소</button>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block script %}

@@ -1,11 +1,5 @@
 {% extends 'base.html' %}
 
-{% block head %}
-
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/story_style.css') }}">
-
-{% endblock %}
-
 {% block content %}
 
 <div class="story-viewer-wrapper">
@@ -850,6 +844,15 @@ document.addEventListener("DOMContentLoaded", () => {
             fills[currentIdx].classList.add('watched');
             fills[currentIdx].style.width = '100%';
         }
+        currentIdx += 1;
+        if (fills && fills[currentIdx]) {
+            fills[currentIdx].classList.remove('watched');
+            fills[currentIdx].classList.add('active');
+            fills[currentIdx].style.width = '0%';
+        }
+        updateStoryNavigation();
+        await displayStory(stories[currentIdx]);
+        return;
 
         const viewer =
             document.querySelector('.story-viewer');
@@ -1103,7 +1106,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (deltaX < 0) goNext();
         else goPrevious();
     }, { passive: true });
-
     /* 첫 스토리 시작 */
     if (typeof currentIdx !== 'undefined' && currentIdx >= 0) {
         updateStoryNavigation();
