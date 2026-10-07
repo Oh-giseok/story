@@ -56,7 +56,7 @@ def create_app():
     @app.template_filter('profile_img')
     def profile_img_filter(img_url):
         if not img_url:
-            return url_for('static', filename='photo/default_profile.png')
+            return url_for('static', filename='photo/default_profile.svg')
         if img_url.startswith('http://') or img_url.startswith('https://') or img_url.startswith('/'):
             return img_url
         if img_url.startswith('profile/') or img_url.startswith('photo/'):

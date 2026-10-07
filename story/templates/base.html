@@ -697,10 +697,11 @@
             storyComposer.addEventListener('hidden.bs.modal', resetStoryComposer);
         }
     </script>
-    {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage'] %}
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    {% if (current_user.is_authenticated or g.user) and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage'] %}
+    <script src="/socket.io/socket.io.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            if (!window.io) return;
             const notificationModal = document.getElementById('notificationModal');
             const notificationList = document.getElementById('notificationList');
             const notificationBadge = document.getElementById('notificationBadge');
