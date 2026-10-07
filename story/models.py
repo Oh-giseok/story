@@ -1,6 +1,7 @@
 from story import db  # __init__.py의 db 객체 임포트
 from flask_login import UserMixin
 from story.time_utils import utc_now_naive, utc_isoformat
+from datetime import timedelta
 
 class User(db.Model, UserMixin):
 
@@ -20,6 +21,24 @@ class User(db.Model, UserMixin):
     deletion_requested_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=utc_now_naive)
     updated_at = db.Column(db.DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+
+    @property
+    def connection_status(self):
+        from story import redis_client
+        if redis_client:
+            try:
+                # Redis에 키가 존재하면 로그인 상태로 인정
+                if redis_client.exists(f'user_online:{self.id}'):
+                    # 마지막 활동 시간이 기록되어 있는 경우에만 5분(300초) 초과 여부 확인
+                    if self.last_activity_at:
+                        elapsed = (utc_now_naive() - self.last_activity_at).total_seconds()
+                        if elapsed > 300:
+                            return 'idle'  # 5분 이상 방치 시 자리 비움
+                    return 'online'  # 그 외 로그인 상태는 온라인
+            except Exception:
+                pass
+        # Redis 키가 없거나 삭제된 경우(로그아웃 상태)에만 오프라인
+        return 'offline'
 
 
 class Friendship(db.Model):
@@ -165,10 +184,9 @@ class PostLike(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=utc_now_naive)
 
-    # [추가] Post 모델과의 관계
     post = db.relationship('Post', backref=db.backref('likes', cascade='all, delete-orphan'))
-    # [추가] User 모델과의 관계
     user = db.relationship('User', backref=db.backref('post_like_set', cascade='all, delete-orphan'))
+
 
 class PostComment(db.Model):
     __tablename__ = 'post_comments'
@@ -180,10 +198,9 @@ class PostComment(db.Model):
     created_at = db.Column(db.DateTime, default=utc_now_naive, nullable=False)
     updated_at = db.Column(db.DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)
 
-    # [수정/추가] Post 모델과 연결 -> post.comments 로 댓글 목록 접근
     post = db.relationship('Post', backref=db.backref('comments', cascade='all, delete-orphan'))
-    # User 모델과 연결 -> comment.user.username 으로 작성자 아이디 접근
     user = db.relationship('User', backref=db.backref('comment_set', cascade='all, delete-orphan'))
+
 
 class Reels(db.Model):
     __tablename__ = 'reels'
@@ -200,7 +217,6 @@ class Reels(db.Model):
 
     @property
     def thumbnail_img_url(self):
-        """Backward-compatible descriptive name for the stored reel thumbnail path."""
         return self.thumbnail_url
 
     @thumbnail_img_url.setter
@@ -220,8 +236,6 @@ class Reels_Likes(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=utc_now_naive, nullable=False)
     updated_at = db.Column(db.DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)
-
-    __table_args__ = (db.UniqueConstraint('user_id', 'reel_id', name='unique_user_reel_like'),)
 
 
 class Comments(db.Model):
