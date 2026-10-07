@@ -47,11 +47,12 @@
         .status-dot.idle { background-color: #ffc107; }   /* 노란색 (자리 비움) */
         .status-dot.offline { background-color: #6c757d; }/* 회색 (오프라인) */
 
-        /* 사이드바와 우측 콘텐츠 영역을 나란히 배치하는 플렉스 래퍼 */
+        /* 콘텐츠는 화면 중앙 열에 고정하고 DM 사이드바는 별도 좌측 열에 둡니다. */
         .content-layout-wrapper {
-            display: flex;
+            display: grid;
+            grid-template-columns: 280px minmax(0, 800px) 280px;
             gap: 24px;
-            max-width: 1250px;
+            max-width: 1448px;
             width: 100%;
             margin: 0 auto;
             justify-content: center;
@@ -60,20 +61,45 @@
         }
 
         .left-dm-sidebar {
-            flex: 0 0 280px;
             width: 280px;
-            position: sticky;
+            position: fixed;
+            left: 32px;
             top: 20px;
-            flex-shrink: 0;
+            z-index: 1020;
         }
 
-        @media (max-width: 992px) {
+        .main-content-column {
+            grid-column: 2;
+            min-width: 0;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .main-content-column.post-list-layout {
+            max-width: 500px;
+        }
+
+        @media (max-width: 1448px) {
             .left-dm-sidebar {
                 display: none;
             }
             .content-layout-wrapper {
-                flex-direction: column;
+                grid-template-columns: minmax(0, 1fr) minmax(0, 800px) minmax(0, 1fr);
             }
+        }
+
+        @media (max-width: 992px) {
+            .content-layout-wrapper { display: block; }
+            .main-content-column { margin: 0 auto; }
+        }
+
+        @media (max-width: 992px) {
+            .left-dm-sidebar { left: 14px; }
+        }
+
+        @media (max-width: 576px) {
+            .left-dm-sidebar { left: 10px; }
         }
 
         .bottom-nav {
@@ -179,11 +205,18 @@
         .upload-choice-arrow { color: #adb5bd; }
 
         .page-search-area {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
             padding-top: 0;
             margin-bottom: 1rem;
+            margin-left: auto;
+            margin-right: auto;
         }
         .page-search-bar {
             width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
             margin: 0 auto;
         }
         .page-search-bar .input-group {
@@ -288,23 +321,7 @@
 
 <body>
 
-<<<<<<< HEAD
-=======
-    {% if current_user.is_authenticated and request.endpoint in ['main.index', 'post._list', 'dm.user_list', 'main.search'] %}
-    <div class="page-search-area">
-        <form class="page-search-bar" role="search" action="{{ url_for('main.search') }}" method="get">
-            <div class="input-group">
-                <input type="search" class="form-control" name="q" value="{{ request.args.get('q', '') }}" placeholder="검색" aria-label="검색">
-                <button class="btn" type="submit" aria-label="검색 실행">
-                    <i class="bi bi-search" aria-hidden="true"></i>
-                </button>
-            </div>
-        </form>
-    </div>
-    {% endif %}
-
     <!-- Flash 메시지 및 메인 컨텐츠 영역 -->
->>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
     <main class="py-4">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -382,7 +399,7 @@
             {% endif %}
 
             <!-- 우측 콘텐츠 영역 (검색창 + 중앙 정렬된 메인 피드/스토리) -->
-            <div style="flex: 1; min-width: 0; width: 100%; max-width: 800px; margin: 0 auto;">
+            <div class="main-content-column{% if request.endpoint in ['main.index', 'post._list'] %} post-list-layout{% endif %}">
                 {% if current_user.is_authenticated and request.endpoint in ['main.index', 'post._list', 'reels.reels', 'dm.user_list', 'main.search'] and request.endpoint != 'dm.user_list' %}
                 <div class="page-search-area">
                     <form class="page-search-bar" role="search" action="{{ url_for('main.search') }}" method="get">
@@ -466,57 +483,9 @@
     {% include 'post/post_detail_modal.html' %}
     {% endif %}
 
-<<<<<<< HEAD
-=======
     <!-- 하단 고정 네비게이션 Bar (로그인 상태 및 특정 페이지 조건부 노출) -->
     {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup'] %}
-    {% if request.endpoint in ['main.index', 'reels.reels', 'main.search'] %}
-    <!-- 1. 좌측 DM 최근 대화 목록 -->
-    <aside class="left-dm-sidebar">
-        <div class="card shadow-sm border-0 rounded-3">
-            <div class="card-header bg-white fw-bold py-3 border-bottom d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-chat-dots text-dark me-1"></i> 최근 대화</span>
-            </div>
-
-            <div class="list-group list-group-flush overflow-auto" style="max-height: 650px;">
-                {% if active_chat_users and active_chat_users|length > 0 %}
-                    {% for item in active_chat_users %}
-                        {% set target_user = item.user %}
-                        {% set is_online = target_user.is_online if target_user.is_online is defined else False %}
-
-                        <!-- 클릭 시 대화 상대의 target_id 파라미터와 함께 DM 채팅 페이지로 이동 -->
-                        <a href="{{ url_for('dm.user_list', target_id=target_user.id) }}" class="list-group-item list-group-item-action d-flex align-items-center py-2 px-3 border-0">
-                            {% if target_user.profile_img_url %}
-                                <img src="{{ target_user.profile_img_url | profile_img }}"
-                                     class="rounded-circle me-2 flex-shrink-0" width="40" height="40" style="object-fit: cover;">
-                            {% else %}
-                                <i class="bi bi-person-circle fs-3 text-secondary me-2 flex-shrink-0"></i>
-                            {% endif %}
-
-                            <div class="text-truncate" style="width: 100%;">
-                                <div class="small fw-bold text-dark d-flex align-items-center justify-content-between">
-                                    <span class="text-truncate">
-                                        <span class="status-dot {{ 'online' if is_online else 'offline' }}"></span>
-                                        {{ target_user.username or target_user.name }}
-                                    </span>
-                                    <small class="text-muted fw-normal fs-7 ms-1">({{ 'Online' if is_online else 'Offline' }})</small>
-                                </div>
-                                <small class="text-muted d-block text-truncate mt-1" style="font-size:0.75rem;">
-                                    {{ item.last_message.text if item.last_message else '대화 없음' }}
-                                </small>
-                            </div>
-                        </a>
-                    {% endfor %}
-                {% else %}
-                    <div class="p-4 text-muted small text-center">진행 중인 대화가 없습니다.</div>
-                {% endif %}
-            </div>
-        </div>
-    </aside>
-    {% endif %}
-
     {% if request.endpoint != 'story.detail' %}
->>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
     <nav class="bottom-nav shadow-lg">
         <a href="#" class="bottom-nav-item {{ 'active' if request.endpoint in ['post._list', 'post._create'] else '' }}" title="업로드" aria-label="게시물 또는 릴스 만들기" data-bs-toggle="modal" data-bs-target="#uploadTypeModal" {% if request.endpoint in ['post._list', 'post._create'] %}aria-current="page"{% endif %}>
             <svg aria-label="새로운 게시물" class="x1lliihq x1n2onr6 x5n08af" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><title>새로운 게시물</title><path d="M21 11h-8V3a1 1 0 1 0-2 0v8H3a1 1 0 1 0 0 2h8v8a1 1 0 1 0 2 0v-8h8a1 1 0 1 0 0-2Z"></path></svg>
@@ -875,8 +844,6 @@
             const captionCount = document.getElementById('reelCaptionCount');
             const chooseButton = document.getElementById('chooseReelVideo');
             const reelForm = document.getElementById('createReelForm');
-<<<<<<< HEAD
-=======
             const thumbnailInput = document.getElementById('reelThumbnailInput');
             const videoSizeGuide = document.getElementById('reelVideoSizeGuide');
             const reelProgress = document.getElementById('reelUploadProgress');
@@ -945,8 +912,6 @@
                 xhr.addEventListener('error', () => reject(new Error('네트워크 오류로 릴스를 업로드하지 못했습니다.')));
                 xhr.send(formData);
             });
->>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
-
             caption.addEventListener('input', () => { captionCount.textContent = caption.value.length; });
             chooseButton.addEventListener('click', () => videoInput.click());
             videoInput.addEventListener('change', () => {
@@ -1160,19 +1125,16 @@
             storyComposer.addEventListener('hidden.bs.modal', resetStoryComposer);
         }
     </script>
-<<<<<<< HEAD
+    {% endif %}
 
     {% if current_user.is_authenticated %}
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     {% endif %}
 
     {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage'] %}
-    <script>
-=======
     {% if (current_user.is_authenticated or g.user) and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage', 'story.detail'] %}
         <script src="/socket.io/socket.io.js"></script>
         <script>
->>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
         document.addEventListener('DOMContentLoaded', () => {
             const notificationModal = document.getElementById('notificationModal');
             const notificationList = document.getElementById('notificationList');
@@ -1349,6 +1311,7 @@
             });
         });
     </script>
+    {% endif %}
     {% endif %}
     {% block script %}
     {% endblock %}
