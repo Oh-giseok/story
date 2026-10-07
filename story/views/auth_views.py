@@ -3,12 +3,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import date, datetime, timedelta
 from urllib.parse import urlparse
 import os
-<<<<<<< HEAD
 from werkzeug.utils import secure_filename
 from flask_login import login_user, logout_user, current_user
-=======
 from flask_login import login_user, logout_user
->>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
 from sqlalchemy import or_
 from story import db
 from story.time_utils import utc_now_naive

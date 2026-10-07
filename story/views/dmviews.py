@@ -1,10 +1,7 @@
-<<<<<<< HEAD
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, g
 from story.models import db, Conversation, Message, MessageRead, User, Friendship
-=======
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, g, current_app
 from story.models import db, Conversation, Message, MessageRead, User
->>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
 from flask_login import current_user
 from datetime import datetime
 
@@ -136,12 +133,8 @@ def get_or_create_conversation():
         db.session.commit()
     return jsonify({'conversation_id': conv.id})
 
-<<<<<<< HEAD
-
 @bp.route('/conversations/<int:conv_id>/messages', methods=['GET'])
-=======
 @bp.route('/conversations/<int:conv_id>/messages', methods=['GET', 'POST'])
->>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
 def get_messages(conv_id):
     user_id = session.get('user_id') or (current_user.id if current_user.is_authenticated else None) or (g.user.id if g.user else None)
     if not user_id:
