@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, g
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, g, current_app
 from story.models import db, Conversation, Message, MessageRead, User
 from flask_login import current_user
 from datetime import datetime
@@ -77,16 +77,53 @@ def get_or_create_conversation():
         db.session.commit()
     return jsonify({'conversation_id': conv.id})
 
-@bp.route('/conversations/<int:conv_id>/messages', methods=['GET'])
+@bp.route('/conversations/<int:conv_id>/messages', methods=['GET', 'POST'])
 def get_messages(conv_id):
-    user_id = request.args.get('user_id', type=int)
+    user_id = session.get('user_id') or (current_user.id if current_user.is_authenticated else None) or (g.user.id if g.user else None)
+    if not user_id:
+        return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
+
+    conversation = Conversation.query.get_or_404(conv_id)
+    if int(user_id) not in (conversation.user_id1, conversation.user_id2):
+        return jsonify({'success': False, 'message': '이 대화방에 접근할 수 없습니다.'}), 403
+
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        text = (data.get('text') or '').strip()
+        if not text:
+            return jsonify({'success': False, 'message': '메시지를 입력해 주세요.'}), 400
+
+        message = Message(
+            conversation_id=conversation.id,
+            sender_id=int(user_id),
+            text=text,
+        )
+        db.session.add(message)
+        db.session.flush()
+        db.session.add(MessageRead(message_id=message.id, user_id=int(user_id)))
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': '메시지를 저장하지 못했습니다.'}), 500
+
+        message_data = message.to_dict()
+        try:
+            from story.events import socketio
+            socketio.emit('receive_message', message_data, to=str(conversation.id))
+        except Exception:
+            current_app.logger.exception('DM realtime broadcast failed')
+        return jsonify({'success': True, 'message': message_data})
+
     messages = Message.query.filter_by(conversation_id=conv_id).order_by(Message.created_at.asc()).all()
-    if user_id and messages:
+    if messages:
         updated = False
         for m in messages:
-            already_read = MessageRead.query.filter_by(message_id=m.id, user_id=user_id).first()
+            if m.sender_id == int(user_id):
+                continue
+            already_read = MessageRead.query.filter_by(message_id=m.id, user_id=int(user_id)).first()
             if not already_read:
-                db.session.add(MessageRead(message_id=m.id, user_id=user_id))
+                db.session.add(MessageRead(message_id=m.id, user_id=int(user_id)))
                 updated = True
         if updated:
             try:

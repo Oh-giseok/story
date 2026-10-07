@@ -1,10 +1,9 @@
 import os
-import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify, session, g, flash
-from werkzeug.utils import secure_filename
 from story import db
 from story.models import Post, User, PostLike, PostComment, PostRepost, Story, Notification
 from story.time_utils import utc_isoformat, kst_now_naive, utc_now_naive
+from story.media_storage import upload_media
 
 # /post 경로로 들어오는 요청들을 처리할 블루프린트 생성
 bp = Blueprint('post', __name__, url_prefix='/post')
@@ -26,14 +25,19 @@ def get_current_user_id():
 def _list():
     posts = Post.query.order_by(Post.created_at.desc()).all()
     story_list = Story.query.filter(Story.expires_at > kst_now_naive()).order_by(Story.create_date.desc()).all()
-    user_id = get_current_user_id()
+    user_id = session.get('user_id')
     reposted_post_ids = {
         repost.post_id
         for repost in PostRepost.query.filter_by(user_id=user_id).all()
     } if user_id else set()
+    liked_post_ids = {
+        like.post_id
+        for like in PostLike.query.filter_by(user_id=user_id).all()
+    } if user_id else set()
     return render_template(
         'post/post_list.html', posts=posts, story_list=story_list,
-        reposted_post_ids=reposted_post_ids
+        reposted_post_ids=reposted_post_ids,
+        liked_post_ids=liked_post_ids
     )
 
 
@@ -69,7 +73,8 @@ def _create():
         return redirect(url_for('auth.login'))  # 사용하시는 로그인 라우트명으로 맞추어 사용해주세요.
 
     if request.method == 'GET':
-        return render_template('post/post_form.html')
+        # 게시물 작성 UI는 공통 모달에 있으므로 홈에서 모달을 연다.
+        return redirect(url_for('main.index', open_post_composer='1'))
 
     caption = request.form.get('caption')
     media_files = request.files.getlist('media_file')
@@ -87,16 +92,8 @@ def _create():
             flash('지원하지 않는 사진 또는 동영상 형식입니다.')
             return redirect(url_for('main.index'))
 
-    today = kst_now_naive().strftime('%Y%m%d')
-    upload_folder = os.path.join(current_app.root_path, 'static/photo', today)
-    os.makedirs(upload_folder, exist_ok=True)
-
     for file in media_files:
-        safe_name = secure_filename(file.filename).replace(',', '_')
-        filename = f"{uuid.uuid4().hex}_{safe_name}"
-        file_path = os.path.join(upload_folder, filename)
-        file.save(file_path)
-        saved_urls.append(f'/static/photo/{today}/{filename}')
+        saved_urls.append(upload_media(file, 'story-posts', resource_type='image'))
 
     media_url = ','.join(saved_urls) if saved_urls else None
 
@@ -115,7 +112,7 @@ def _create():
 # 3. 좋아요 토글
 @bp.route('/like/<int:post_id>', methods=['POST'])
 def like(post_id):
-    user_id = get_current_user_id()
+    user_id = session.get('user_id')
     if not user_id:
         return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
 
@@ -130,7 +127,7 @@ def like(post_id):
         db.session.add(new_like)
         liked = True
         if post.user_id != user_id:
-            actor = g.user if (hasattr(g, 'user') and g.user) else User.query.get(user_id)
+            actor = User.query.get(user_id)
             notification = Notification(
                 recipient_id=post.user_id, actor_id=user_id, post_id=post.id,
                 type='post_like', is_read=False, created_at=utc_now_naive(),

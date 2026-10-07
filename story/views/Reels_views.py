@@ -1,6 +1,6 @@
 import os
 import cv2
-import uuid
+import tempfile
 
 from flask import (
     Blueprint,
@@ -14,13 +14,13 @@ from flask import (
     g
 )
 from flask_login import current_user
-from werkzeug.utils import secure_filename
 from flask import current_app as currunt_app
 
 from ..models import Reels, Comments, Reels_Likes, User
 from story.time_utils import utc_isoformat
 from ..forms import ReelsForm, CommentsForm, ReelsEditForm
 from .. import db
+from story.media_storage import media_url, upload_media
 from story.views import dmviews
 
 reels_bp = Blueprint(
@@ -117,26 +117,23 @@ def upload():
     if form.validate_on_submit():
         video = form.video_url.data
 
-        videos_folder = os.path.join(currunt_app.config['UPLOAD_FOLDER'], 'videos')
-        os.makedirs(videos_folder, exist_ok=True)
-        video_filename = f"{uuid.uuid4().hex}_{secure_filename(video.filename)}"
-        video_path = os.path.join(videos_folder, video_filename)
-
-        video.save(video_path)
-        duration = get_video_duration(video_path)
-
+        with tempfile.NamedTemporaryFile(suffix=os.path.splitext(video.filename)[1], delete=False) as temp_video:
+            temp_video_path = temp_video.name
+        try:
+            video.save(temp_video_path)
+            duration = get_video_duration(temp_video_path)
+        finally:
+            if os.path.exists(temp_video_path):
+                os.remove(temp_video_path)
+        video.stream.seek(0)
+        video_url = upload_media(video, 'story-reels', resource_type='video')
         thumbnail = form.thumbnail.data
-        thumbnails_folder = os.path.join(currunt_app.config['UPLOAD_FOLDER'], 'thumbnails')
-        os.makedirs(thumbnails_folder, exist_ok=True)
-        thumbnail_filename = f"{uuid.uuid4().hex}_{secure_filename(thumbnail.filename)}"
-        thumbnail_path = os.path.join(thumbnails_folder, thumbnail_filename)
-
-        thumbnail.save(thumbnail_path)
+        thumbnail_url = upload_media(thumbnail, 'story-reels', resource_type='image')
 
         reel = Reels(
             user_id=session['user_id'],
-            video_url=video_path,
-            thumbnail_url=thumbnail_path,
+            video_url=video_url,
+            thumbnail_url=thumbnail_url,
             caption=form.caption.data,
             duration=duration
         )
@@ -175,16 +172,17 @@ def edit_reel(reel_id):
             video = form.video_url.data
             old_video_path = reel.video_url
 
-            video_filename = f"{uuid.uuid4().hex}_{secure_filename(video.filename)}"
-            video_path = os.path.join(
-                currunt_app.config['UPLOAD_FOLDER'],
-                'videos',
-                video_filename
-            )
-            video.save(video_path)
-
-            reel.video_url = video_path
-            reel.duration = get_video_duration(video_path)
+            with tempfile.NamedTemporaryFile(suffix=os.path.splitext(video.filename)[1], delete=False) as temp_video:
+                temp_video_path = temp_video.name
+            try:
+                video.save(temp_video_path)
+                reel.duration = get_video_duration(temp_video_path)
+            finally:
+                if os.path.exists(temp_video_path):
+                    os.remove(temp_video_path)
+            video.stream.seek(0)
+            reel.video_url = upload_media(video, 'story-reels', resource_type='video')
+            video_path = reel.video_url
 
             video_used = Reels.query.filter(
                 Reels.video_url == old_video_path,
@@ -198,15 +196,8 @@ def edit_reel(reel_id):
             thumbnail = form.thumbnail.data
             old_thumbnail_path = reel.thumbnail_url
 
-            thumbnail_filename = f"{uuid.uuid4().hex}_{secure_filename(thumbnail.filename)}"
-            thumbnail_path = os.path.join(
-                currunt_app.config['UPLOAD_FOLDER'],
-                'thumbnails',
-                thumbnail_filename
-            )
-            thumbnail.save(thumbnail_path)
-
-            reel.thumbnail_url = thumbnail_path
+            reel.thumbnail_url = upload_media(thumbnail, 'story-reels', resource_type='image')
+            thumbnail_path = reel.thumbnail_url
 
             thumbnail_used = Reels.query.filter(
                 Reels.thumbnail_url == old_thumbnail_path,
@@ -283,6 +274,9 @@ def delete_reel(reel_id):
 
 @reels_bp.route('/uploads/<path:filename>')
 def uploaded_file(filename):
+    asset_ref = filename.rsplit('/', 1)[-1]
+    if asset_ref.startswith('sb:'):
+        return redirect(media_url(asset_ref))
     upload_folder = currunt_app.config['UPLOAD_FOLDER']
     return send_from_directory(upload_folder, filename)
 
