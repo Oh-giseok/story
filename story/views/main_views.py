@@ -17,8 +17,8 @@ def index():
     active_chat_users = []
     if current_uid:
         try:
-            if hasattr(dmviews, 'get_active_chat_users'):
-                active_chat_users = dmviews.get_active_chat_users(current_uid)
+            if hasattr(dmviews, 'get_recent_chat_users'):
+                active_chat_users = dmviews.get_recent_chat_users(current_uid)
         except Exception as e:
             print(f"[DM Query Error in main_views.py]: {e}")
     stories = []
