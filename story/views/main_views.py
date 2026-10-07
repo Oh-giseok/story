@@ -3,22 +3,17 @@ import datetime
 from flask import Blueprint, render_template, session, g, request
 from flask_login import current_user
 from sqlalchemy import and_, or_
-from story.models import Friendship, Post, Reels, Story, User, Notification
+from story.models import Friendship, Post, PostLike, PostRepost, Reels, User, Notification
 from story.time_utils import kst_now_naive
 from story.views import dmviews
+from story.views.story_views import get_unique_story_list
 
 bp = Blueprint('main', __name__)
 
 
 @bp.route('/')
 def index():
-    current_uid = None
-    if current_user.is_authenticated:
-        current_uid = current_user.id
-    elif hasattr(g, 'user') and g.user and getattr(g.user, 'id', None):
-        current_uid = g.user.id
-    elif 'user_id' in session:
-        current_uid = session['user_id']
+    current_uid = session.get('user_id')
     active_chat_users = []
     if current_uid:
         try:
@@ -28,20 +23,7 @@ def index():
             print(f"[DM Query Error in main_views.py]: {e}")
     stories = []
     try:
-        now_time = kst_now_naive()
-        all_stories = Story.query.filter(
-            Story.expires_at > now_time
-        ).order_by(
-            Story.create_date.asc()
-        ).all()
-
-        user_ids = set()
-        for story in all_stories:
-            if story.user_id not in user_ids:
-                stories.append(story)
-                user_ids.add(story.user_id)
-
-        stories.reverse()
+        stories = get_unique_story_list()
     except Exception as e:
         print(f"[Story Query Error]: {e}")
 
@@ -106,7 +88,7 @@ def search():
     if query:
         pattern = f'%{query}%'
         if category == 'users':
-            users = User.query.filter(User.username.ilike(pattern)).order_by(User.username.asc()).limit(60).all()
+            users = User.query.filter(or_(User.username.ilike(pattern),User.name.ilike(pattern))).order_by(User.username.asc()).limit(60).all()
             if current_uid and users:
                 user_ids = [user.id for user in users if user.id != current_uid]
                 if user_ids:
@@ -120,11 +102,11 @@ def search():
                     }
         elif category == 'posts':
             posts = Post.query.join(User, Post.user_id == User.id).filter(
-                or_(Post.caption.ilike(pattern), User.username.ilike(pattern))
+                or_(Post.caption.ilike(pattern), User.username.ilike(pattern), User.name.ilike(pattern))
             ).order_by(Post.created_at.desc()).limit(60).all()
         else:
             reels = Reels.query.join(User, Reels.user_id == User.id).filter(
-                or_(Reels.caption.ilike(pattern), User.username.ilike(pattern))
+                or_(Reels.caption.ilike(pattern), User.username.ilike(pattern), User.name.ilike(pattern))
             ).order_by(Reels.created_at.desc()).limit(60).all()
             reel_users = {
                 user.id: user

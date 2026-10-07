@@ -195,8 +195,8 @@
 const senderElem = document.getElementById('sender_id');
 const currentUserId = senderElem ? senderElem.value : "{{ current_uid }}";
 
-const socket = io({ query: { user_id: currentUserId } });
 let currentConvId = null;
+const socket = window.io ? window.io({ query: { user_id: currentUserId } }) : null;
 
 function parseUtcTimestamp(value) {
     if (!value) return null;
@@ -231,18 +231,17 @@ function messageTimeMarkup(value, className) {
 
 setInterval(() => {
     if (currentUserId) {
-        socket.emit('heartbeat', { user_id: currentUserId });
+        socket?.emit('heartbeat', { user_id: currentUserId });
     }
 }, 15000);
 
 document.addEventListener('DOMContentLoaded', () => {
     const targetInput = document.getElementById('target_id');
-    if (targetInput && targetInput.value) {
-        connectChat();
-    }
+    if (targetInput && targetInput.value) connectChat();
+    if (!socket) console.error('Socket.IO 클라이언트를 불러오지 못해 DM 폴링 모드로 연결합니다.');
 });
 
-socket.on('presence_change', (data) => {
+socket?.on('presence_change', (data) => {
     const userId = String(data.user_id);
     if (userId === String(currentUserId)) return;
 
@@ -301,8 +300,8 @@ async function connectChat() {
         const data = await res.json();
         currentConvId = data.conversation_id;
 
-        socket.emit('join_room', { conversation_id: currentConvId });
-        socket.emit('mark_read', { conversation_id: currentConvId, user_id: userId1 });
+        socket?.emit('join_room', { conversation_id: currentConvId });
+        socket?.emit('mark_read', { conversation_id: currentConvId, user_id: userId1 });
         await loadMessages();
     } catch (error) {
         console.error("채팅방 연결 오류:", error);
@@ -319,32 +318,41 @@ async function loadMessages() {
 
         const messages = await msgRes.json();
         const chatBox = document.getElementById('chat-box');
-        chatBox.innerHTML = '';
+        if (!chatBox.children.length || socket?.connected) chatBox.innerHTML = '';
         messages.forEach(msg => appendMessage(msg));
     } catch (error) {
         console.error("메시지 로딩 오류:", error);
     }
 }
 
-function sendMessage() {
+async function sendMessage() {
     const textInput = document.getElementById('message_text');
     const senderElem = document.getElementById('sender_id');
 
     if (!senderElem) return;
-    const senderId = parseInt(senderElem.value);
     const text = textInput.value.trim();
 
     if (!text || !currentConvId) return;
 
-    socket.emit('send_message', {
-        conversation_id: currentConvId,
-        sender_id: senderId,
-        text: text,
-        img_url: null
-    });
-
-    textInput.value = '';
+    try {
+        const response = await fetch(`/dm/conversations/${currentConvId}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || '메시지를 전송하지 못했습니다.');
+        if (textInput.value.trim() === text) textInput.value = '';
+        appendMessage(result.message);
+    } catch (error) {
+        console.error('메시지 전송 실패:', error);
+        alert(error.message || '메시지를 전송하지 못했습니다. 연결 상태를 확인해 주세요.');
+    }
 }
+
+setInterval(() => {
+    if (currentConvId && !socket?.connected) loadMessages();
+}, 3000);
 
 async function leaveConversation(targetId) {
     if (!confirm("정말 이 대화방에서 나가지시겠습니까?\n나간 대화는 최근 대화 목록에서 제거됩니다.")) {
@@ -371,19 +379,19 @@ async function leaveConversation(targetId) {
     }
 }
 
-socket.on('receive_message', function(msg) {
+socket?.on('receive_message', function(msg) {
     const senderElem = document.getElementById('sender_id');
     if (!senderElem) return;
     const currentUserId = parseInt(senderElem.value);
 
     appendMessage(msg);
 
-    if (msg.sender_id !== currentUserId) {
-        socket.emit('mark_read', { conversation_id: currentConvId, user_id: currentUserId });
+    if (Number(msg.sender_id) !== Number(currentUserId)) {
+        socket?.emit('mark_read', { conversation_id: currentConvId, user_id: currentUserId });
     }
 });
 
-socket.on('update_read_status', function(data) {
+socket?.on('update_read_status', function(data) {
     if (data.conversation_id === currentConvId) {
         loadMessages();
     }
@@ -392,11 +400,13 @@ socket.on('update_read_status', function(data) {
 function appendMessage(msg) {
     const chatBox = document.getElementById('chat-box');
     if (!chatBox) return;
+    if (msg.id && chatBox.querySelector(`[data-message-id="${msg.id}"]`)) return;
 
     const currentUserId = parseInt(senderElem ? senderElem.value : 0);
-    const isMe = msg.sender_id === currentUserId;
+    const isMe = Number(msg.sender_id) === Number(currentUserId);
 
     const div = document.createElement('div');
+    if (msg.id) div.dataset.messageId = msg.id;
     div.className = `d-flex mb-3 ${isMe ? 'justify-content-end' : 'justify-content-start'}`;
 
     const unreadBadge = msg.unread_count > 0

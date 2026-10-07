@@ -1,10 +1,14 @@
 from flask import Blueprint, request, redirect, url_for, flash, render_template, session, g, current_app, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from urllib.parse import urlparse
 import os
+<<<<<<< HEAD
 from werkzeug.utils import secure_filename
 from flask_login import login_user, logout_user, current_user
+=======
+from flask_login import login_user, logout_user
+>>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
 from sqlalchemy import or_
 from story import db
 from story.time_utils import utc_now_naive
@@ -16,6 +20,7 @@ from story.models import (
     Friendship,
     Notification,
 )
+from story.media_storage import upload_media
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -95,14 +100,7 @@ def signup():
             image = form.profile_img_url.data
 
             if image and getattr(image, "filename", ""):
-                filename = secure_filename(image.filename)
-                image.save(
-                    os.path.join(
-                        current_app.config['PROFILE_UPLOAD_FOLDER'],
-                        filename
-                    )
-                )
-                profile_img_url = f'profile/{filename}'
+                profile_img_url = upload_media(image, 'story-profiles', resource_type='image')
             user = User(
                 profile_img_url=profile_img_url,
                 username=form.username.data.strip(),
@@ -264,7 +262,15 @@ def profile_edit():
     if request.method == 'GET':
         form.username.data = g.user.username
         form.name.data = g.user.name
-        form.birth.data = g.user.birth
+        birth = g.user.birth
+        if isinstance(birth, datetime):
+            birth = birth.date()
+        elif isinstance(birth, str):
+            try:
+                birth = date.fromisoformat(birth.strip()[:10])
+            except ValueError:
+                birth = None
+        form.birth.data = birth
         form.email.data = g.user.email
         form.intro.data = g.user.intro
 
@@ -305,13 +311,7 @@ def profile_edit():
 
         image = form.profile_img_url.data
         if image and getattr(image, 'filename', ''):
-            filename = secure_filename(image.filename)
-            if not filename:
-                flash('사용할 수 없는 파일 이름입니다.')
-                return redirect(url_for('auth.profile_edit'))
-
-            image.save(os.path.join(current_app.config['PROFILE_UPLOAD_FOLDER'], filename))
-            g.user.profile_img_url = f'profile/{filename}'
+            g.user.profile_img_url = upload_media(image, 'story-profiles', resource_type='image')
 
         g.user.updated_at = utc_now_naive()
 
@@ -491,20 +491,35 @@ def send_friend_request(target_id):
 
 @bp.route('/friend/<int:target_id>/<action>', methods=['POST'])
 def update_friendship(target_id, action):
+    is_async = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    def finish(success, message=None, status=200):
+        if is_async:
+            unread_count = Notification.query.filter_by(
+                recipient_id=g.user.id, is_read=False
+            ).count()
+            return jsonify({
+                'success': success,
+                'action': action,
+                'message': message,
+                'unread_count': unread_count,
+            }), status
+        if message:
+            flash(message)
+        return _friend_profile_redirect(target_id)
+
     if not _friend_action_form_is_valid():
-        flash('요청이 만료되었습니다. 다시 시도해 주세요.')
-        return _friend_profile_redirect(target_id)
+        return finish(False, '요청이 만료되었습니다. 다시 시도해 주세요.', 400)
     if action not in {'accept', 'reject', 'cancel', 'remove'}:
-        return _friend_profile_redirect(target_id)
+        return finish(False, '지원하지 않는 요청입니다.', 400)
 
     target = User.query.get_or_404(target_id)
     if target.id == g.user.id:
-        return _friend_profile_redirect(target_id)
+        return finish(False, '자기 자신과는 친구 관계를 만들 수 없습니다.', 400)
     low_id, high_id = sorted((g.user.id, target.id))
     friendship = Friendship.query.filter_by(user_low_id=low_id, user_high_id=high_id).first()
     if not friendship:
-        flash('친구 요청 또는 관계를 찾을 수 없습니다.')
-        return _friend_profile_redirect(target_id)
+        return finish(False, '친구 요청 또는 관계를 찾을 수 없습니다.', 404)
 
     if action == 'accept' and friendship.status == 'pending' and friendship.requested_by_id == target.id:
         friendship.status = 'accepted'
@@ -521,14 +536,16 @@ def update_friendship(target_id, action):
             db.session.delete(friendship)
             db.session.commit()
         else:
-            flash('이 요청을 처리할 권한이 없습니다.')
+            return finish(False, '이 요청을 처리할 권한이 없습니다.', 403)
     elif action == 'remove' and friendship.status == 'accepted':
         Notification.query.filter_by(friendship_id=friendship.id).delete(synchronize_session=False)
         db.session.delete(friendship)
         db.session.commit()
     else:
-        flash('현재 상태에서는 해당 작업을 할 수 없습니다.')
+        return finish(False, '현재 상태에서는 해당 작업을 할 수 없습니다.', 409)
 
+    if is_async:
+        return finish(True)
     return _friend_profile_redirect(g.user.id if request.form.get('return_to') == 'self' else target.id)
 
 

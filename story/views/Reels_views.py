@@ -1,6 +1,7 @@
 import os
 import cv2
-import uuid
+import tempfile
+import secrets
 
 from flask import (
     Blueprint,
@@ -14,13 +15,13 @@ from flask import (
     g
 )
 from flask_login import current_user
-from werkzeug.utils import secure_filename
 from flask import current_app as currunt_app
 
 from ..models import Reels, Comments, Reels_Likes, User
 from story.time_utils import utc_isoformat
 from ..forms import ReelsForm, CommentsForm, ReelsEditForm
 from .. import db
+from story.media_storage import create_signed_upload_url, media_url, upload_media
 from story.views import dmviews
 
 reels_bp = Blueprint(
@@ -114,29 +115,78 @@ def reels():
 def upload():
     form = ReelsForm()
 
+    if request.method == 'POST' and request.is_json:
+        payload = request.get_json(silent=True) or {}
+        phase = payload.get('phase')
+        if phase == 'sign':
+            files = payload.get('files')
+            if not isinstance(files, dict) or set(files) != {'video', 'thumbnail'}:
+                return jsonify({'error': '동영상과 대표이미지를 선택해주세요.'}), 400
+
+            signed_uploads = {}
+            allowed_extensions = {
+                'video': {'mp4', 'mov', 'webm'},
+                'thumbnail': {'jpg', 'jpeg', 'png', 'webp'},
+            }
+            for role, item in files.items():
+                if not isinstance(item, dict):
+                    return jsonify({'error': '잘못된 파일 정보입니다.'}), 400
+                filename = os.path.basename(str(item.get('name') or ''))
+                extension = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+                size = item.get('size')
+                if extension not in allowed_extensions[role] or not isinstance(size, int) or size <= 0:
+                    return jsonify({'error': '지원하지 않는 파일이거나 파일 크기가 올바르지 않습니다.'}), 400
+                object_key = f"{secrets.token_urlsafe(12)}.{extension}"
+                signed_upload = create_signed_upload_url(object_key)
+                if signed_upload is None:
+                    return jsonify({'available': False})
+                signed_uploads[role] = signed_upload
+            session['pending_reel_upload_keys'] = {role: upload['key'] for role, upload in signed_uploads.items()}
+            return jsonify({'available': True, 'uploads': signed_uploads})
+
+        if phase == 'publish':
+            keys = payload.get('keys')
+            pending_keys = session.get('pending_reel_upload_keys', {})
+            duration = payload.get('duration')
+            caption = payload.get('caption')
+            if (not isinstance(keys, dict) or keys != pending_keys
+                    or not isinstance(caption, str) or not caption.strip()
+                    or len(caption) > 2200
+                    or not isinstance(duration, (int, float)) or duration <= 0):
+                return jsonify({'error': '릴스 정보가 올바르지 않습니다.'}), 400
+
+            reel = Reels(
+                user_id=session['user_id'],
+                video_url=f"sb:{keys['video']}",
+                thumbnail_url=f"sb:{keys['thumbnail']}",
+                caption=caption.strip(),
+                duration=duration,
+            )
+            db.session.add(reel)
+            db.session.commit()
+            session.pop('pending_reel_upload_keys', None)
+            return jsonify({'redirect': url_for('reels.reels')})
+
     if form.validate_on_submit():
         video = form.video_url.data
 
-        videos_folder = os.path.join(currunt_app.config['UPLOAD_FOLDER'], 'videos')
-        os.makedirs(videos_folder, exist_ok=True)
-        video_filename = f"{uuid.uuid4().hex}_{secure_filename(video.filename)}"
-        video_path = os.path.join(videos_folder, video_filename)
-
-        video.save(video_path)
-        duration = get_video_duration(video_path)
-
+        with tempfile.NamedTemporaryFile(suffix=os.path.splitext(video.filename)[1], delete=False) as temp_video:
+            temp_video_path = temp_video.name
+        try:
+            video.save(temp_video_path)
+            duration = get_video_duration(temp_video_path)
+        finally:
+            if os.path.exists(temp_video_path):
+                os.remove(temp_video_path)
+        video.stream.seek(0)
+        video_url = upload_media(video, 'story-reels', resource_type='video')
         thumbnail = form.thumbnail.data
-        thumbnails_folder = os.path.join(currunt_app.config['UPLOAD_FOLDER'], 'thumbnails')
-        os.makedirs(thumbnails_folder, exist_ok=True)
-        thumbnail_filename = f"{uuid.uuid4().hex}_{secure_filename(thumbnail.filename)}"
-        thumbnail_path = os.path.join(thumbnails_folder, thumbnail_filename)
-
-        thumbnail.save(thumbnail_path)
+        thumbnail_url = upload_media(thumbnail, 'story-reels', resource_type='image')
 
         reel = Reels(
             user_id=session['user_id'],
-            video_url=video_path,
-            thumbnail_url=thumbnail_path,
+            video_url=video_url,
+            thumbnail_url=thumbnail_url,
             caption=form.caption.data,
             duration=duration
         )
@@ -175,16 +225,17 @@ def edit_reel(reel_id):
             video = form.video_url.data
             old_video_path = reel.video_url
 
-            video_filename = f"{uuid.uuid4().hex}_{secure_filename(video.filename)}"
-            video_path = os.path.join(
-                currunt_app.config['UPLOAD_FOLDER'],
-                'videos',
-                video_filename
-            )
-            video.save(video_path)
-
-            reel.video_url = video_path
-            reel.duration = get_video_duration(video_path)
+            with tempfile.NamedTemporaryFile(suffix=os.path.splitext(video.filename)[1], delete=False) as temp_video:
+                temp_video_path = temp_video.name
+            try:
+                video.save(temp_video_path)
+                reel.duration = get_video_duration(temp_video_path)
+            finally:
+                if os.path.exists(temp_video_path):
+                    os.remove(temp_video_path)
+            video.stream.seek(0)
+            reel.video_url = upload_media(video, 'story-reels', resource_type='video')
+            video_path = reel.video_url
 
             video_used = Reels.query.filter(
                 Reels.video_url == old_video_path,
@@ -198,15 +249,8 @@ def edit_reel(reel_id):
             thumbnail = form.thumbnail.data
             old_thumbnail_path = reel.thumbnail_url
 
-            thumbnail_filename = f"{uuid.uuid4().hex}_{secure_filename(thumbnail.filename)}"
-            thumbnail_path = os.path.join(
-                currunt_app.config['UPLOAD_FOLDER'],
-                'thumbnails',
-                thumbnail_filename
-            )
-            thumbnail.save(thumbnail_path)
-
-            reel.thumbnail_url = thumbnail_path
+            reel.thumbnail_url = upload_media(thumbnail, 'story-reels', resource_type='image')
+            thumbnail_path = reel.thumbnail_url
 
             thumbnail_used = Reels.query.filter(
                 Reels.thumbnail_url == old_thumbnail_path,
@@ -283,6 +327,9 @@ def delete_reel(reel_id):
 
 @reels_bp.route('/uploads/<path:filename>')
 def uploaded_file(filename):
+    asset_ref = filename.rsplit('/', 1)[-1]
+    if asset_ref.startswith('sb:'):
+        return redirect(media_url(asset_ref))
     upload_folder = currunt_app.config['UPLOAD_FOLDER']
     return send_from_directory(upload_folder, filename)
 

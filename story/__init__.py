@@ -6,6 +6,7 @@ from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, current_user
 from story.time_utils import as_utc, utc_now_naive, kst_now_naive, format_kst
+from story.media_storage import media_url, media_urls
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -35,6 +36,18 @@ def create_app():
 
     app.config.from_object('config')
 
+    # Render 같은 호스팅 환경의 값으로 개발 기본 설정을 덮어쓴다.
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url:
+        if database_url.startswith('postgres://'):
+            database_url = database_url.replace('postgres://', 'postgresql+psycopg://', 1)
+        elif database_url.startswith('postgresql://'):
+            database_url = database_url.replace('postgresql://', 'postgresql+psycopg://', 1)
+        app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    app.config['SECRET_KEY'] = os.environ.get(
+        'SECRET_KEY', app.config.get('SECRET_KEY', 'dev-secret-key')
+    )
+
     if not app.config.get('SQLALCHEMY_DATABASE_URI'):
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///story.db'
 
@@ -58,11 +71,26 @@ def create_app():
     def profile_img_filter(img_url):
         if not img_url:
             return url_for('static', filename='photo/default_profile.png')
+        if img_url.startswith('sb:'):
+            return url_for('static', filename=img_url)
         if img_url.startswith('http://') or img_url.startswith('https://') or img_url.startswith('/'):
             return img_url
         if img_url.startswith('profile/') or img_url.startswith('photo/'):
             return url_for('static', filename=img_url)
         return url_for('static', filename='profile/' + img_url)
+
+    app.add_template_filter(media_url, 'media_url')
+    app.add_template_filter(media_urls, 'media_urls')
+
+    # Preserve existing templates that use url_for('static', filename=...).
+    static_view = app.view_functions['static']
+
+    def static_or_remote(filename):
+        if filename.startswith('sb:'):
+            return redirect(media_url(filename))
+        return static_view(filename=filename)
+
+    app.view_functions['static'] = static_or_remote
 
     @app.context_processor
     def inject_global_csrf_token():
@@ -198,6 +226,26 @@ def create_app():
                         cursor.execute('PRAGMA foreign_keys=ON')
                     finally:
                         raw_connection.close()
+            elif db.engine.dialect.name == 'postgresql':
+                # PostgreSQL can add the newer notification fields in place. Keep the
+                # existing rows and constraints intact instead of rebuilding the table.
+                if 'post_id' not in notification_columns:
+                    db.session.execute(text(
+                        'ALTER TABLE notification ADD COLUMN post_id INTEGER '
+                        'REFERENCES post(id) ON DELETE CASCADE'
+                    ))
+                if 'message' not in notification_columns:
+                    db.session.execute(text(
+                        'ALTER TABLE notification ADD COLUMN message TEXT'
+                    ))
+                if notification_columns.get('friendship_id', {}).get('nullable') is False:
+                    db.session.execute(text(
+                        'ALTER TABLE notification ALTER COLUMN friendship_id DROP NOT NULL'
+                    ))
+                db.session.execute(text(
+                    'CREATE INDEX IF NOT EXISTS ix_notification_post_id ON notification (post_id)'
+                ))
+                schema_changed = True
             else:
                 raise RuntimeError('Notification schema migration is currently supported only for SQLite.')
             schema_changed = False

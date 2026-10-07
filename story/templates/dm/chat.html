@@ -36,6 +36,7 @@
         color: #adb5bd;
         flex-shrink: 0;
     }
+<<<<<<< HEAD
     .unread-dot {
         width: 10px;
         height: 10px;
@@ -43,6 +44,57 @@
         border-radius: 50%;
         flex-shrink: 0;
         margin-left: 8px;
+=======
+    .dm-chat-header {
+        gap: .5rem;
+        min-width: 0;
+    }
+    .dm-chat-back,
+    .dm-chat-leave {
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+    .dm-chat-header-user {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        gap: .5rem;
+    }
+    .dm-chat-header-user img {
+        flex: 0 0 36px;
+    }
+    .dm-chat-title {
+        display: flex;
+        align-items: center;
+        gap: .25rem;
+        min-width: 0;
+        white-space: nowrap;
+    }
+    .dm-chat-name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .dm-chat-title .status-text {
+        flex: 0 0 auto;
+        white-space: nowrap;
+        font-size: .75rem;
+    }
+    .dm-chat-leave-mobile { display: none; }
+    @media (max-width: 575.98px) {
+        .dm-chat-header { gap: .35rem; padding: .65rem !important; }
+        .dm-chat-back { padding: .3rem .4rem; font-size: .8rem; }
+        .dm-chat-header-user { gap: .35rem; }
+        .dm-chat-header-user img { width: 30px; height: 30px; flex-basis: 30px; }
+        .dm-chat-title { gap: .15rem; }
+        .dm-chat-title h5,
+        h5.dm-chat-title { font-size: .95rem; }
+        .dm-chat-title .status-text { font-size: .65rem; margin-left: 0; }
+        .dm-chat-leave { padding: .3rem .4rem; font-size: .75rem; }
+        .dm-chat-leave-desktop { display: none; }
+        .dm-chat-leave-mobile { display: inline; }
+>>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
     }
 </style>
 
@@ -127,24 +179,31 @@
         <div class="col-12 col-md-8 {% if not target_id %}d-none d-md-block{% endif %}">
             <div class="card shadow-sm h-100">
 
-                <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between border-bottom">
-                    <a href="{{ url_for('dm.user_list') }}" class="btn btn-outline-secondary btn-sm d-md-none">
-                        <i class="bi bi-chevron-left"></i> 목록으로
+                <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between border-bottom dm-chat-header">
+                    <a href="{{ url_for('dm.user_list') }}" class="btn btn-outline-secondary btn-sm d-md-none dm-chat-back">
+                        <i class="bi bi-chevron-left"></i> 목록
                     </a>
 
-                    <div class="d-flex align-items-center">
+                    <div class="d-flex align-items-center dm-chat-header-user">
                         {% if target_user %}
                             <img src="{{ target_user.profile_img_url | profile_img }}"
                                  onerror="handleImageError(this)"
                                  class="rounded-circle me-2" width="36" height="36" style="object-fit: cover;">
                         {% endif %}
-                        <h5 class="mb-0 fw-bold d-flex align-items-center">
+                        <h5 class="mb-0 fw-bold dm-chat-title">
                             {% if target_name %}
                                 {% set is_self_target = (target_id|int == current_uid|int) %}
+<<<<<<< HEAD
                                 {% set conn_status_target = 'online' if is_self_target else (target_user.connection_status if target_user else 'offline') %}
                                 <span class="status-dot {{ conn_status_target }}" id="chat-header-dot"></span>
                                 <span>{{ target_name }}</span>
                                 <span class="status-text" id="chat-header-text">({% if conn_status_target == 'online' %}Online{% elif conn_status_target == 'idle' %}자리 비움{% else %}Offline{% endif %})</span>
+=======
+                                {% set is_online_target = is_self_target or (target_user and target_user.is_online) %}
+                                <span class="status-dot {{ 'online' if is_online_target else 'offline' }}" id="chat-header-dot"></span>
+                                <span class="dm-chat-name">{{ target_name }}</span>
+                                <span class="status-text" id="chat-header-text">({{ 'Online' if is_online_target else 'Offline' }})</span>
+>>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
                             {% else %}
                                 대화 상대를 선택하세요
                             {% endif %}
@@ -152,8 +211,8 @@
                     </div>
 
                     {% if target_id %}
-                        <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="leaveConversation({{ target_id }})">
-                            <i class="bi bi-box-arrow-right me-1"></i> 대화 나가기
+                        <button type="button" class="btn btn-outline-danger btn-sm fw-bold dm-chat-leave" onclick="leaveConversation({{ target_id }})">
+                            <i class="bi bi-box-arrow-right me-1"></i><span class="dm-chat-leave-desktop">대화 나가기</span><span class="dm-chat-leave-mobile">나가기</span>
                         </button>
                     {% else %}
                         <div class="d-md-none" style="width: 75px;"></div>
@@ -169,7 +228,7 @@
                         <div id="chat-box" class="flex-grow-1 border rounded p-3 mb-3 bg-light overflow-auto" style="height: 480px;"></div>
 
                         <div class="input-group">
-                            <input type="text" id="message_text" class="form-control" placeholder="메시지를 입력하세요..." onkeypress="if(event.key==='Enter') sendMessage()">
+                            <input type="text" id="message_text" class="form-control" placeholder="메시지를 입력하세요..." onkeypress="if(event.key==='Enter') sendMessage()" style="font-size: 12px">
                             <button type="button" class="btn btn-primary px-4" onclick="sendMessage()">전송</button>
                         </div>
                     {% else %}
@@ -211,11 +270,15 @@ function handleImageError(imgElement) {
 const senderElem = document.getElementById('sender_id');
 const currentUserId = senderElem ? senderElem.value : "{{ current_uid }}";
 
+<<<<<<< HEAD
 const socket = io({
     query: { user_id: currentUserId },
     transports: ['polling']
 });
+=======
+>>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
 let currentConvId = null;
+const socket = window.io ? window.io({ query: { user_id: currentUserId } }) : null;
 
 function parseUtcTimestamp(value) {
     if (!value) return null;
@@ -267,18 +330,17 @@ function markUserAsReadUI(userId) {
 
 setInterval(() => {
     if (currentUserId) {
-        socket.emit('heartbeat', { user_id: currentUserId });
+        socket?.emit('heartbeat', { user_id: currentUserId });
     }
 }, 15000);
 
 document.addEventListener('DOMContentLoaded', () => {
     const targetInput = document.getElementById('target_id');
-    if (targetInput && targetInput.value) {
-        connectChat();
-    }
+    if (targetInput && targetInput.value) connectChat();
+    if (!socket) console.error('Socket.IO 클라이언트를 불러오지 못해 DM 폴링 모드로 연결합니다.');
 });
 
-socket.on('presence_change', (data) => {
+socket?.on('presence_change', (data) => {
     const userId = String(data.user_id);
     if (userId === String(currentUserId)) return;
 
@@ -338,11 +400,16 @@ async function connectChat() {
         const data = await res.json();
         currentConvId = data.conversation_id;
 
+<<<<<<< HEAD
         socket.emit('join_room', { conversation_id: currentConvId });
         socket.emit('mark_read', { conversation_id: currentConvId, user_id: userId1 });
 
         markUserAsReadUI(userId2);
 
+=======
+        socket?.emit('join_room', { conversation_id: currentConvId });
+        socket?.emit('mark_read', { conversation_id: currentConvId, user_id: userId1 });
+>>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
         await loadMessages();
     } catch (error) {
         console.error("채팅방 연결 오류:", error);
@@ -359,32 +426,41 @@ async function loadMessages() {
 
         const messages = await msgRes.json();
         const chatBox = document.getElementById('chat-box');
-        chatBox.innerHTML = '';
+        if (!chatBox.children.length || socket?.connected) chatBox.innerHTML = '';
         messages.forEach(msg => appendMessage(msg));
     } catch (error) {
         console.error("메시지 로딩 오류:", error);
     }
 }
 
-function sendMessage() {
+async function sendMessage() {
     const textInput = document.getElementById('message_text');
     const senderElem = document.getElementById('sender_id');
 
     if (!senderElem) return;
-    const senderId = parseInt(senderElem.value);
     const text = textInput.value.trim();
 
     if (!text || !currentConvId) return;
 
-    socket.emit('send_message', {
-        conversation_id: currentConvId,
-        sender_id: senderId,
-        text: text,
-        img_url: null
-    });
-
-    textInput.value = '';
+    try {
+        const response = await fetch(`/dm/conversations/${currentConvId}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || '메시지를 전송하지 못했습니다.');
+        if (textInput.value.trim() === text) textInput.value = '';
+        appendMessage(result.message);
+    } catch (error) {
+        console.error('메시지 전송 실패:', error);
+        alert(error.message || '메시지를 전송하지 못했습니다. 연결 상태를 확인해 주세요.');
+    }
 }
+
+setInterval(() => {
+    if (currentConvId && !socket?.connected) loadMessages();
+}, 3000);
 
 async function leaveConversation(targetId) {
     if (!confirm("정말 이 대화방에서 나가지시겠습니까?\n나간 대화는 최근 대화 목록에서 제거됩니다.")) {
@@ -411,7 +487,7 @@ async function leaveConversation(targetId) {
     }
 }
 
-socket.on('receive_message', function(msg) {
+socket?.on('receive_message', function(msg) {
     const senderElem = document.getElementById('sender_id');
     const currentUserId = senderElem ? parseInt(senderElem.value) : null;
     const targetInput = document.getElementById('target_id');
@@ -425,6 +501,7 @@ socket.on('receive_message', function(msg) {
         }
     }
 
+<<<<<<< HEAD
     const otherUserId = (msg.sender_id === currentUserId) ? currentTargetId : msg.sender_id;
     if (otherUserId) {
         const recentItem = document.getElementById(`recent-item-${otherUserId}`);
@@ -482,6 +559,14 @@ function updateNotificationPopup(userId, msg) {
 }
 
 socket.on('update_read_status', function(data) {
+=======
+    if (currentUserId && Number(msg.sender_id) !== Number(currentUserId)) {
+        socket?.emit('mark_read', { conversation_id: currentConvId, user_id: currentUserId });
+    }
+});
+
+socket?.on('update_read_status', function(data) {
+>>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
     if (data.conversation_id === currentConvId) {
         loadMessages();
         const targetInput = document.getElementById('target_id');
@@ -494,6 +579,7 @@ socket.on('update_read_status', function(data) {
 function appendMessage(msg) {
     const chatBox = document.getElementById('chat-box');
     if (!chatBox) return;
+    if (msg.id && chatBox.querySelector(`[data-message-id="${msg.id}"]`)) return;
 
     const currentUserId = parseInt(document.getElementById('sender_id').value);
     const hiddenProfileInput = document.getElementById('target_profile_img');
@@ -503,9 +589,10 @@ function appendMessage(msg) {
         ? null
         : (msg.sender_profile_img || msg.profile_img_url || targetProfileImg);
 
-    const isMe = msg.sender_id === currentUserId;
+    const isMe = Number(msg.sender_id) === Number(currentUserId);
 
     const div = document.createElement('div');
+    if (msg.id) div.dataset.messageId = msg.id;
     div.className = `d-flex mb-3 ${isMe ? 'justify-content-end' : 'justify-content-start'}`;
 
     const unreadBadge = msg.unread_count > 0

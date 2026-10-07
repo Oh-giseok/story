@@ -3,7 +3,6 @@
 {% block head %}
 <!-- Swiper.js CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
-<link rel="stylesheet" href="{{ url_for('static', filename='css/story_style.css') }}">
 
 <style>
     .modal-content { border-radius: 12px; overflow: hidden; }
@@ -185,7 +184,7 @@
                 <div class="swiper-wrapper">
                     {% for img in images %}
                     <div class="swiper-slide">
-                        <img src="{{ img }}" alt="피드 이미지">
+                        <img src="{{ img | media_url }}" alt="피드 이미지">
                     </div>
                     {% endfor %}
                 </div>
@@ -201,9 +200,9 @@
         <div class="card-body">
             <!-- 좋아요 & 댓글 버튼 -->
             <div class="d-flex align-items-center mb-2">
-                <button type="button" class="btn btn-link text-danger p-0 me-3 border-0 btn-like" data-post-id="{{ post.id }}">
-                    {% if post.likes|length > 0 %}
-                        <i class="bi bi-heart-fill fs-5"></i>
+                <button type="button" class="btn btn-link p-0 me-3 border-0 btn-like" data-post-id="{{ post.id }}" aria-pressed="{{ 'true' if post.id in liked_post_ids else 'false' }}">
+                    {% if post.id in liked_post_ids %}
+                        <i class="bi bi-heart-fill text-danger fs-5"></i>
                     {% else %}
                         <i class="bi bi-heart text-dark fs-5"></i>
                     {% endif %}
@@ -252,7 +251,7 @@
 
             <!-- 서버 데이터 원본 저장 영역 -->
             <div class="d-none raw-post-data">
-                <div class="raw-images">{% if post.media_url %}{{ post.media_url }}{% endif %}</div>
+                <div class="raw-images">{% if post.media_url %}{{ post.media_url | media_urls }}{% endif %}</div>
                 <div class="raw-comments">
                     {% for comment in post.comments %}
                     <div class="comment-item"
@@ -274,19 +273,6 @@
 
 <!-- 공통 상세보기 및 삭제/수정 모달 불러오기 -->
 
-<!-- 삭제 확인 모달 -->
-<div class="modal fade confirm-modal" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content">
-            <div class="pt-4 pb-3 px-3">
-                <h6 class="fw-bold fs-5 mb-1">게시물을 삭제하시겠어요?</h6>
-                <small class="text-secondary">지금 나가면 수정 내용이 저장되지 않습니다.</small>
-            </div>
-            <button type="button" class="btn btn-action text-danger" id="btnConfirmDelete">삭제</button>
-            <button type="button" class="btn btn-action text-dark" data-bs-dismiss="modal">취소</button>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block script %}
@@ -317,6 +303,7 @@
                 .then(data => {
                     if (data.success) {
                         icon.className = data.liked ? 'bi bi-heart-fill text-danger fs-5' : 'bi bi-heart text-dark fs-5';
+                        this.setAttribute('aria-pressed', data.liked);
                         likeCountElem.textContent = data.like_count;
                     } else if (data.message) {
                         alert(data.message);

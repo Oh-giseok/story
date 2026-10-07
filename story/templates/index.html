@@ -208,10 +208,19 @@
 
         {% else %}
 
+<<<<<<< HEAD
             <div class="insta-story-empty"
                  style="width: 100%; text-align: center; color: #999999; padding: 20px 0;">
                 현재 활성화된 스토리가 없습니다.
             </div>
+=======
+                            <img
+                                src="{{ (post.image_url or post.media_url) | media_url }}"
+                                class="img-fluid w-100"
+                                style="max-height: 500px; object-fit: cover;"
+                                alt="게시물 이미지"
+                            >
+>>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
 
         {% endfor %}
 

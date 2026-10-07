@@ -8,6 +8,7 @@
         max-width: 900px;
         height: 600px;
     }
+
     .post-detail-modal .modal-content {
         height: 600px;
         border: none;
@@ -39,17 +40,21 @@
     /* --- Swiper 커스텀 네비게이션 버튼 & 페이징 --- */
     .post-detail-modal .modal-feed-swiper .swiper-button-next,
     .post-detail-modal .modal-feed-swiper .swiper-button-prev {
-        color: #000 !important;
-        background-color: rgba(255, 255, 255, 0.7);
-        width: 30px !important;
-        height: 30px !important;
+        color: #343a40 !important;
+        background-color: rgba(255, 255, 255, 0.94) !important;
+        width: 36px !important;
+        height: 36px !important;
         border-radius: 50%;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-        transition: background-color 0.2s ease, transform 0.1s ease;
+        border: 1px solid rgba(33, 37, 41, 0.08);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+        transition: color .15s ease, background-color .15s ease, box-shadow .15s ease;
     }
     .post-detail-modal .modal-feed-swiper .swiper-button-next:hover,
     .post-detail-modal .modal-feed-swiper .swiper-button-prev:hover {
-        background-color: rgba(255, 255, 255, 0.9);
+        color: #0d6efd !important;
+        background-color: #fff !important;
+        transform: none !important;
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.28);
     }
     .post-detail-modal .modal-feed-swiper .swiper-button-next::after,
     .post-detail-modal .modal-feed-swiper .swiper-button-prev::after {
@@ -91,17 +96,34 @@
     }
     #deleteConfirmModal .modal-dialog { max-width: 560px; }
     #deleteConfirmModal .modal-content { border-radius: 24px; }
+    .comment-input{
+        border: 0;
+    }
     .comment-input-box {
-    flex-shrink: 0;
-    padding: 12px !important;
-    border-top: 1px solid #dee2e6;
-}
+        flex-shrink: 0;
+        padding: 12px !important;
+        border-top: 1px solid #dee2e6;
+    }
+
+    .post-detail-modal .modal-dialog > .btn-close {
+        z-index: 1070;
+        cursor: pointer !important;
+        top: 5rem;
+    }
+
+    @media (max-width: 768px) {
+        .post-detail-modal .modal-dialog > .btn-close {
+            top: 0.75rem !important;
+            margin: 0 !important;
+            transform: none;
+        }
+    }
 </style>
 
 <!-- 게시물 상세 & 댓글 보기 모달 -->
 <div class="modal fade post-detail-modal" id="postDetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered position-relative">
-        <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="Close" style="z-index: 1070; transform: translate(150%, -50%); cursor: pointer !important;pointer-events:auto"></button>
+        <button type="button" class="btn-close btn-close-white position-absolute end-0" data-bs-dismiss="modal" aria-label="Close"></button>
 
         <div class="modal-content">
             <div class="row g-0 h-100">
@@ -156,7 +178,7 @@
 
                     <!-- 댓글 입력 폼 -->
                    <div class="mt-auto comment-input-box p-2 border-top">
-    <form id="detailCommentForm" action="" method="post" class="d-flex align-items-end">
+    <form id="detailCommentForm" action="" method="post" class="d-flex">
         <input
             type="text"
             id="detailCommentInput"
@@ -183,9 +205,10 @@
 </div>
 
 <!-- 게시물 더보기 옵션 모달 -->
-<div class="modal fade confirm-modal" id="postOptionModal" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+<div class="modal fade confirm-modal" id="postOptionModal" tabindex="-1" aria-hidden="true" aria-labelledby="postOptionTitle">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content">
+            <h2 id="postOptionTitle" class="visually-hidden">게시물 옵션</h2>
             <button type="button" class="btn btn-action text-danger fw-bold" id="btnOptDeletePost">삭제</button>
             <button type="button" class="btn btn-action text-dark" id="btnOptEditPost">수정</button>
             <button type="button" class="btn btn-action text-secondary" data-bs-dismiss="modal">취소</button>
@@ -194,12 +217,12 @@
 </div>
 
 <!-- 삭제 확인 모달 -->
-<div class="modal fade confirm-modal" id="deleteConfirmModal" tabindex="-1" aria-hidden="true" style="z-index: 1065;">
+<div class="modal fade confirm-modal" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deletePostTitle" aria-describedby="deletePostDescription">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content">
             <div class="pt-4 pb-3 px-3 text-center">
-                <h6 class="fs-5 mb-1">게시물을 삭제할까요?</h6>
-                <small class="text-secondary">이 게시물을 삭제하시겠어요?</small>
+                <h2 class="fs-5 mb-1" id="deletePostTitle">게시물을 삭제할까요?</h2>
+                <small class="text-secondary" id="deletePostDescription">이 게시물을 삭제하시겠어요?</small>
             </div>
             <button type="button" class="btn btn-action text-danger fw-bold" id="btnConfirmDeletePost">삭제</button>
             <button type="button" class="btn btn-action text-dark" data-bs-dismiss="modal">취소</button>
@@ -222,6 +245,7 @@
 (() => {
     const currentUserId = {{ session.get('user_id', 0) }};
     const mypageUrl = {{ url_for('auth.mypage')|tojson }};
+    const csrfToken = {{ global_csrf_token()|tojson }};
     let activePostId = null;
     let activePostCard = null;
     let activeCommentId = null;
@@ -411,7 +435,10 @@
     document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.btn-open-detail').forEach(button => button.addEventListener('click', () => openPostDetailModal(button.dataset.postId)));
         byId('btnPostMoreOption').addEventListener('click', () => optionModal().show());
-        byId('btnOptDeletePost').addEventListener('click', () => { optionModal().hide(); deleteModal().show(); });
+        byId('btnOptDeletePost').addEventListener('click', () => {
+            byId('postOptionModal').addEventListener('hidden.bs.modal', () => deleteModal().show(), { once: true });
+            optionModal().hide();
+        });
         byId('btnOptEditPost').addEventListener('click', () => {
             optionModal().hide(); byId('captionEditText').value = byId('detailModalCaption').textContent;
             byId('detailModalCaption').classList.add('d-none'); byId('captionEditBox').classList.remove('d-none');
@@ -427,11 +454,33 @@
         });
         byId('btnConfirmDeletePost').addEventListener('click', async () => {
             if (!activePostId) return;
-            const response = await fetch(`/post/delete/${activePostId}`, { method: 'POST' }); const data = await response.json();
-            if (!data.success) { alert(data.message || '삭제 실패'); return; }
-            deleteModal().hide(); detailModal().hide();
-            const card = postCard(activePostId); if (card) (card.closest('.col-6, .col-md-3') || card).remove();
-            window.location.assign("{{ url_for('main.index') }}");
+            const button = byId('btnConfirmDeletePost');
+            button.disabled = true;
+            try {
+                const response = await fetch(`/post/delete/${encodeURIComponent(activePostId)}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: new URLSearchParams({ csrf_token: csrfToken })
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.success) throw new Error(data.message || '게시물 삭제에 실패했습니다.');
+
+                const deletedPostId = activePostId;
+                const card = postCard(deletedPostId);
+                deleteModal().hide();
+                detailModal().hide();
+                if (card) (card.closest('.col-6, .col-md-3') || card).remove();
+                if (activePostCard?.classList.contains('raw-post-data-source') && !activePostCard.isConnected) activePostCard.remove();
+                activePostId = null;
+                activePostCard = null;
+            } catch (error) {
+                alert(error.message || '게시물 삭제에 실패했습니다.');
+            } finally {
+                button.disabled = false;
+            }
         });
         byId('detailCommentForm').addEventListener('submit', async event => {
             event.preventDefault();

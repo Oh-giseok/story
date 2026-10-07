@@ -1,10 +1,13 @@
 import os
-import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify, session, g, flash
-from werkzeug.utils import secure_filename
+import os
+import secrets
 from story import db
 from story.models import Post, User, PostLike, PostComment, PostRepost, Story, Notification
 from story.time_utils import utc_isoformat, kst_now_naive, utc_now_naive
+from story.media_storage import create_signed_upload_url, upload_media
+from story.media_storage import create_signed_upload_url, upload_media
+from story.views.story_views import get_unique_story_list
 
 # /post 경로로 들어오는 요청들을 처리할 블루프린트 생성
 bp = Blueprint('post', __name__, url_prefix='/post')
@@ -25,15 +28,20 @@ def get_current_user_id():
 @bp.route('/')
 def _list():
     posts = Post.query.order_by(Post.created_at.desc()).all()
-    story_list = Story.query.filter(Story.expires_at > kst_now_naive()).order_by(Story.create_date.desc()).all()
-    user_id = get_current_user_id()
+    story_list = get_unique_story_list()
+    user_id = session.get('user_id')
     reposted_post_ids = {
         repost.post_id
         for repost in PostRepost.query.filter_by(user_id=user_id).all()
     } if user_id else set()
+    liked_post_ids = {
+        like.post_id
+        for like in PostLike.query.filter_by(user_id=user_id).all()
+    } if user_id else set()
     return render_template(
         'post/post_list.html', posts=posts, story_list=story_list,
-        reposted_post_ids=reposted_post_ids
+        reposted_post_ids=reposted_post_ids,
+        liked_post_ids=liked_post_ids
     )
 
 
@@ -69,9 +77,52 @@ def _create():
         return redirect(url_for('auth.login'))  # 사용하시는 로그인 라우트명으로 맞추어 사용해주세요.
 
     if request.method == 'GET':
-        return render_template('post/post_form.html')
+        # 게시물 작성 UI는 공통 모달에 있으므로 홈에서 모달을 연다.
+        return redirect(url_for('main.index', open_post_composer='1'))
 
     caption = request.form.get('caption')
+
+    if request.is_json:
+        payload = request.get_json(silent=True) or {}
+        phase = payload.get('phase')
+
+        if phase == 'sign':
+            files = payload.get('files')
+            if not isinstance(files, list) or not files or len(files) > 10:
+                return jsonify({'error': '게시물 파일은 1개 이상 10개 이하로 선택해주세요.'}), 400
+
+            signed_uploads = []
+            allowed_extensions = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'webm'}
+            for item in files:
+                if not isinstance(item, dict):
+                    return jsonify({'error': '잘못된 파일 정보입니다.'}), 400
+                filename = os.path.basename(str(item.get('name') or ''))
+                extension = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+                size = item.get('size')
+                if extension not in allowed_extensions or not isinstance(size, int) or size <= 0:
+                    return jsonify({'error': '지원하지 않는 파일이거나 파일 크기가 올바르지 않습니다.'}), 400
+                object_key = f"{secrets.token_urlsafe(12)}.{extension}"
+                signed_upload = create_signed_upload_url(object_key)
+                if signed_upload is None:
+                    return jsonify({'available': False})
+                signed_uploads.append(signed_upload)
+            session['pending_post_upload_keys'] = [upload['key'] for upload in signed_uploads]
+            return jsonify({'available': True, 'uploads': signed_uploads})
+
+        if phase == 'publish':
+            keys = payload.get('keys')
+            if not isinstance(keys, list) or not keys or len(keys) > 10:
+                return jsonify({'error': '게시물 파일 정보가 올바르지 않습니다.'}), 400
+            pending_keys = session.get('pending_post_upload_keys', [])
+            if (any(not isinstance(key, str) or '..' in key or '/' in key for key in keys)
+                    or keys != pending_keys):
+                return jsonify({'error': '게시물 파일 정보가 올바르지 않습니다.'}), 400
+            post = Post(user_id=user_id, caption=payload.get('caption'), media_url=','.join(f'sb:{key}' for key in keys))
+            db.session.add(post)
+            db.session.commit()
+            session.pop('pending_post_upload_keys', None)
+            return jsonify({'redirect': url_for('main.index')})
+
     media_files = request.files.getlist('media_file')
     saved_urls = []
 
@@ -87,16 +138,8 @@ def _create():
             flash('지원하지 않는 사진 또는 동영상 형식입니다.')
             return redirect(url_for('main.index'))
 
-    today = kst_now_naive().strftime('%Y%m%d')
-    upload_folder = os.path.join(current_app.root_path, 'static/photo', today)
-    os.makedirs(upload_folder, exist_ok=True)
-
     for file in media_files:
-        safe_name = secure_filename(file.filename).replace(',', '_')
-        filename = f"{uuid.uuid4().hex}_{safe_name}"
-        file_path = os.path.join(upload_folder, filename)
-        file.save(file_path)
-        saved_urls.append(f'/static/photo/{today}/{filename}')
+        saved_urls.append(upload_media(file, 'story-posts', resource_type='image'))
 
     media_url = ','.join(saved_urls) if saved_urls else None
 
@@ -115,7 +158,7 @@ def _create():
 # 3. 좋아요 토글
 @bp.route('/like/<int:post_id>', methods=['POST'])
 def like(post_id):
-    user_id = get_current_user_id()
+    user_id = session.get('user_id')
     if not user_id:
         return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
 
@@ -130,7 +173,7 @@ def like(post_id):
         db.session.add(new_like)
         liked = True
         if post.user_id != user_id:
-            actor = g.user if (hasattr(g, 'user') and g.user) else User.query.get(user_id)
+            actor = User.query.get(user_id)
             notification = Notification(
                 recipient_id=post.user_id, actor_id=user_id, post_id=post.id,
                 type='post_like', is_read=False, created_at=utc_now_naive(),
@@ -304,9 +347,11 @@ def delete_post(post_id):
     if post.user_id != user_id:
         return jsonify({'success': False, 'message': '삭제 권한이 없습니다.'}), 403
 
-    # 해당 게시물의 댓글 및 좋아요도 함께 연쇄 삭제 (ORMB/relationship 캐스케이드가 설정되지 않은 경우를 대비)
+    # 관련 데이터도 게시물과 함께 삭제한다. 벌크 삭제로 ORM cascade에 의존하지 않는다.
     PostLike.query.filter_by(post_id=post_id).delete()
     PostComment.query.filter_by(post_id=post_id).delete()
+    PostRepost.query.filter_by(post_id=post_id).delete()
+    Notification.query.filter_by(post_id=post_id).delete()
 
     db.session.delete(post)
     db.session.commit()

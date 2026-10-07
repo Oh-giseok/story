@@ -1,4 +1,5 @@
 from flask_wtf import FlaskForm
+from wtforms.fields import DateField
 from wtforms.fields.simple import StringField,TextAreaField,PasswordField,EmailField,SubmitField, FileField
 from wtforms.validators import DataRequired, Length, EqualTo, Email, Regexp, Optional
 from flask_wtf.file import FileAllowed
@@ -11,8 +12,8 @@ class UserCreateForm(FlaskForm):
     password_hash2 = PasswordField('비밀번호 재입력',validators=[DataRequired()])
     email = EmailField('이메일',validators=[DataRequired(),Email()])
     name = StringField('이름', validators=[DataRequired()])
-    intro = TextAreaField('자기소개',validators=[Length(max=500)])
-    birth = StringField('생년월일', validators=[DataRequired()])
+    intro = TextAreaField('자기소개',validators=[Length(max=200)])
+    birth = DateField('생년월일', format='%Y-%m-%d', validators=[DataRequired()])
     submit = SubmitField('회원가입')
 
 #로그인
@@ -69,10 +70,10 @@ class CommentsForm(FlaskForm):
 class ProfileEditForm(FlaskForm):
     username = StringField('아이디', validators=[Optional(), Regexp(r'^[A-Za-z0-9]+$', message='ID는 영어와 숫자만 사용할 수 있습니다.')])
     name = StringField('이름')
-    birth = StringField('생년월일')
+    birth = DateField('생년월일', format='%Y-%m-%d', validators=[Optional()])
     email = EmailField('이메일', validators=[Email()])
     profile_img_url = FileField('프로필 이미지', validators=[FileAllowed(['jpg', 'jpeg', 'png', 'gif', 'webp'], '이미지파일만 업로드할 수 있습니다.')])
-    intro = TextAreaField('자기소개', validators=[Length(max=500)])
+    intro = TextAreaField('자기소개', validators=[Length(max=200)])
     submit = SubmitField('저장하기')
 
 # 스토리 생성 폼

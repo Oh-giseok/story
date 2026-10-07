@@ -15,7 +15,7 @@ class User(db.Model, UserMixin):
     name = db.Column(db.String(200))
     intro = db.Column(db.Text)
     profile_img_url = db.Column(db.String(200))
-    birth = db.Column(db.String(200), nullable=True)
+    birth = db.Column(db.Date, nullable=True)
     status = db.Column(db.String(20), nullable=False, default='active', server_default='active')
     last_activity_at = db.Column(db.DateTime, nullable=True)
     deletion_requested_at = db.Column(db.DateTime, nullable=True)
