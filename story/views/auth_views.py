@@ -1,6 +1,6 @@
 from flask import Blueprint, request, redirect, url_for, flash, render_template, session, g, current_app, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from urllib.parse import urlparse
 import os
 from flask_login import login_user, logout_user
@@ -243,7 +243,15 @@ def profile_edit():
     if request.method == 'GET':
         form.username.data = g.user.username
         form.name.data = g.user.name
-        form.birth.data = g.user.birth
+        birth = g.user.birth
+        if isinstance(birth, datetime):
+            birth = birth.date()
+        elif isinstance(birth, str):
+            try:
+                birth = date.fromisoformat(birth.strip()[:10])
+            except ValueError:
+                birth = None
+        form.birth.data = birth
         form.email.data = g.user.email
         form.intro.data = g.user.intro
 
