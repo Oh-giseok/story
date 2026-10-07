@@ -1,10 +1,9 @@
 import os
-import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify, session, g, flash
-from werkzeug.utils import secure_filename
 from story import db
 from story.models import Post, User, PostLike, PostComment, PostRepost, Story, Notification
 from story.time_utils import utc_isoformat, kst_now_naive, utc_now_naive
+from story.media_storage import upload_media
 
 # /post 경로로 들어오는 요청들을 처리할 블루프린트 생성
 bp = Blueprint('post', __name__, url_prefix='/post')
@@ -69,7 +68,8 @@ def _create():
         return redirect(url_for('auth.login'))  # 사용하시는 로그인 라우트명으로 맞추어 사용해주세요.
 
     if request.method == 'GET':
-        return render_template('post/post_form.html')
+        # 게시물 작성 UI는 공통 모달에 있으므로 홈에서 모달을 연다.
+        return redirect(url_for('main.index', open_post_composer='1'))
 
     caption = request.form.get('caption')
     media_files = request.files.getlist('media_file')
@@ -87,16 +87,8 @@ def _create():
             flash('지원하지 않는 사진 또는 동영상 형식입니다.')
             return redirect(url_for('main.index'))
 
-    today = kst_now_naive().strftime('%Y%m%d')
-    upload_folder = os.path.join(current_app.root_path, 'static/photo', today)
-    os.makedirs(upload_folder, exist_ok=True)
-
     for file in media_files:
-        safe_name = secure_filename(file.filename).replace(',', '_')
-        filename = f"{uuid.uuid4().hex}_{safe_name}"
-        file_path = os.path.join(upload_folder, filename)
-        file.save(file_path)
-        saved_urls.append(f'/static/photo/{today}/{filename}')
+        saved_urls.append(upload_media(file, 'story-posts', resource_type='image'))
 
     media_url = ','.join(saved_urls) if saved_urls else None
 
