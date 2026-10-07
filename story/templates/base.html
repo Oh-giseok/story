@@ -282,8 +282,6 @@
 
 <body>
 
-<<<<<<< HEAD
-=======
     {% if current_user.is_authenticated and request.endpoint in ['main.index', 'post._list', 'dm.user_list', 'main.search'] %}
     <div class="page-search-area">
         <form class="page-search-bar" role="search" action="{{ url_for('main.search') }}" method="get">
@@ -298,7 +296,6 @@
     {% endif %}
 
     <!-- Flash 메시지 및 메인 컨텐츠 영역 -->
->>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
     <main class="py-4">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -460,8 +457,6 @@
     {% include 'post/post_detail_modal.html' %}
     {% endif %}
 
-<<<<<<< HEAD
-=======
     <!-- 하단 고정 네비게이션 Bar (로그인 상태 및 특정 페이지 조건부 노출) -->
     {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup'] %}
     {% if request.endpoint in ['main.index', 'reels.reels', 'main.search'] %}
@@ -510,7 +505,6 @@
     {% endif %}
 
     {% if request.endpoint != 'story.detail' %}
->>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
     <nav class="bottom-nav shadow-lg">
         <a href="#" class="bottom-nav-item {{ 'active' if request.endpoint in ['post._list', 'post._create'] else '' }}" title="업로드" aria-label="게시물 또는 릴스 만들기" data-bs-toggle="modal" data-bs-target="#uploadTypeModal" {% if request.endpoint in ['post._list', 'post._create'] %}aria-current="page"{% endif %}>
             <svg aria-label="새로운 게시물" class="x1lliihq x1n2onr6 x5n08af" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><title>새로운 게시물</title><path d="M21 11h-8V3a1 1 0 1 0-2 0v8H3a1 1 0 1 0 0 2h8v8a1 1 0 1 0 2 0v-8h8a1 1 0 1 0 0-2Z"></path></svg>
@@ -869,8 +863,6 @@
             const captionCount = document.getElementById('reelCaptionCount');
             const chooseButton = document.getElementById('chooseReelVideo');
             const reelForm = document.getElementById('createReelForm');
-<<<<<<< HEAD
-=======
             const thumbnailInput = document.getElementById('reelThumbnailInput');
             const videoSizeGuide = document.getElementById('reelVideoSizeGuide');
             const reelProgress = document.getElementById('reelUploadProgress');
@@ -939,8 +931,6 @@
                 xhr.addEventListener('error', () => reject(new Error('네트워크 오류로 릴스를 업로드하지 못했습니다.')));
                 xhr.send(formData);
             });
->>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
-
             caption.addEventListener('input', () => { captionCount.textContent = caption.value.length; });
             chooseButton.addEventListener('click', () => videoInput.click());
             videoInput.addEventListener('change', () => {
@@ -1154,19 +1144,16 @@
             storyComposer.addEventListener('hidden.bs.modal', resetStoryComposer);
         }
     </script>
-<<<<<<< HEAD
+    {% endif %}
 
     {% if current_user.is_authenticated %}
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     {% endif %}
 
     {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage'] %}
-    <script>
-=======
     {% if (current_user.is_authenticated or g.user) and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage', 'story.detail'] %}
         <script src="/socket.io/socket.io.js"></script>
         <script>
->>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
         document.addEventListener('DOMContentLoaded', () => {
             const notificationModal = document.getElementById('notificationModal');
             const notificationList = document.getElementById('notificationList');
@@ -1343,6 +1330,7 @@
             });
         });
     </script>
+    {% endif %}
     {% endif %}
     {% block script %}
     {% endblock %}
