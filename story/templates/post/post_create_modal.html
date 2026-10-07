@@ -3,6 +3,7 @@
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <form action="{{ url_for('post._create') }}" method="post" enctype="multipart/form-data" id="postForm">
+                <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
                 <div class="modal-header py-2 d-flex justify-content-between align-items-center">
                     <button type="button" class="btn btn-sm btn-link text-dark p-0 d-none" id="btnBack"><i class="bi bi-arrow-left fs-4"></i></button>
                     <h6 class="modal-title fw-bold mx-auto">새 게시물 만들기</h6>
@@ -41,6 +42,15 @@
                             </div>
                             <textarea name="caption" class="form-control border-0 shadow-none flex-grow-1" rows="5" placeholder="문구 입력..."></textarea>
                         </div>
+                    </div>
+                </div>
+                <div id="postUploadProgress" class="d-none px-3 pb-3" role="status" aria-live="polite">
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span id="postUploadStatus">사진을 준비하는 중...</span>
+                        <span id="postUploadPercent">0%</span>
+                    </div>
+                    <div class="progress" style="height: 6px;" role="progressbar" aria-label="게시물 업로드 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                        <div id="postUploadProgressBar" class="progress-bar" style="width: 0%"></div>
                     </div>
                 </div>
             </form>
