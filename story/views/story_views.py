@@ -257,4 +257,4 @@ def delete(story_id):
     db.session.delete(story)
     db.session.commit()
 
-    return redirect(url_for('story.story_list'))
+    return redirect(url_for('main.index'))

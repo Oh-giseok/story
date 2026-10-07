@@ -216,10 +216,9 @@
                             <button type="button" class="dropdown-item" id="btn-modify" data-story-action="modify">수정</button>
                         </li>
                         <li>
-                            <a href="{{ url_for('story.delete', story_id=story.id) }}"
-                               class="dropdown-item text-danger" id="btn-delete"
-                               data-story-action="delete"
-                               onclick="return confirm('정말 삭제하시겠습니까?');">삭제</a>
+                            <button type="button" class="dropdown-item text-danger" id="btn-delete"
+                                    data-story-action="delete"
+                                    data-delete-url="{{ url_for('story.delete', story_id=story.id) }}">삭제</button>
                         </li>
                     </ul>
                 </div>
@@ -401,6 +400,21 @@
 </div>
 {% endif %}
 
+{% if g.user %}
+<div class="modal fade story-delete-confirm-modal" id="deleteStoryModal" tabindex="-1" aria-labelledby="deleteStoryModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="py-4 px-3 text-center">
+                <h2 class="fs-5 mb-1" id="deleteStoryModalTitle">스토리를 삭제할까요?</h2>
+                <small class="text-secondary">이 스토리를 삭제하시겠어요?</small>
+            </div>
+            <a href="{{ url_for('story.delete', story_id=story.id) }}" class="btn btn-action text-danger fw-bold" id="confirmStoryDelete">삭제</a>
+            <button type="button" class="btn btn-action text-dark" data-bs-dismiss="modal">취소</button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <script>
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -465,8 +479,26 @@ document.addEventListener("DOMContentLoaded", () => {
     const editStoryMedia = document.getElementById('editStoryMedia');
     const editStoryModal = document.getElementById('editStoryModal');
     const viewerWrapper = document.querySelector('.story-viewer-wrapper');
+    const storyHomeUrl = {{ url_for('main.index') | tojson }};
 
     viewerWrapper?.addEventListener('click', (event) => {
+        const deleteButton = event.target.closest('[data-story-action="delete"]');
+        if (deleteButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            const ownerMenuButton = deleteButton.closest('.dropdown')?.querySelector('[data-bs-toggle="dropdown"]');
+            if (ownerMenuButton && window.bootstrap?.Dropdown) {
+                window.bootstrap.Dropdown.getOrCreateInstance(ownerMenuButton).hide();
+            }
+            const confirmButton = document.getElementById('confirmStoryDelete');
+            const deleteUrl = deleteButton.dataset.deleteUrl;
+            const deleteModal = document.getElementById('deleteStoryModal');
+            if (confirmButton && deleteUrl && deleteModal && window.bootstrap?.Modal) {
+                confirmButton.href = deleteUrl;
+                window.bootstrap.Modal.getOrCreateInstance(deleteModal).show();
+            }
+            return;
+        }
         const modifyButton = event.target.closest('[data-story-action="modify"]');
         if (!modifyButton) return;
         event.preventDefault();
@@ -552,7 +584,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (deleteButton) {
             deleteButton.id = 'btn-delete';
             deleteButton.dataset.storyAction = 'delete';
-            deleteButton.href = data.delete_url;
+            deleteButton.dataset.deleteUrl = data.delete_url;
         }
         if (editStoryForm) editStoryForm.action = data.modify_url;
         if (editStoryCaption) editStoryCaption.value = data.caption || '';
@@ -641,7 +673,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const viewerRoot = document.querySelector('.story-viewer');
         viewerRoot.querySelector('.story-viewer-image').replaceChildren(media);
         media.id = isVideoFile(data.media_url) ? 'main-story-video' : 'main-story-img';
-        media.classList.add('is-visible');
+        media.classList.remove('is-visible');
+        requestAnimationFrame(() => {
+            if (token === displayToken && media.isConnected) media.classList.add('is-visible');
+        });
         mainVideo = media.tagName === 'VIDEO' ? media : null;
         viewerRoot.querySelector('.story-viewer-caption').textContent = data.caption || '';
         const timeLabel = viewerRoot.querySelector('.story-viewer-time');
@@ -886,6 +921,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (isTransitioning) return;
         if (currentIdx + 1 < userStories.length) {
             currentIdx += 1; resetProgress(currentIdx); updateStoryNavigation(); await displayStory(userStories[currentIdx]);
+            return;
+        }
+        if (!nextUserStoryId) {
+            window.location.assign(storyHomeUrl);
             return;
         }
         await transitionUser(1);

@@ -334,6 +334,7 @@
     object-fit: cover;
     opacity: 0;
     z-index: 1;
+    transition: opacity 240ms ease;
 }
 
 /* 스토리 이미지 / 영상 표시 */
@@ -567,7 +568,7 @@
 
 /* User-to-user transitions use two real viewer panels; inner-story changes never use these classes. */
 .story-viewer.story-viewer--sliding {
-    transition: transform 450ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 360ms cubic-bezier(0.2, 0.7, 0.2, 1), opacity 300ms ease;
     will-change: transform;
 }
 
@@ -583,32 +584,83 @@
 }
 
 .story-viewer.story-viewer--incoming.story-viewer--from-right {
-    transform: translateX(calc(100vw + 100%));
+    transform: translateX(28px) scale(0.985);
+    opacity: 0;
 }
 
 .story-viewer.story-viewer--incoming.story-viewer--from-left {
-    transform: translateX(calc(-100vw - 100%));
+    transform: translateX(-28px) scale(0.985);
+    opacity: 0;
 }
 
 .story-viewer.story-viewer--incoming.story-viewer--sliding {
-    transition: transform 450ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 360ms cubic-bezier(0.2, 0.7, 0.2, 1), opacity 300ms ease;
 }
 
 .story-viewer.story-viewer--sliding.story-viewer--to-left {
-    transform: translateX(calc(-100vw - 100%));
+    transform: translateX(-28px) scale(0.985);
+    opacity: 0;
 }
 
 .story-viewer.story-viewer--sliding.story-viewer--to-right {
-    transform: translateX(calc(100vw + 100%));
+    transform: translateX(28px) scale(0.985);
+    opacity: 0;
 }
 
 .story-viewer.story-viewer--incoming.story-viewer--center {
-    transform: translateX(0);
+    transform: translateX(0) scale(1);
+    opacity: 1;
+}
+
+.story-delete-confirm-modal .modal-content {
+    border-radius: 24px;
+    overflow: hidden;
+}
+
+.story-delete-confirm-modal .btn-action {
+    width: 100%;
+    padding: 12px;
+    border: 0;
+    border-top: 1px solid #dee2e6;
+    border-radius: 0;
+}
+
+.story-delete-confirm-modal .btn-action + .btn-action {
+    border-top: 1px solid #dee2e6;
+}
+
+.story-delete-confirm-modal .btn-action:first-of-type {
+    border-top: 0;
+}
+
+@media (max-width: 576px) {
+    .story-nav-button {
+        display: none;
+    }
+
+    .story-delete-confirm-modal .modal-dialog {
+        max-width: 260px;
+        margin: 0.5rem auto;
+    }
+
+    .story-delete-confirm-modal .modal-content > .py-4 {
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+    }
+
+    .story-delete-confirm-modal .btn-action {
+        padding: 10px;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .story-viewer.story-viewer--sliding,
     .story-viewer.story-viewer--incoming.story-viewer--sliding {
+        transition-duration: 1ms;
+    }
+
+    .story-viewer-image img,
+    .story-viewer-image video {
         transition-duration: 1ms;
     }
 }

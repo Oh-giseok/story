@@ -297,7 +297,7 @@
         {% endblock %}
     </main>
 
-    {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage'] %}
+    {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage', 'story.detail'] %}
     <div class="notification-widget">
         <button type="button" class="notification-trigger" id="notificationTrigger" data-bs-toggle="modal" data-bs-target="#notificationModal" aria-label="알림 열기">
             <i class="bi bi-bell" aria-hidden="true"></i>
@@ -408,6 +408,7 @@
     </aside>
     {% endif %}
 
+    {% if request.endpoint != 'story.detail' %}
     <nav class="bottom-nav shadow-lg">
         <a href="#" class="bottom-nav-item {{ 'active' if request.endpoint in ['post._list', 'post._create'] else '' }}" title="업로드" aria-label="게시물 또는 릴스 만들기" data-bs-toggle="modal" data-bs-target="#uploadTypeModal" {% if request.endpoint in ['post._list', 'post._create'] %}aria-current="page"{% endif %}>
             <svg aria-label="새로운 게시물" class="x1lliihq x1n2onr6 x5n08af" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><title>새로운 게시물</title><path d="M21 11h-8V3a1 1 0 1 0-2 0v8H3a1 1 0 1 0 0 2h8v8a1 1 0 1 0 2 0v-8h8a1 1 0 1 0 0-2Z"></path></svg>
@@ -429,6 +430,7 @@
             {% endif %}
         </a>
     </nav>
+    {% endif %}
 
     <div class="modal fade upload-choice-modal" id="uploadTypeModal" tabindex="-1" aria-labelledby="uploadTypeModalTitle" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -807,7 +809,7 @@
             storyComposer.addEventListener('hidden.bs.modal', resetStoryComposer);
         }
     </script>
-    {% if (current_user.is_authenticated or g.user) and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage'] %}
+    {% if (current_user.is_authenticated or g.user) and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage', 'story.detail'] %}
         <script src="/socket.io/socket.io.js"></script>
         <script>
         document.addEventListener('DOMContentLoaded', () => {
