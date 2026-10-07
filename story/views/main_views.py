@@ -100,7 +100,7 @@ def search():
     if query:
         pattern = f'%{query}%'
         if category == 'users':
-            users = User.query.filter(User.username.ilike(pattern)).order_by(User.username.asc()).limit(60).all()
+            users = User.query.filter(or_(User.username.ilike(pattern),User.name.ilike(pattern))).order_by(User.username.asc()).limit(60).all()
             if current_uid and users:
                 user_ids = [user.id for user in users if user.id != current_uid]
                 if user_ids:
@@ -114,11 +114,11 @@ def search():
                     }
         elif category == 'posts':
             posts = Post.query.join(User, Post.user_id == User.id).filter(
-                or_(Post.caption.ilike(pattern), User.username.ilike(pattern))
+                or_(Post.caption.ilike(pattern), User.username.ilike(pattern), User.name.ilike(pattern))
             ).order_by(Post.created_at.desc()).limit(60).all()
         else:
             reels = Reels.query.join(User, Reels.user_id == User.id).filter(
-                or_(Reels.caption.ilike(pattern), User.username.ilike(pattern))
+                or_(Reels.caption.ilike(pattern), User.username.ilike(pattern), User.name.ilike(pattern))
             ).order_by(Reels.created_at.desc()).limit(60).all()
             reel_users = {
                 user.id: user
