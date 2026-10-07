@@ -36,7 +36,7 @@
         color: #adb5bd;
         flex-shrink: 0;
     }
-<<<<<<< HEAD
+
     .unread-dot {
         width: 10px;
         height: 10px;
@@ -44,7 +44,7 @@
         border-radius: 50%;
         flex-shrink: 0;
         margin-left: 8px;
-=======
+
     .dm-chat-header {
         gap: .5rem;
         min-width: 0;
@@ -94,8 +94,6 @@
         .dm-chat-leave { padding: .3rem .4rem; font-size: .75rem; }
         .dm-chat-leave-desktop { display: none; }
         .dm-chat-leave-mobile { display: inline; }
->>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
-    }
 </style>
 
 {% set current_uid = g.user.id if g.user and g.user.id else session.get('user_id') %}
@@ -193,17 +191,14 @@
                         <h5 class="mb-0 fw-bold dm-chat-title">
                             {% if target_name %}
                                 {% set is_self_target = (target_id|int == current_uid|int) %}
-<<<<<<< HEAD
                                 {% set conn_status_target = 'online' if is_self_target else (target_user.connection_status if target_user else 'offline') %}
                                 <span class="status-dot {{ conn_status_target }}" id="chat-header-dot"></span>
                                 <span>{{ target_name }}</span>
                                 <span class="status-text" id="chat-header-text">({% if conn_status_target == 'online' %}Online{% elif conn_status_target == 'idle' %}자리 비움{% else %}Offline{% endif %})</span>
-=======
-                                {% set is_online_target = is_self_target or (target_user and target_user.is_online) %}
-                                <span class="status-dot {{ 'online' if is_online_target else 'offline' }}" id="chat-header-dot"></span>
-                                <span class="dm-chat-name">{{ target_name }}</span>
-                                <span class="status-text" id="chat-header-text">({{ 'Online' if is_online_target else 'Offline' }})</span>
->>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
+<!--                                {% set is_online_target = is_self_target or (target_user and target_user.is_online) %}-->
+<!--                                <span class="status-dot {{ 'online' if is_online_target else 'offline' }}" id="chat-header-dot"></span>-->
+<!--                                <span class="dm-chat-name">{{ target_name }}</span>-->
+<!--                                <span class="status-text" id="chat-header-text">({{ 'Online' if is_online_target else 'Offline' }})</span>-->
                             {% else %}
                                 대화 상대를 선택하세요
                             {% endif %}
@@ -270,15 +265,11 @@ function handleImageError(imgElement) {
 const senderElem = document.getElementById('sender_id');
 const currentUserId = senderElem ? senderElem.value : "{{ current_uid }}";
 
-<<<<<<< HEAD
-const socket = io({
+let currentConvId = null;
+const socket = window.io ? window.io({
     query: { user_id: currentUserId },
     transports: ['polling']
-});
-=======
->>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
-let currentConvId = null;
-const socket = window.io ? window.io({ query: { user_id: currentUserId } }) : null;
+}) : null;
 
 function parseUtcTimestamp(value) {
     if (!value) return null;
@@ -400,16 +391,9 @@ async function connectChat() {
         const data = await res.json();
         currentConvId = data.conversation_id;
 
-<<<<<<< HEAD
-        socket.emit('join_room', { conversation_id: currentConvId });
-        socket.emit('mark_read', { conversation_id: currentConvId, user_id: userId1 });
-
-        markUserAsReadUI(userId2);
-
-=======
         socket?.emit('join_room', { conversation_id: currentConvId });
         socket?.emit('mark_read', { conversation_id: currentConvId, user_id: userId1 });
->>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
+        markUserAsReadUI(userId2);
         await loadMessages();
     } catch (error) {
         console.error("채팅방 연결 오류:", error);
@@ -489,20 +473,20 @@ async function leaveConversation(targetId) {
 
 socket?.on('receive_message', function(msg) {
     const senderElem = document.getElementById('sender_id');
-    const currentUserId = senderElem ? parseInt(senderElem.value) : null;
+    const activeUserId = senderElem ? Number(senderElem.value) : null;
     const targetInput = document.getElementById('target_id');
-    const currentTargetId = targetInput ? parseInt(targetInput.value) : null;
+    const currentTargetId = targetInput ? Number(targetInput.value) : null;
+    const messageSenderId = Number(msg.sender_id);
 
-    if (currentConvId && msg.conversation_id === currentConvId) {
+    if (currentConvId && Number(msg.conversation_id) === Number(currentConvId)) {
         appendMessage(msg);
-        if (currentUserId && msg.sender_id !== currentUserId) {
-            socket.emit('mark_read', { conversation_id: currentConvId, user_id: currentUserId });
-            markUserAsReadUI(msg.sender_id);
+        if (activeUserId && messageSenderId !== activeUserId) {
+            socket?.emit('mark_read', { conversation_id: currentConvId, user_id: activeUserId });
+            markUserAsReadUI(messageSenderId);
         }
     }
 
-<<<<<<< HEAD
-    const otherUserId = (msg.sender_id === currentUserId) ? currentTargetId : msg.sender_id;
+    const otherUserId = (messageSenderId === activeUserId) ? currentTargetId : messageSenderId;
     if (otherUserId) {
         const recentItem = document.getElementById(`recent-item-${otherUserId}`);
         const recentName = document.getElementById(`recent-name-${otherUserId}`);
@@ -512,7 +496,7 @@ socket?.on('receive_message', function(msg) {
 
         if (recentMsgText) {
             recentMsgText.textContent = msg.text;
-            if (msg.sender_id === currentUserId) {
+            if (messageSenderId === activeUserId) {
                 recentMsgText.classList.remove('fw-bold', 'text-dark');
                 recentMsgText.classList.add('text-muted');
             } else if (currentTargetId !== otherUserId) {
@@ -522,7 +506,7 @@ socket?.on('receive_message', function(msg) {
         }
 
         if (recentName) {
-            if (msg.sender_id === currentUserId) {
+            if (messageSenderId === activeUserId) {
                 recentName.classList.remove('fw-bold', 'text-dark');
             } else if (currentTargetId !== otherUserId) {
                 recentName.classList.add('fw-bold', 'text-dark');
@@ -530,7 +514,7 @@ socket?.on('receive_message', function(msg) {
         }
 
         if (recentBadge) {
-            if (msg.sender_id === currentUserId || currentTargetId === otherUserId) {
+            if (messageSenderId === activeUserId || currentTargetId === otherUserId) {
                 recentBadge.classList.add('d-none');
             } else {
                 recentBadge.classList.remove('d-none');
@@ -558,15 +542,7 @@ function updateNotificationPopup(userId, msg) {
     }
 }
 
-socket.on('update_read_status', function(data) {
-=======
-    if (currentUserId && Number(msg.sender_id) !== Number(currentUserId)) {
-        socket?.emit('mark_read', { conversation_id: currentConvId, user_id: currentUserId });
-    }
-});
-
 socket?.on('update_read_status', function(data) {
->>>>>>> 2bc5d3dee42260b68628d607a2aadbdfcefad710
     if (data.conversation_id === currentConvId) {
         loadMessages();
         const targetInput = document.getElementById('target_id');
