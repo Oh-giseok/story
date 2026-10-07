@@ -3,7 +3,7 @@ import datetime
 from flask import Blueprint, render_template, session, g, request
 from flask_login import current_user
 from sqlalchemy import and_, or_
-from story.models import Friendship, Notification, Post, PostComment, Reels, Story, User, PostRepost
+from story.models import Friendship, Post, PostLike, PostRepost, Reels, Story, User, Notification
 from story.time_utils import kst_now_naive
 from story.views import dmviews
 
@@ -12,13 +12,7 @@ bp = Blueprint('main', __name__)
 
 @bp.route('/')
 def index():
-    current_uid = None
-    if current_user.is_authenticated:
-        current_uid = current_user.id
-    elif hasattr(g, 'user') and g.user and getattr(g.user, 'id', None):
-        current_uid = g.user.id
-    elif 'user_id' in session:
-        current_uid = session['user_id']
+    current_uid = session.get('user_id')
     active_chat_users = []
     if current_uid:
         try:

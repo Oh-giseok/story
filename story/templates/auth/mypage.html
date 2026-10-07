@@ -362,7 +362,7 @@
                 <!-- 모달 데이터 채움용 태그 -->
                 <div class="d-none raw-post-data">
                     <div class="raw-caption">{{ post.caption or '' }}</div>
-                    <div class="raw-images">{% if post.media_url %}{{ post.media_url }}{% endif %}</div>
+                    <div class="raw-images">{% if post.media_url %}{{ post.media_url | media_urls }}{% endif %}</div>
                     <div class="raw-comments">
                         {% for comment in post.comments %}
                         <div class="comment-item"
@@ -474,7 +474,7 @@
                 </div>
                 <div class="d-none raw-post-data">
                     <div class="raw-caption">{{ post.caption or '' }}</div>
-                    <div class="raw-images">{{ post.media_url or '' }}</div>
+                    <div class="raw-images">{{ post.media_url | media_urls if post.media_url else '' }}</div>
                     <div class="raw-comments">
                         {% for comment in post.comments %}
                         <div class="comment-item" data-comment-id="{{ comment.id }}" data-user-id="{{ comment.user_id }}"

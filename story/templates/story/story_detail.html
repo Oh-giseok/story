@@ -230,27 +230,28 @@
         </div>
 
 
-        <!-- 수정/삭제 버튼 -->
+        <!-- 내 스토리 메뉴 -->
         {% if g.user and g.user.id == story.user_id %}
-
             <div class="story-viewer-buttons"
                  id="owner-buttons">
-
-                <a href="{{ url_for('story.modify', story_id=story.id) }}"
-                   class="btn btn-sm btn-primary"
-                   id="btn-modify">
-                    수정
-                </a>
-
-                <a href="{{ url_for('story.delete', story_id=story.id) }}"
-                   class="btn btn-sm btn-danger"
-                   id="btn-delete"
-                   onclick="return confirm('정말 삭제하시겠습니까?');">
-                    삭제
-                </a>
-
+                <div class="dropdown">
+                    <button type="button" class="btn btn-link text-white p-0 border-0"
+                            id="storyOwnerMenuButton" data-bs-toggle="dropdown" aria-expanded="false"
+                            aria-label="스토리 메뉴">
+                        <i class="bi bi-three-dots fs-4" aria-hidden="true"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="storyOwnerMenuButton">
+                        <li>
+                            <button type="button" class="dropdown-item" id="btn-modify">수정</button>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('story.delete', story_id=story.id) }}"
+                               class="dropdown-item text-danger" id="btn-delete"
+                               onclick="return confirm('정말 삭제하시겠습니까?');">삭제</a>
+                        </li>
+                    </ul>
+                </div>
             </div>
-
         {% endif %}
 
     </div>
@@ -379,6 +380,45 @@
 </div>
 
 
+{% if g.user and g.user.id == story.user_id %}
+<div class="modal fade" id="editStoryModal" tabindex="-1" aria-labelledby="editStoryModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('story.modify', story_id=story.id) }}" enctype="multipart/form-data" id="editStoryForm">
+                <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
+                <div class="modal-header py-2">
+                    <h2 class="modal-title fs-6 fw-bold mx-auto" id="editStoryModalTitle">스토리 수정</h2>
+                    <button type="submit" class="btn btn-link text-primary fw-bold text-decoration-none p-0">저장</button>
+                    <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="닫기"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="row g-0">
+                        <div class="col-md-7 bg-dark d-flex align-items-center justify-content-center" style="min-height: 420px;">
+                            <img id="editStoryPreview" src="{{ url_for('static', filename=story.media_url) }}" alt="현재 스토리 미리보기" class="w-100 h-100" style="max-height: 520px; object-fit: contain;">
+                            <video id="editStoryVideoPreview" class="w-100 h-100 d-none" controls playsinline style="max-height: 520px; object-fit: contain;"></video>
+                        </div>
+                        <div class="col-md-5 d-flex flex-column p-3" style="min-height: 420px;">
+                            <div class="d-flex align-items-center gap-3 border-bottom pb-3 mb-3">
+                                {% if g.user.profile_img_url %}
+                                <img src="{{ url_for('static', filename=g.user.profile_img_url) }}" alt="{{ g.user.username }} 프로필 이미지" class="rounded-circle" width="40" height="40" style="object-fit: cover;">
+                                {% else %}
+                                <i class="bi bi-person-circle fs-2 text-secondary" aria-hidden="true"></i>
+                                {% endif %}
+                                <span class="fw-semibold">{{ g.user.username }}</span>
+                            </div>
+                            <label class="form-label" for="editStoryMedia">미디어 변경 (선택)</label>
+                            <input class="form-control mb-3" type="file" id="editStoryMedia" name="image" accept="image/*,video/*">
+                            <label class="visually-hidden" for="editStoryCaption">스토리 문구</label>
+                            <textarea class="form-control border-0 flex-grow-1 p-0" id="editStoryCaption" name="caption" rows="7" maxlength="500" placeholder="문구 추가..." style="resize: none; box-shadow: none;">{{ story.caption or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <script>
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -480,6 +520,41 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnDelete = document.getElementById(
         'btn-delete'
     );
+
+    const editStoryForm = document.getElementById('editStoryForm');
+    const editStoryCaption = document.getElementById('editStoryCaption');
+    const editStoryPreview = document.getElementById('editStoryPreview');
+    const editStoryVideoPreview = document.getElementById('editStoryVideoPreview');
+    const editStoryMedia = document.getElementById('editStoryMedia');
+    const editStoryModal = document.getElementById('editStoryModal');
+    const storyOwnerMenuButton = document.getElementById('storyOwnerMenuButton');
+
+    btnModify?.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!editStoryModal || !window.bootstrap?.Modal) return;
+        if (storyOwnerMenuButton && window.bootstrap.Dropdown) {
+            window.bootstrap.Dropdown.getOrCreateInstance(storyOwnerMenuButton).hide();
+        }
+        window.bootstrap.Modal.getOrCreateInstance(editStoryModal).show();
+    });
+
+    editStoryMedia?.addEventListener('change', () => {
+        const file = editStoryMedia.files?.[0];
+        if (!file || !editStoryPreview || !editStoryVideoPreview) return;
+        const previewUrl = URL.createObjectURL(file);
+        if (file.type.startsWith('video/')) {
+            editStoryPreview.classList.add('d-none');
+            editStoryVideoPreview.classList.remove('d-none');
+            editStoryVideoPreview.src = previewUrl;
+            editStoryVideoPreview.load();
+        } else {
+            editStoryVideoPreview.pause();
+            editStoryVideoPreview.classList.add('d-none');
+            editStoryPreview.classList.remove('d-none');
+            editStoryPreview.src = previewUrl;
+        }
+    });
 
 
     let storyTimer = null;
@@ -619,11 +694,22 @@ document.addEventListener("DOMContentLoaded", () => {
             ownerButtons.style.display = 'flex';
 
 
-            if (btnModify) {
-
-                btnModify.href =
-                    data.modify_url;
-
+            if (btnModify && editStoryForm) editStoryForm.action = data.modify_url;
+            if (editStoryCaption) editStoryCaption.value = data.caption || '';
+            if (editStoryPreview && editStoryVideoPreview) {
+                if (isVideoFile(data.media_url)) {
+                    editStoryPreview.classList.add('d-none');
+                    editStoryVideoPreview.classList.remove('d-none');
+                    editStoryVideoPreview.src = data.media_url;
+                    editStoryVideoPreview.load();
+                } else {
+                    editStoryVideoPreview.pause();
+                    editStoryVideoPreview.removeAttribute('src');
+                    editStoryVideoPreview.load();
+                    editStoryVideoPreview.classList.add('d-none');
+                    editStoryPreview.classList.remove('d-none');
+                    editStoryPreview.src = data.media_url;
+                }
             }
 
 

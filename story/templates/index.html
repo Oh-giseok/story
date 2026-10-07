@@ -294,7 +294,7 @@
                         <div class="mb-3 overflow-hidden rounded">
 
                             <img
-                                src="{{ post.image_url or post.media_url }}"
+                                src="{{ (post.image_url or post.media_url) | media_url }}"
                                 class="img-fluid w-100"
                                 style="max-height: 500px; object-fit: cover;"
                                 alt="게시물 이미지"
