@@ -121,6 +121,24 @@
             flex-direction: column;
             row-gap: 4px;
         }
+
+        /* 메인 페이지 게시물 상세 모달과 동일한 모바일 레이아웃 */
+        .post-detail-modal .modal-dialog {
+            margin: 0.5rem;
+            max-width: 100% !important;
+        }
+        .post-detail-modal .modal-content {
+            height: 80vh !important;
+        }
+        .post-detail-modal .modal-content .col-md-7,
+        .post-detail-modal .modal-content .modal-feed-swiper {
+            display: none !important;
+        }
+        .post-detail-modal .modal-content .col-md-5 {
+            width: 100% !important;
+            height: 100% !important;
+            flex: 1 1 auto !important;
+        }
     }
 </style>
 {% endblock %}
