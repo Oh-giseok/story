@@ -48,17 +48,17 @@
         .status-dot.offline { background-color: #6c757d; }/* 회색 (오프라인) */
 
         /* 콘텐츠는 화면 중앙 열에 고정하고 DM 사이드바는 별도 좌측 열에 둡니다. */
-        .content-layout-wrapper {
-            display: grid;
-            grid-template-columns: 280px minmax(0, 800px) 280px;
-            gap: 24px;
-            max-width: 1448px;
-            width: 100%;
-            margin: 0 auto;
-            justify-content: center;
-            align-items: flex-start;
-            padding: 0 20px;
-        }
+        {#.content-layout-wrapper {#}
+        {#    display: grid;#}
+        {#    grid-template-columns: 280px minmax(0, 800px) 280px;#}
+        {#    gap: 24px;#}
+        {#    max-width: 1448px;#}
+        {#    width: 100%;#}
+        {#    margin: 0 auto;#}
+        {#    justify-content: center;#}
+        {#    align-items: flex-start;#}
+        {#    padding: 0 20px;#}
+        {#}#}
 
         .left-dm-sidebar {
             width: 280px;
@@ -207,6 +207,7 @@
         .page-search-area {
             width: 100%;
             max-width: 100%;
+            padding: 0 20px;
             box-sizing: border-box;
             padding-top: 0;
             margin-bottom: 1rem;
@@ -315,6 +316,21 @@
         .notification-modal-content { border-radius: 12px; overflow: hidden; }
         @media (max-width: 992px) { .notification-widget { top: 14px; right: 14px; } }
         @media (max-width: 576px) { .notification-widget { top: 10px; right: 10px; } }
+        @media (max-width: 767.98px) {
+            .notification-widget {
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
+                transform: translateY(-8px);
+                transition: opacity .2s ease, transform .2s ease, visibility .2s ease;
+            }
+            body.notification-scroll-visible .notification-widget {
+                opacity: 1;
+                visibility: visible;
+                pointer-events: auto;
+                transform: translateY(0);
+            }
+        }
     </style>
     {% block head %}{% endblock %}
 </head>
@@ -419,13 +435,22 @@
         </div>
     </main>
 
-    {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage', 'story.detail'] %}
+    {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage', 'story.detail', 'dm.user_list', 'reels.reels'] %}
     <div class="notification-widget">
         <button type="button" class="notification-trigger" id="notificationTrigger" data-bs-toggle="modal" data-bs-target="#notificationModal" aria-label="알림 열기">
             <i class="bi bi-bell" aria-hidden="true"></i>
             <span class="badge rounded-pill text-bg-danger notification-badge {% if unread_notification_count == 0 %}d-none{% endif %}" id="notificationBadge">{{ unread_notification_count }}</span>
         </button>
     </div>
+    <script>
+        (() => {
+            const updateNotificationVisibility = () => {
+                document.body.classList.toggle('notification-scroll-visible', window.scrollY > 36);
+            };
+            updateNotificationVisibility();
+            window.addEventListener('scroll', updateNotificationVisibility, { passive: true });
+        })();
+    </script>
     <div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalTitle" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content notification-modal-content">
@@ -1132,7 +1157,7 @@
     {% endif %}
 
     {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage'] %}
-    {% if (current_user.is_authenticated or g.user) and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage', 'story.detail'] %}
+    {% if (current_user.is_authenticated or g.user) and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage', 'story.detail', 'dm.user_list', 'reels.reels'] %}
         <script src="/socket.io/socket.io.js"></script>
         <script>
         document.addEventListener('DOMContentLoaded', () => {

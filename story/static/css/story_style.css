@@ -1,7 +1,7 @@
  /* 스토리 목록 전체 영역 */
 .insta-story-container {
     display: flex;
-    gap: 24px;
+    gap: 12px;
     align-items: center;
     overflow-x: auto;
     scroll-behavior: smooth;
@@ -10,10 +10,7 @@
     white-space: nowrap;
     width: 100%;
     box-sizing: border-box;
-    padding: 18px;
-    background-color: #ffffff;
     border-radius: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .insta-story-container::-webkit-scrollbar {

@@ -44,6 +44,7 @@
         border-radius: 50%;
         flex-shrink: 0;
         margin-left: 8px;
+    }
 
     .dm-chat-header {
         gap: .5rem;
@@ -94,6 +95,7 @@
         .dm-chat-leave { padding: .3rem .4rem; font-size: .75rem; }
         .dm-chat-leave-desktop { display: none; }
         .dm-chat-leave-mobile { display: inline; }
+    }
 </style>
 
 {% set current_uid = g.user.id if g.user and g.user.id else session.get('user_id') %}
@@ -193,7 +195,7 @@
                                 {% set is_self_target = (target_id|int == current_uid|int) %}
                                 {% set conn_status_target = 'online' if is_self_target else (target_user.connection_status if target_user else 'offline') %}
                                 <span class="status-dot {{ conn_status_target }}" id="chat-header-dot"></span>
-                                <span>{{ target_name }}</span>
+                                <span class="dm-chat-name">{{ target_name }}</span>
                                 <span class="status-text" id="chat-header-text">({% if conn_status_target == 'online' %}Online{% elif conn_status_target == 'idle' %}자리 비움{% else %}Offline{% endif %})</span>
 <!--                                {% set is_online_target = is_self_target or (target_user and target_user.is_online) %}-->
 <!--                                <span class="status-dot {{ 'online' if is_online_target else 'offline' }}" id="chat-header-dot"></span>-->
