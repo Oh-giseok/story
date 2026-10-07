@@ -3,9 +3,10 @@ import datetime
 from flask import Blueprint, render_template, session, g, request
 from flask_login import current_user
 from sqlalchemy import and_, or_
-from story.models import Friendship, Post, PostLike, PostRepost, Reels, Story, User, Notification
+from story.models import Friendship, Post, PostLike, PostRepost, Reels, User, Notification
 from story.time_utils import kst_now_naive
 from story.views import dmviews
+from story.views.story_views import get_unique_story_list
 
 bp = Blueprint('main', __name__)
 
@@ -22,19 +23,7 @@ def index():
             print(f"[DM Query Error in main_views.py]: {e}")
     stories = []
     try:
-        now_time = kst_now_naive()
-        all_stories = Story.query.filter(
-            Story.expires_at > now_time
-        ).order_by(
-            Story.create_date.desc()
-        ).all()
-
-        user_ids = set()
-        for story in all_stories:
-            if story.user_id not in user_ids:
-                stories.append(story)
-                user_ids.add(story.user_id)
-
+        stories = get_unique_story_list()
     except Exception as e:
         print(f"[Story Query Error]: {e}")
 
