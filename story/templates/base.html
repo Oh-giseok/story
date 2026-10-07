@@ -258,7 +258,7 @@
 
 <body>
 
-    {% if current_user.is_authenticated and request.endpoint in ['main.index', 'post._list', 'reels.reels', 'dm.user_list', 'main.search'] %}
+    {% if current_user.is_authenticated and request.endpoint in ['main.index', 'post._list', 'dm.user_list', 'main.search'] %}
     <div class="page-search-area">
         <form class="page-search-bar" role="search" action="{{ url_for('main.search') }}" method="get">
             <div class="input-group">
@@ -767,13 +767,82 @@
             const captionCount = document.getElementById('reelCaptionCount');
             const chooseButton = document.getElementById('chooseReelVideo');
             const reelForm = document.getElementById('createReelForm');
+            const thumbnailInput = document.getElementById('reelThumbnailInput');
+            const videoSizeGuide = document.getElementById('reelVideoSizeGuide');
+            const reelProgress = document.getElementById('reelUploadProgress');
+            const reelStatus = document.getElementById('reelUploadStatus');
+            const reelPercent = document.getElementById('reelUploadPercent');
+            const reelProgressBar = document.getElementById('reelUploadProgressBar');
             const reelModal = bootstrap.Modal.getOrCreateInstance(reelComposer);
+            let reelUploadInProgress = false;
+
+            const formatFileSize = bytes => bytes >= 1024 * 1024
+                ? `${(bytes / (1024 * 1024)).toFixed(1)}MB`
+                : `${Math.max(1, Math.round(bytes / 1024))}KB`;
+            const updateReelProgress = percent => {
+                const value = Math.max(0, Math.min(100, Math.round(percent)));
+                reelPercent.textContent = `${value}%`;
+                reelProgressBar.style.width = `${value}%`;
+                reelProgress.querySelector('[role="progressbar"]').setAttribute('aria-valuenow', value);
+            };
+            const compressReelThumbnail = async file => {
+                if (!file || !file.type.startsWith('image/') || file.size < 500_000 || !('createImageBitmap' in window)) return file;
+                let bitmap;
+                try {
+                    bitmap = await createImageBitmap(file);
+                    const maxDimension = 1440;
+                    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+                    if (scale === 1 && file.size < 500_000) return file;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = Math.round(bitmap.width * scale);
+                    canvas.height = Math.round(bitmap.height * scale);
+                    const context = canvas.getContext('2d');
+                    if (!context) return file;
+                    context.fillStyle = '#fff';
+                    context.fillRect(0, 0, canvas.width, canvas.height);
+                    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+                    if (!blob || blob.size >= file.size) return file;
+                    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', {
+                        type: 'image/jpeg', lastModified: file.lastModified
+                    });
+                } catch (error) {
+                    return file;
+                } finally {
+                    if (bitmap) bitmap.close();
+                }
+            };
+            const uploadReelThroughApp = files => new Promise((resolve, reject) => {
+                const formData = new FormData(reelForm);
+                formData.delete('video_url');
+                formData.delete('thumbnail');
+                formData.append('video_url', files.video, files.video.name);
+                formData.append('thumbnail', files.thumbnail, files.thumbnail.name);
+                reelStatus.textContent = '서버를 통해 릴스를 업로드하는 중...';
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', reelForm.action);
+                xhr.upload.addEventListener('progress', event => {
+                    if (event.lengthComputable) updateReelProgress(event.loaded / event.total * 100);
+                });
+                xhr.addEventListener('load', () => {
+                    if (xhr.status >= 200 && xhr.status < 400) {
+                        reelStatus.textContent = '저장 중...';
+                        updateReelProgress(100);
+                        window.location.assign(xhr.responseURL || reelForm.action);
+                        resolve();
+                    } else reject(new Error(`릴스 업로드에 실패했습니다. (${xhr.status})`));
+                });
+                xhr.addEventListener('error', () => reject(new Error('네트워크 오류로 릴스를 업로드하지 못했습니다.')));
+                xhr.send(formData);
+            });
 
             caption.addEventListener('input', () => { captionCount.textContent = caption.value.length; });
             chooseButton.addEventListener('click', () => videoInput.click());
             videoInput.addEventListener('change', () => {
                 const video = videoInput.files[0];
                 if (!video) return;
+                videoSizeGuide.textContent = `선택한 동영상: ${formatFileSize(video.size)}${video.size > 50 * 1024 * 1024 ? ' · 50MB 초과로 업로드에 시간이 걸릴 수 있어요.' : ''}`;
+                videoSizeGuide.classList.remove('d-none');
                 if (uploadPreview.dataset.objectUrl) URL.revokeObjectURL(uploadPreview.dataset.objectUrl);
                 const objectUrl = URL.createObjectURL(video);
                 uploadPreview.dataset.objectUrl = objectUrl;
@@ -808,6 +877,110 @@
                 captionCount.textContent = '0';
                 step1.classList.remove('d-none'); step2.classList.add('d-none');
                 nextButton.classList.add('d-none'); backButton.classList.add('d-none'); submitButton.classList.add('d-none');
+                submitButton.disabled = false; backButton.disabled = false; reelUploadInProgress = false;
+                reelProgress.classList.add('d-none'); updateReelProgress(0); videoSizeGuide.classList.add('d-none');
+            });
+
+            reelForm.addEventListener('submit', async event => {
+                event.preventDefault();
+                if (reelUploadInProgress) return;
+                const video = videoInput.files[0];
+                const thumbnail = thumbnailInput.files[0];
+                if (!video || !thumbnail) return;
+                reelUploadInProgress = true;
+                submitButton.disabled = true; backButton.disabled = true;
+                submitButton.textContent = '준비 중...';
+                reelProgress.classList.remove('d-none');
+                reelStatus.textContent = '대표이미지를 준비하는 중...';
+                updateReelProgress(0);
+
+                try {
+                    const optimizedThumbnail = await compressReelThumbnail(thumbnail);
+                    let duration = uploadPreview.duration;
+                    if (!Number.isFinite(duration) || duration <= 0) {
+                        duration = await new Promise((resolve, reject) => {
+                            uploadPreview.addEventListener('loadedmetadata', () => resolve(uploadPreview.duration), { once: true });
+                            uploadPreview.addEventListener('error', () => reject(new Error('동영상 정보를 읽지 못했습니다.')), { once: true });
+                        });
+                    }
+                    const csrfToken = reelForm.elements.csrf_token.value;
+                    const signingResponse = await fetch(reelForm.action, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify({
+                            phase: 'sign',
+                            files: {
+                                video: { name: video.name, size: video.size, type: video.type },
+                                thumbnail: { name: optimizedThumbnail.name, size: optimizedThumbnail.size, type: optimizedThumbnail.type }
+                            }
+                        })
+                    });
+
+                    if (signingResponse.ok) {
+                        const signingData = await signingResponse.json();
+                        if (signingData.available) {
+                            const uploadItems = [
+                                { file: video, signed: signingData.uploads.video },
+                                { file: optimizedThumbnail, signed: signingData.uploads.thumbnail }
+                            ];
+                            const totalBytes = uploadItems.reduce((sum, item) => sum + item.file.size, 0);
+                            let completedBytes = 0;
+                            const uploadOne = ({ file, signed }) => new Promise((resolve, reject) => {
+                                const xhr = new XMLHttpRequest();
+                                xhr.open('PUT', signed.url);
+                                xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+                                xhr.setRequestHeader('x-upsert', 'false');
+                                xhr.upload.addEventListener('progress', progressEvent => {
+                                    const currentBytes = progressEvent.lengthComputable ? progressEvent.loaded : 0;
+                                    updateReelProgress((completedBytes + currentBytes) / totalBytes * 100);
+                                });
+                                xhr.addEventListener('load', () => {
+                                    if (xhr.status >= 200 && xhr.status < 300) {
+                                        completedBytes += file.size;
+                                        updateReelProgress(completedBytes / totalBytes * 100);
+                                        resolve();
+                                    } else reject(new Error(`파일 업로드에 실패했습니다. (${xhr.status})`));
+                                });
+                                xhr.addEventListener('error', () => reject(new Error('저장소 연결에 실패했습니다.')));
+                                xhr.send(file);
+                            });
+
+                            reelStatus.textContent = '동영상과 대표이미지를 동시에 업로드하는 중...';
+                            try {
+                                await Promise.all(uploadItems.map(uploadOne));
+                            } catch (uploadError) {
+                                await uploadReelThroughApp({ video, thumbnail: optimizedThumbnail });
+                                return;
+                            }
+                            reelStatus.textContent = '릴스를 등록하는 중...';
+                            const publishResponse = await fetch(reelForm.action, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                                body: JSON.stringify({
+                                    phase: 'publish',
+                                    keys: {
+                                        video: signingData.uploads.video.key,
+                                        thumbnail: signingData.uploads.thumbnail.key
+                                    },
+                                    duration,
+                                    caption: caption.value
+                                })
+                            });
+                            if (!publishResponse.ok) throw new Error('릴스 등록에 실패했습니다. 다시 시도해주세요.');
+                            const result = await publishResponse.json();
+                            reelStatus.textContent = '릴스가 등록되었습니다.';
+                            updateReelProgress(100);
+                            window.location.assign(result.redirect);
+                            return;
+                        }
+                    }
+                    await uploadReelThroughApp({ video, thumbnail: optimizedThumbnail });
+                } catch (error) {
+                    reelUploadInProgress = false;
+                    submitButton.disabled = false; backButton.disabled = false;
+                    submitButton.textContent = '다시 시도';
+                    reelStatus.textContent = error.message || '릴스를 등록하지 못했습니다. 다시 시도해주세요.';
+                }
             });
         }
 
