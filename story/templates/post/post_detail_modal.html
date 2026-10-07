@@ -290,11 +290,60 @@
         });
     }
 
-    function openPostDetailModal(postId, sourceCard = null) {
+    function profileImageUrl(path) {
+        if (!path) return '';
+        if (/^(https?:)?\/\//i.test(path) || path.startsWith('/')) return path;
+        return `{{ url_for('static', filename='') }}${path.replace(/^\//, '')}`;
+    }
+
+    async function loadPostCard(postId) {
+        const response = await fetch(`/post/${encodeURIComponent(postId)}/detail-data`);
+        if (!response.ok) throw new Error('게시물을 불러오지 못했습니다.');
+        const data = await response.json();
+        const card = document.createElement('div');
+        card.id = `post-card-${data.id}`;
+        card.className = 'd-none raw-post-data-source';
+        card.dataset.userId = data.user_id;
+        card.dataset.userName = data.username;
+        card.dataset.userImg = profileImageUrl(data.profile_img_url);
+        const raw = document.createElement('div');
+        raw.className = 'raw-post-data';
+        const caption = document.createElement('div');
+        caption.className = 'raw-caption';
+        caption.textContent = data.caption;
+        const media = document.createElement('div');
+        media.className = 'raw-images';
+        media.textContent = data.media_url;
+        const comments = document.createElement('div');
+        comments.className = 'raw-comments';
+        data.comments.forEach(comment => {
+            const item = document.createElement('div');
+            item.className = 'comment-item';
+            item.dataset.commentId = comment.id;
+            item.dataset.userId = comment.user_id;
+            item.dataset.userName = comment.username;
+            item.dataset.userImg = profileImageUrl(comment.profile_img_url);
+            item.textContent = comment.content;
+            comments.append(item);
+        });
+        raw.append(caption, media, comments);
+        card.append(raw);
+        document.body.append(card);
+        return card;
+    }
+
+    async function openPostDetailModal(postId, sourceCard = null) {
         activePostId = Number(postId);
         activePostCard = sourceCard || byId(`post-card-${activePostId}`);
+        if (!activePostCard) {
+            try {
+                activePostCard = await loadPostCard(activePostId);
+            } catch (error) {
+                alert(error.message || '게시물을 불러오지 못했습니다.');
+                return;
+            }
+        }
         const card = activePostCard;
-        if (!card) return;
         const userName = card.dataset.userName || '';
         const userImage = card.dataset.userImg || '';
         const userId = Number(card.dataset.userId || 0);
@@ -374,6 +423,7 @@
             if (!data.success) { alert(data.message || '수정 실패'); return; }
             byId('detailModalCaption').textContent = data.caption; byId('detailModalCaption').classList.remove('d-none'); byId('captionEditBox').classList.add('d-none');
             const card = postCard(activePostId); if (card) updateCardCaption(card, data.caption);
+            window.location.assign("{{ url_for('main.index') }}");
         });
         byId('btnConfirmDeletePost').addEventListener('click', async () => {
             if (!activePostId) return;
@@ -381,6 +431,7 @@
             if (!data.success) { alert(data.message || '삭제 실패'); return; }
             deleteModal().hide(); detailModal().hide();
             const card = postCard(activePostId); if (card) (card.closest('.col-6, .col-md-3') || card).remove();
+            window.location.assign("{{ url_for('main.index') }}");
         });
         byId('detailCommentForm').addEventListener('submit', async event => {
             event.preventDefault();

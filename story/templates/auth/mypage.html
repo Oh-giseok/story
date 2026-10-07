@@ -147,6 +147,9 @@
                     <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
                     <button type="submit" class="btn btn-outline-danger">친구 삭제</button>
                 </form>
+                <a href="{{ url_for('dm.user_list', target_id=user.id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-chat-dots me-1" aria-hidden="true"></i>메시지 보내기
+                </a>
                 {% elif friendship and friendship.status == 'pending' and friendship.requested_by_id == g.user.id %}
                 <form method="post" action="{{ url_for('auth.update_friendship', target_id=user.id, action='cancel') }}">
                     <input type="hidden" name="csrf_token" value="{{ global_csrf_token() }}">
@@ -381,7 +384,9 @@
             {% endif %}
         </div>
         {% else %}
-            <p class="text-muted text-center py-4">등록한 게시물이 없습니다.</p>
+            <div class="col-12 text-center py-4" style="flex: 0 0 100%; width: 100%;">
+                <p class="text-muted mb-0">등록한 게시물이 없습니다.</p>
+            </div>
         {% endfor %}
     </section>
 

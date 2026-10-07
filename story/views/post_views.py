@@ -36,6 +36,29 @@ def _list():
     )
 
 
+@bp.route('/<int:post_id>/detail-data')
+def detail_data(post_id):
+    post = Post.query.get_or_404(post_id)
+    comments = PostComment.query.filter_by(post_id=post.id).order_by(
+        PostComment.created_at.asc(), PostComment.id.asc()
+    ).all()
+    return jsonify({
+        'id': post.id,
+        'user_id': post.user_id,
+        'username': post.user.username if post.user else '',
+        'profile_img_url': post.user.profile_img_url if post.user else '',
+        'caption': post.caption or '',
+        'media_url': post.media_url or '',
+        'comments': [{
+            'id': comment.id,
+            'user_id': comment.user_id,
+            'username': comment.user.username if comment.user else '',
+            'profile_img_url': comment.user.profile_img_url if comment.user else '',
+            'content': comment.content,
+        } for comment in comments],
+    })
+
+
 # 2. 게시물 등록 처리
 @bp.route('/create', methods=['GET', 'POST'])
 def _create():
@@ -203,6 +226,7 @@ def _emit_post_notification(notification, actor, post, action, comment_content=N
     socketio.emit('new_notification', {
         'id': notification.id,
         'type': notification.type,
+        'post_id': notification.post_id,
         'actor_id': actor.id,
         'actor_username': actor.username,
         'actor_profile_img_url': actor.profile_img_url,
