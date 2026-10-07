@@ -1,9 +1,7 @@
-
 # 베이스 이미지 선택
 FROM python:3.12-slim
 
-# [수정] 시간대 설정 (KST)
-# tzdata를 설치하고 환경 변수를 설정합니다.
+# 시간대 설정 (KST)
 ENV TZ=Asia/Seoul
 RUN apt-get update && apt-get install -y \
     tzdata \
@@ -35,6 +33,5 @@ ENV FLASK_ENV=production
 # 포트 오픈
 EXPOSE 5000
 
-# 앱 실행
-CMD ["flask", "run", "--host=0.0.0.0"]
-
+# 프로덕션 환경(Gunicorn + Eventlet 워커)을 이용해 실행
+CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", "-b", "0.0.0.0:5000", "story:create_app()"]

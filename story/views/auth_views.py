@@ -4,7 +4,7 @@ from datetime import timedelta
 from urllib.parse import urlparse
 import os
 from werkzeug.utils import secure_filename
-from flask_login import login_user, logout_user
+from flask_login import login_user, logout_user, current_user
 from sqlalchemy import or_
 from story import db
 from story.time_utils import utc_now_naive
@@ -236,6 +236,20 @@ def find_info():
 
 @bp.route('/logout')
 def logout():
+    user_id = session.get('user_id') or (current_user.id if current_user.is_authenticated else None)
+    if user_id:
+        # 로그아웃 시 사용자의 온라인 상태를 즉시 오프라인으로 전환
+        user = User.query.get(user_id)
+        if user:
+            user.is_online = False
+            db.session.commit()
+
+        from story import redis_client
+        if redis_client:
+            try:
+                redis_client.delete(f'user_online:{user_id}')
+            except Exception:
+                pass
     logout_user()
     session.clear()
     return redirect(url_for('main.index'))
@@ -376,7 +390,6 @@ def mypage():
     ).all()} if reel_comments else {}
     stories = Story.query.filter_by(user_id=profile_user.id).order_by(Story.create_date.desc()).all()
 
-    # account_form은 인스턴스 객체로 전달해야 하므로 괄호 없이 FlaskForm() 전달
     return render_template(
         'auth/mypage.html',
         user=profile_user,

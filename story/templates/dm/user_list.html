@@ -16,6 +16,9 @@
     .status-dot.online {
         background-color: #28a745;
     }
+    .status-dot.idle {
+        background-color: #ffc107;
+    }
     .status-dot.offline {
         background-color: #6c757d;
     }
@@ -43,9 +46,10 @@
                     <div class="list-group list-group-flush mb-3">
                         {% for item in active_chat_users %}
                             {% set is_self_recent = (item.user.id == current_uid) %}
-                            {% set is_online_recent = is_self_recent or item.user.is_online %}
+                            {% set conn_status_recent = 'online' if is_self_recent else item.user.connection_status %}
 
                             <a href="{{ url_for('dm.user_list', target_id=item.user.id) }}"
+                               id="recent-item-{{ item.user.id }}"
                                class="list-group-item list-group-item-action border-0 rounded mb-1 d-flex justify-content-between align-items-center py-2 {% if target_id == item.user.id %}active bg-light text-dark fw-bold{% endif %}">
                                 <div class="d-flex align-items-center text-truncate">
                                     {% if item.user.profile_img_url %}
@@ -58,9 +62,9 @@
                                     {% endif %}
                                     <div class="text-truncate">
                                         <div class="small text-dark d-flex align-items-center">
-                                            <span class="status-dot {{ 'online' if is_online_recent else 'offline' }}" id="left-recent-dot-{{ item.user.id }}"></span>
+                                            <span class="status-dot {{ conn_status_recent }}" id="left-recent-dot-{{ item.user.id }}"></span>
                                             <span>{{ item.user.name or item.user.username }}</span>
-                                            <span class="status-text" id="left-recent-text-{{ item.user.id }}">({{ 'Online' if is_online_recent else 'Offline' }})</span>
+                                            <span class="status-text" id="left-recent-text-{{ item.user.id }}">({% if conn_status_recent == 'online' %}Online{% elif conn_status_recent == 'idle' %}자리 비움{% else %}Offline{% endif %})</span>
                                         </div>
                                         <small class="text-muted d-block text-truncate" style="font-size: 0.75rem;">
                                             {{ item.last_message.text if item.last_message else '대화 없음' }}
@@ -89,7 +93,7 @@
                     <div class="list-group list-group-flush">
                         {% for user in all_users %}
                             {% set is_self_all = (user.id == current_uid) %}
-                            {% set is_online_all = is_self_all or user.is_online %}
+                            {% set conn_status_all = 'online' if is_self_all else user.connection_status %}
 
                             <a href="{{ url_for('dm.user_list', target_id=user.id) }}"
                                class="list-group-item list-group-item-action border-0 rounded mb-1 d-flex align-items-center justify-content-between py-2 px-1">
@@ -104,9 +108,9 @@
                                     {% endif %}
                                     <div>
                                         <div class="small fw-bold text-dark d-flex align-items-center">
-                                            <span class="status-dot {{ 'online' if is_online_all else 'offline' }}" id="left-all-dot-{{ user.id }}"></span>
+                                            <span class="status-dot {{ conn_status_all }}" id="left-all-dot-{{ user.id }}"></span>
                                             <span>{{ user.name or user.username }}</span>
-                                            <span class="status-text" id="left-all-text-{{ user.id }}">({{ 'Online' if is_online_all else 'Offline' }})</span>
+                                            <span class="status-text" id="left-all-text-{{ user.id }}">({% if conn_status_all == 'online' %}Online{% elif conn_status_all == 'idle' %}자리 비움{% else %}Offline{% endif %})</span>
                                         </div>
                                         <small class="text-muted" style="font-size:0.7rem;">@{{ user.username }}</small>
                                     </div>
@@ -143,10 +147,10 @@
                         <h5 class="mb-0 fw-bold d-flex align-items-center">
                             {% if target_name %}
                                 {% set is_self_target = (target_id|int == current_uid|int) %}
-                                {% set is_online_target = is_self_target or (target_user and target_user.is_online) %}
-                                <span class="status-dot {{ 'online' if is_online_target else 'offline' }}" id="chat-header-dot"></span>
+                                {% set conn_status_target = 'online' if is_self_target else (target_user.connection_status if target_user else 'offline') %}
+                                <span class="status-dot {{ conn_status_target }}" id="chat-header-dot"></span>
                                 <span>{{ target_name }}</span>
-                                <span class="status-text" id="chat-header-text">({{ 'Online' if is_online_target else 'Offline' }})</span>
+                                <span class="status-text" id="chat-header-text">({% if conn_status_target == 'online' %}Online{% elif conn_status_target == 'idle' %}자리 비움{% else %}Offline{% endif %})</span>
                             {% else %}
                                 대화 상대를 선택하세요
                             {% endif %}
@@ -242,7 +246,11 @@ socket.on('presence_change', (data) => {
     const userId = String(data.user_id);
     if (userId === String(currentUserId)) return;
 
-    const isOnline = (data.status === 'online');
+    const status = data.status || 'offline';
+    const statusClass = status;
+    const statusTextMap = { 'online': 'Online', 'idle': '자리 비움', 'offline': 'Offline' };
+    const textLabel = statusTextMap[status] || 'Offline';
+
     const targetInput = document.getElementById('target_id');
     const currentTargetId = targetInput ? String(targetInput.value) : null;
 
@@ -250,8 +258,8 @@ socket.on('presence_change', (data) => {
         const headerDot = document.getElementById('chat-header-dot');
         const headerText = document.getElementById('chat-header-text');
         if (headerDot && headerText) {
-            headerDot.className = `status-dot ${isOnline ? 'online' : 'offline'}`;
-            headerText.innerText = `(${isOnline ? 'Online' : 'Offline'})`;
+            headerDot.className = `status-dot ${statusClass}`;
+            headerText.innerText = `(${textLabel})`;
         }
     }
 
@@ -259,8 +267,8 @@ socket.on('presence_change', (data) => {
         const dot = document.getElementById(`${prefix}-dot-${userId}`);
         const text = document.getElementById(`${prefix}-text-${userId}`);
         if (dot && text) {
-            dot.className = `status-dot ${isOnline ? 'online' : 'offline'}`;
-            text.innerText = `(${isOnline ? 'Online' : 'Offline'})`;
+            dot.className = `status-dot ${statusClass}`;
+            text.innerText = `(${textLabel})`;
         }
     });
 });
@@ -396,12 +404,12 @@ function appendMessage(msg) {
         : '';
 
     if (isMe) {
-        div.innerHTML = `${unreadBadge}<div class="p-2 rounded bg-primary text-white" style="max-width:70%;"><strong>나:</strong> ${escapeHtml(msg.text)} <br>${messageTimeMarkup(msg.created_at, 'text-white-50')}</div>`;
+        div.innerHTML = `${unreadBadge}<div class="p-2 rounded bg-primary text-white" style="max-width:70%;">${escapeHtml(msg.text)} <br>${messageTimeMarkup(msg.created_at, 'text-white-50')}</div>`;
     } else {
         div.innerHTML = `
             <i class="bi bi-person-circle text-secondary fs-4 me-2 flex-shrink-0 align-self-start"></i>
             <div class="p-2 rounded bg-white border" style="max-width:70%;">
-                <strong>상대방:</strong> ${escapeHtml(msg.text)} <br>
+                ${escapeHtml(msg.text)} <br>
                 ${messageTimeMarkup(msg.created_at, 'text-muted')}
             </div>
             ${unreadBadge}
