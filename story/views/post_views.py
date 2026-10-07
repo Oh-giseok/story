@@ -48,6 +48,7 @@ def _list():
 @bp.route('/<int:post_id>/detail-data')
 def detail_data(post_id):
     post = Post.query.get_or_404(post_id)
+    user_id = session.get('user_id')
     comments = PostComment.query.filter_by(post_id=post.id).order_by(
         PostComment.created_at.asc(), PostComment.id.asc()
     ).all()
@@ -58,6 +59,8 @@ def detail_data(post_id):
         'profile_img_url': post.user.profile_img_url if post.user else '',
         'caption': post.caption or '',
         'media_url': post.media_url or '',
+        'liked': bool(user_id and PostLike.query.filter_by(post_id=post.id, user_id=user_id).first()),
+        'like_count': PostLike.query.filter_by(post_id=post.id).count(),
         'comments': [{
             'id': comment.id,
             'user_id': comment.user_id,

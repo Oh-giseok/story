@@ -172,6 +172,12 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <button type="button" class="btn btn-link p-0 border-0 post-like-button" data-post-id="" aria-label="좋아요" aria-pressed="false">
+                                <i class="bi bi-heart text-dark fs-5"></i>
+                            </button>
+                            <span class="fw-bold small"><span class="post-like-count" data-post-id="">0</span>개 좋아요</span>
+                        </div>
                         <hr class="my-2">
                         <div id="detailModalCommentList"></div>
                     </div>
@@ -320,6 +326,45 @@
         return `{{ url_for('static', filename='') }}${path.replace(/^\//, '')}`;
     }
 
+    function updatePostLikeUI(postId, liked, likeCount) {
+        document.querySelectorAll(`.post-like-button[data-post-id="${postId}"]`).forEach(button => {
+            button.innerHTML = liked
+                ? '<i class="bi bi-heart-fill text-danger fs-5"></i>'
+                : '<i class="bi bi-heart text-dark fs-5"></i>';
+            button.setAttribute('aria-pressed', String(Boolean(liked)));
+        });
+        document.querySelectorAll(`.post-like-count[data-post-id="${postId}"]`).forEach(count => {
+            count.textContent = likeCount;
+        });
+    }
+
+    const pendingPostLikes = new Set();
+    async function togglePostLike(postId) {
+        if (pendingPostLikes.has(postId)) return;
+        pendingPostLikes.add(postId);
+        const buttons = [...document.querySelectorAll(`.post-like-button[data-post-id="${postId}"]`)];
+        buttons.forEach(button => { button.disabled = true; });
+        try {
+            const response = await fetch(`/post/like/${encodeURIComponent(postId)}`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({ csrf_token: csrfToken })
+            });
+            const data = await response.json().catch(() => ({ message: '요청을 처리하지 못했습니다.' }));
+            if (!response.ok || !data.success) throw new Error(data.message || '좋아요 요청에 실패했습니다.');
+            updatePostLikeUI(postId, data.liked, data.like_count);
+        } catch (error) {
+            alert(error.message || '좋아요 요청에 실패했습니다.');
+        } finally {
+            pendingPostLikes.delete(postId);
+            document.querySelectorAll(`.post-like-button[data-post-id="${postId}"]`).forEach(button => { button.disabled = false; });
+        }
+    }
+
     async function loadPostCard(postId) {
         const response = await fetch(`/post/${encodeURIComponent(postId)}/detail-data`);
         if (!response.ok) throw new Error('게시물을 불러오지 못했습니다.');
@@ -368,6 +413,9 @@
             }
         }
         const card = activePostCard;
+        document.querySelectorAll('#postDetailModal .post-like-button, #postDetailModal .post-like-count').forEach(element => {
+            element.dataset.postId = String(activePostId);
+        });
         const userName = card.dataset.userName || '';
         const userImage = card.dataset.userImg || '';
         const userId = Number(card.dataset.userId || 0);
@@ -407,6 +455,18 @@
         const form = byId('detailCommentForm'); form.dataset.postId = activePostId;
         renderComments(card);
 
+        // Refresh the modal's reaction state from the server, just as the Reels detail
+        // view does, so profile/repost entry points and stale cards show persisted state.
+        fetch(`/post/${encodeURIComponent(activePostId)}/detail-data`)
+            .then(response => {
+                if (!response.ok) throw new Error('좋아요 상태를 불러오지 못했습니다.');
+                return response.json();
+            })
+            .then(data => {
+                if (Number(activePostId) === Number(data.id)) updatePostLikeUI(data.id, data.liked, data.like_count);
+            })
+            .catch(error => console.error(error));
+
         const modalElement = byId('postDetailModal');
         if (imageList.length) {
             const initializeDetailSwiper = () => {
@@ -433,6 +493,15 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        if (!window.postLikeClickHandlerBound) {
+            window.postLikeClickHandlerBound = true;
+            document.addEventListener('click', event => {
+                const button = event.target.closest('.post-like-button');
+                if (!button) return;
+                event.preventDefault();
+                togglePostLike(button.dataset.postId);
+            });
+        }
         document.querySelectorAll('.btn-open-detail').forEach(button => button.addEventListener('click', () => openPostDetailModal(button.dataset.postId)));
         byId('btnPostMoreOption').addEventListener('click', () => optionModal().show());
         byId('btnOptDeletePost').addEventListener('click', () => {

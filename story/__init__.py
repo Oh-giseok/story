@@ -309,7 +309,9 @@ def create_app():
                 db.session.commit()
 
         if request.endpoint == 'static' or request.endpoint in {
-            'auth.login', 'auth.signup', 'auth.find_info', 'auth.check_signup_value'
+            'auth.login', 'auth.signup', 'auth.find_info', 'auth.check_signup_value',
+            # Like endpoints return their own JSON 401 responses for anonymous AJAX calls.
+            'post.like', 'reels.like_reel'
         }:
             return None
 
