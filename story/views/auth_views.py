@@ -465,20 +465,35 @@ def send_friend_request(target_id):
 
 @bp.route('/friend/<int:target_id>/<action>', methods=['POST'])
 def update_friendship(target_id, action):
+    is_async = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    def finish(success, message=None, status=200):
+        if is_async:
+            unread_count = Notification.query.filter_by(
+                recipient_id=g.user.id, is_read=False
+            ).count()
+            return jsonify({
+                'success': success,
+                'action': action,
+                'message': message,
+                'unread_count': unread_count,
+            }), status
+        if message:
+            flash(message)
+        return _friend_profile_redirect(target_id)
+
     if not _friend_action_form_is_valid():
-        flash('요청이 만료되었습니다. 다시 시도해 주세요.')
-        return _friend_profile_redirect(target_id)
+        return finish(False, '요청이 만료되었습니다. 다시 시도해 주세요.', 400)
     if action not in {'accept', 'reject', 'cancel', 'remove'}:
-        return _friend_profile_redirect(target_id)
+        return finish(False, '지원하지 않는 요청입니다.', 400)
 
     target = User.query.get_or_404(target_id)
     if target.id == g.user.id:
-        return _friend_profile_redirect(target_id)
+        return finish(False, '자기 자신과는 친구 관계를 만들 수 없습니다.', 400)
     low_id, high_id = sorted((g.user.id, target.id))
     friendship = Friendship.query.filter_by(user_low_id=low_id, user_high_id=high_id).first()
     if not friendship:
-        flash('친구 요청 또는 관계를 찾을 수 없습니다.')
-        return _friend_profile_redirect(target_id)
+        return finish(False, '친구 요청 또는 관계를 찾을 수 없습니다.', 404)
 
     if action == 'accept' and friendship.status == 'pending' and friendship.requested_by_id == target.id:
         friendship.status = 'accepted'
@@ -495,14 +510,16 @@ def update_friendship(target_id, action):
             db.session.delete(friendship)
             db.session.commit()
         else:
-            flash('이 요청을 처리할 권한이 없습니다.')
+            return finish(False, '이 요청을 처리할 권한이 없습니다.', 403)
     elif action == 'remove' and friendship.status == 'accepted':
         Notification.query.filter_by(friendship_id=friendship.id).delete(synchronize_session=False)
         db.session.delete(friendship)
         db.session.commit()
     else:
-        flash('현재 상태에서는 해당 작업을 할 수 없습니다.')
+        return finish(False, '현재 상태에서는 해당 작업을 할 수 없습니다.', 409)
 
+    if is_async:
+        return finish(True)
     return _friend_profile_redirect(g.user.id if request.form.get('return_to') == 'self' else target.id)
 
 
