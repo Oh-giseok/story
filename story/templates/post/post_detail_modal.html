@@ -201,9 +201,10 @@
 </div>
 
 <!-- 게시물 더보기 옵션 모달 -->
-<div class="modal fade confirm-modal" id="postOptionModal" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+<div class="modal fade confirm-modal" id="postOptionModal" tabindex="-1" aria-hidden="true" aria-labelledby="postOptionTitle">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content">
+            <h2 id="postOptionTitle" class="visually-hidden">게시물 옵션</h2>
             <button type="button" class="btn btn-action text-danger fw-bold" id="btnOptDeletePost">삭제</button>
             <button type="button" class="btn btn-action text-dark" id="btnOptEditPost">수정</button>
             <button type="button" class="btn btn-action text-secondary" data-bs-dismiss="modal">취소</button>
@@ -212,12 +213,12 @@
 </div>
 
 <!-- 삭제 확인 모달 -->
-<div class="modal fade confirm-modal" id="deleteConfirmModal" tabindex="-1" aria-hidden="true" style="z-index: 1065;">
+<div class="modal fade confirm-modal" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deletePostTitle" aria-describedby="deletePostDescription">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content">
             <div class="pt-4 pb-3 px-3 text-center">
-                <h6 class="fs-5 mb-1">게시물을 삭제할까요?</h6>
-                <small class="text-secondary">이 게시물을 삭제하시겠어요?</small>
+                <h2 class="fs-5 mb-1" id="deletePostTitle">게시물을 삭제할까요?</h2>
+                <small class="text-secondary" id="deletePostDescription">이 게시물을 삭제하시겠어요?</small>
             </div>
             <button type="button" class="btn btn-action text-danger fw-bold" id="btnConfirmDeletePost">삭제</button>
             <button type="button" class="btn btn-action text-dark" data-bs-dismiss="modal">취소</button>
@@ -240,6 +241,7 @@
 (() => {
     const currentUserId = {{ session.get('user_id', 0) }};
     const mypageUrl = {{ url_for('auth.mypage')|tojson }};
+    const csrfToken = {{ global_csrf_token()|tojson }};
     let activePostId = null;
     let activePostCard = null;
     let activeCommentId = null;
@@ -429,7 +431,10 @@
     document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.btn-open-detail').forEach(button => button.addEventListener('click', () => openPostDetailModal(button.dataset.postId)));
         byId('btnPostMoreOption').addEventListener('click', () => optionModal().show());
-        byId('btnOptDeletePost').addEventListener('click', () => { optionModal().hide(); deleteModal().show(); });
+        byId('btnOptDeletePost').addEventListener('click', () => {
+            byId('postOptionModal').addEventListener('hidden.bs.modal', () => deleteModal().show(), { once: true });
+            optionModal().hide();
+        });
         byId('btnOptEditPost').addEventListener('click', () => {
             optionModal().hide(); byId('captionEditText').value = byId('detailModalCaption').textContent;
             byId('detailModalCaption').classList.add('d-none'); byId('captionEditBox').classList.remove('d-none');
@@ -445,11 +450,33 @@
         });
         byId('btnConfirmDeletePost').addEventListener('click', async () => {
             if (!activePostId) return;
-            const response = await fetch(`/post/delete/${activePostId}`, { method: 'POST' }); const data = await response.json();
-            if (!data.success) { alert(data.message || '삭제 실패'); return; }
-            deleteModal().hide(); detailModal().hide();
-            const card = postCard(activePostId); if (card) (card.closest('.col-6, .col-md-3') || card).remove();
-            window.location.assign("{{ url_for('main.index') }}");
+            const button = byId('btnConfirmDeletePost');
+            button.disabled = true;
+            try {
+                const response = await fetch(`/post/delete/${encodeURIComponent(activePostId)}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: new URLSearchParams({ csrf_token: csrfToken })
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.success) throw new Error(data.message || '게시물 삭제에 실패했습니다.');
+
+                const deletedPostId = activePostId;
+                const card = postCard(deletedPostId);
+                deleteModal().hide();
+                detailModal().hide();
+                if (card) (card.closest('.col-6, .col-md-3') || card).remove();
+                if (activePostCard?.classList.contains('raw-post-data-source') && !activePostCard.isConnected) activePostCard.remove();
+                activePostId = null;
+                activePostCard = null;
+            } catch (error) {
+                alert(error.message || '게시물 삭제에 실패했습니다.');
+            } finally {
+                button.disabled = false;
+            }
         });
         byId('detailCommentForm').addEventListener('submit', async event => {
             event.preventDefault();

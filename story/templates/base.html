@@ -877,10 +877,9 @@
         }
     </script>
     {% if (current_user.is_authenticated or g.user) and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage'] %}
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
         document.addEventListener('DOMContentLoaded', () => {
-            if (!window.io) return;
             const notificationModal = document.getElementById('notificationModal');
             const notificationList = document.getElementById('notificationList');
             const notificationBadge = document.getElementById('notificationBadge');
@@ -892,6 +891,44 @@
                 notificationBadge.textContent = unreadCount;
                 notificationBadge.classList.toggle('d-none', unreadCount === 0);
             };
+
+            notificationList.addEventListener('submit', async (event) => {
+                const form = event.target.closest('form[action*="/auth/friend/"]');
+                if (!form) return;
+                event.preventDefault();
+                const button = form.querySelector('button[type="submit"]');
+                if (button?.disabled) return;
+                if (button) button.disabled = true;
+                try {
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        body: new FormData(form)
+                    });
+                    const result = await response.json();
+                    if (!response.ok || !result.success) {
+                        throw new Error(result.message || '친구 요청을 처리하지 못했습니다.');
+                    }
+                    const item = form.closest('.notification-item');
+                    if (result.action === 'reject') {
+                        item?.remove();
+                    } else {
+                        item?.querySelector('.d-flex.flex-row.gap-1')?.remove();
+                        if (item) item.classList.remove('unread');
+                    }
+                    if (!notificationList.querySelector('.notification-item')) {
+                        const empty = document.createElement('p');
+                        empty.id = 'notificationEmpty';
+                        empty.className = 'text-muted text-center my-4';
+                        empty.textContent = '새로운 알림이 없습니다.';
+                        notificationList.appendChild(empty);
+                    }
+                    setUnreadCount(result.unread_count);
+                } catch (error) {
+                    window.alert(error.message || '친구 요청을 처리하지 못했습니다.');
+                    if (button) button.disabled = false;
+                }
+            });
 
             notificationList.addEventListener('click', (event) => {
                 const postButton = event.target.closest('[data-open-post-id]');
@@ -911,11 +948,24 @@
                 try {
                     const response = await fetch("{{ url_for('auth.mark_notifications_read') }}", {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': csrfInput.value,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
                         body: new URLSearchParams({ csrf_token: csrfInput.value })
                     });
-                    if (!response.ok) return;
-                    const result = await response.json();
+                    const responseText = await response.text();
+                    let result;
+                    try {
+                        result = JSON.parse(responseText);
+                    } catch {
+                        throw new Error(`예상하지 못한 서버 응답 (HTTP ${response.status})`);
+                    }
+                    if (!response.ok || !result.success) {
+                        throw new Error(result.message || `읽음 처리 실패 (HTTP ${response.status})`);
+                    }
                     setUnreadCount(result.unread_count);
                     notificationList.querySelectorAll('.notification-item.unread').forEach(item => item.classList.remove('unread'));
                 } catch (error) {

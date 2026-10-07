@@ -1,3 +1,4 @@
+import os
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify, session, g, flash
 import os
 import secrets
@@ -5,6 +6,8 @@ from story import db
 from story.models import Post, User, PostLike, PostComment, PostRepost, Story, Notification
 from story.time_utils import utc_isoformat, kst_now_naive, utc_now_naive
 from story.media_storage import create_signed_upload_url, upload_media
+from story.media_storage import create_signed_upload_url, upload_media
+from story.views.story_views import get_unique_story_list
 
 # /post 경로로 들어오는 요청들을 처리할 블루프린트 생성
 bp = Blueprint('post', __name__, url_prefix='/post')
@@ -25,7 +28,7 @@ def get_current_user_id():
 @bp.route('/')
 def _list():
     posts = Post.query.order_by(Post.created_at.desc()).all()
-    story_list = Story.query.filter(Story.expires_at > kst_now_naive()).order_by(Story.create_date.desc()).all()
+    story_list = get_unique_story_list()
     user_id = session.get('user_id')
     reposted_post_ids = {
         repost.post_id
@@ -344,9 +347,11 @@ def delete_post(post_id):
     if post.user_id != user_id:
         return jsonify({'success': False, 'message': '삭제 권한이 없습니다.'}), 403
 
-    # 해당 게시물의 댓글 및 좋아요도 함께 연쇄 삭제 (ORMB/relationship 캐스케이드가 설정되지 않은 경우를 대비)
+    # 관련 데이터도 게시물과 함께 삭제한다. 벌크 삭제로 ORM cascade에 의존하지 않는다.
     PostLike.query.filter_by(post_id=post_id).delete()
     PostComment.query.filter_by(post_id=post_id).delete()
+    PostRepost.query.filter_by(post_id=post_id).delete()
+    Notification.query.filter_by(post_id=post_id).delete()
 
     db.session.delete(post)
     db.session.commit()

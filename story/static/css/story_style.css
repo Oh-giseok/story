@@ -169,7 +169,8 @@
     width: 100%;
     height: 100%;
     background-color: #1a1a1a;
-    z-index: 9999;
+    /* Keep the custom Story viewer below Bootstrap's backdrop/modal layers. */
+    z-index: 1030;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -270,10 +271,14 @@
 
 /* 가운데 현재 스토리 */
 .story-viewer {
-    position: relative;
-    width: 394px;
-    height: 700px;
-    flex: 0 0 394px;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(394px, calc(100vw - 24px));
+    height: min(700px, calc(100vh - 24px));
+    height: min(700px, calc(100dvh - 24px));
+    margin: 0;
+    translate: -50% -50%;
     background-color: #000000;
     border-radius: 12px;
     overflow: hidden;
@@ -495,15 +500,17 @@
 
 /* 스토리 게이지 바 컨테이너 */
 .story-progress-bar-container {
-    position: absolute;
-    top: 25px;
-    left: 0;
-    z-index: 100;
-    width: 100%;
+    position: fixed;
+    top: max(24px, calc((100vh - 700px) / 2 + 25px));
+    top: max(24px, calc((100dvh - 700px) / 2 + 25px));
+    left: 50%;
+    z-index: 1045;
+    width: min(394px, calc(100vw - 24px));
     padding: 0 16px !important;
     display: flex;
     gap: 4px;
     box-sizing: border-box;
+    transform: translateX(-50%);
 }
 
 /* 스토리 게이지 바 기본 트랙 */
@@ -528,47 +535,14 @@
     width: 100% !important;
 }
 
-/* 스토리 이동 슬라이드 애니메이션 */
-.story-adjacent-card {
-    transition: transform 0.7s ease;
-}
-
-/* 가운데로 이동하는 스토리 카드 */
-.story-moving-card {
-    position: fixed;
-    z-index: 999999;
-    overflow: hidden;
-    border-radius: 12px;
-    background-color: #000000;
-    pointer-events: none;
-    opacity: 1;
-}
-
-/* 이동하는 카드 안의 이미지 */
-.story-moving-card img,
-.story-moving-card video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-/* 현재 스토리가 왼쪽으로 빠지는 효과 */
-.story-viewer.story-slide-out {
-    transition: transform 0.7s ease;
-    transform: translateX(-210px);
-}
-
 /* Keep the active story centered independently of how many side cards exist. */
 .story-viewer-wrapper {
     display: block;
 }
 
 .story-viewer {
-    position: absolute;
     left: 50%;
     top: 50%;
-    margin-left: -197px;
-    margin-top: -350px;
 }
 
 .story-adjacent-group {
@@ -589,4 +563,57 @@
 .story-adjacent-group.next-group::before {
     display: none;
     content: none;
+}
+
+/* User-to-user transitions use two real viewer panels; inner-story changes never use these classes. */
+.story-viewer.story-viewer--sliding {
+    transition: transform 450ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+}
+
+.story-viewer.story-viewer--incoming {
+    position: fixed;
+    left: auto;
+    top: auto;
+    translate: none;
+    margin: 0;
+    z-index: 1040;
+    pointer-events: none;
+    transition: none;
+}
+
+.story-viewer.story-viewer--incoming.story-viewer--from-right {
+    transform: translateX(calc(100vw + 100%));
+}
+
+.story-viewer.story-viewer--incoming.story-viewer--from-left {
+    transform: translateX(calc(-100vw - 100%));
+}
+
+.story-viewer.story-viewer--incoming.story-viewer--sliding {
+    transition: transform 450ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.story-viewer.story-viewer--sliding.story-viewer--to-left {
+    transform: translateX(calc(-100vw - 100%));
+}
+
+.story-viewer.story-viewer--sliding.story-viewer--to-right {
+    transform: translateX(calc(100vw + 100%));
+}
+
+.story-viewer.story-viewer--incoming.story-viewer--center {
+    transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .story-viewer.story-viewer--sliding,
+    .story-viewer.story-viewer--incoming.story-viewer--sliding {
+        transition-duration: 1ms;
+    }
+}
+
+@media (max-height: 723px) {
+    .story-viewer-user { padding-top: 34px; }
+    .story-viewer-caption { padding-bottom: 72px; }
 }
