@@ -3,7 +3,7 @@ import datetime
 from flask import Blueprint, render_template, session, g, request
 from flask_login import current_user
 from sqlalchemy import and_, or_
-from story.models import Friendship, Post, Reels, Story, User, Notification
+from story.models import Friendship, Post, PostLike, PostRepost, Reels, Story, User, Notification
 from story.time_utils import kst_now_naive
 from story.views import dmviews
 
@@ -12,13 +12,7 @@ bp = Blueprint('main', __name__)
 
 @bp.route('/')
 def index():
-    current_uid = None
-    if current_user.is_authenticated:
-        current_uid = current_user.id
-    elif hasattr(g, 'user') and g.user and getattr(g.user, 'id', None):
-        current_uid = g.user.id
-    elif 'user_id' in session:
-        current_uid = session['user_id']
+    current_uid = session.get('user_id')
     active_chat_users = []
     if current_uid:
         try:
@@ -49,12 +43,17 @@ def index():
     notifications = []
     unread_notification_count = 0
     reposted_post_ids = set()
+    liked_post_ids = set()
     try:
         posts = Post.query.order_by(Post.id.desc()).all()
         if current_uid:
             reposted_post_ids = {
                 repost.post_id
                 for repost in PostRepost.query.filter_by(user_id=current_uid).all()
+            }
+            liked_post_ids = {
+                like.post_id
+                for like in PostLike.query.filter_by(user_id=current_uid).all()
             }
     except Exception:
         pass
@@ -70,6 +69,7 @@ def index():
         'post/post_list.html',
         posts=posts,
         reposted_post_ids=reposted_post_ids,
+        liked_post_ids=liked_post_ids,
         story_list=stories,
         active_chat_users=active_chat_users,
         notifications=notifications,

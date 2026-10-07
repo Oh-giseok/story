@@ -25,14 +25,19 @@ def get_current_user_id():
 def _list():
     posts = Post.query.order_by(Post.created_at.desc()).all()
     story_list = Story.query.filter(Story.expires_at > kst_now_naive()).order_by(Story.create_date.desc()).all()
-    user_id = get_current_user_id()
+    user_id = session.get('user_id')
     reposted_post_ids = {
         repost.post_id
         for repost in PostRepost.query.filter_by(user_id=user_id).all()
     } if user_id else set()
+    liked_post_ids = {
+        like.post_id
+        for like in PostLike.query.filter_by(user_id=user_id).all()
+    } if user_id else set()
     return render_template(
         'post/post_list.html', posts=posts, story_list=story_list,
-        reposted_post_ids=reposted_post_ids
+        reposted_post_ids=reposted_post_ids,
+        liked_post_ids=liked_post_ids
     )
 
 
@@ -107,7 +112,7 @@ def _create():
 # 3. 좋아요 토글
 @bp.route('/like/<int:post_id>', methods=['POST'])
 def like(post_id):
-    user_id = get_current_user_id()
+    user_id = session.get('user_id')
     if not user_id:
         return jsonify({'success': False, 'message': '로그인이 필요합니다.'}), 401
 
@@ -122,7 +127,7 @@ def like(post_id):
         db.session.add(new_like)
         liked = True
         if post.user_id != user_id:
-            actor = g.user if (hasattr(g, 'user') and g.user) else User.query.get(user_id)
+            actor = User.query.get(user_id)
             notification = Notification(
                 recipient_id=post.user_id, actor_id=user_id, post_id=post.id,
                 type='post_like', is_read=False, created_at=utc_now_naive(),
