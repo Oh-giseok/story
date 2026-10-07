@@ -1,5 +1,7 @@
 import os
 import redis
+from redis.backoff import NoBackoff
+from redis.retry import Retry
 from datetime import datetime, timedelta
 from flask import Flask, redirect, render_template, url_for, g, session
 from flask_migrate import Migrate
@@ -12,8 +14,15 @@ db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
 
+redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 try:
-    redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+    redis_client = redis.Redis.from_url(
+        redis_url,
+        decode_responses=True,
+        socket_connect_timeout=0.25,
+        socket_timeout=0.25,
+        retry=Retry(NoBackoff(), 0),
+    )
     redis_client.ping()
 except Exception:
     redis_client = None
@@ -143,15 +152,16 @@ def create_app():
         return models.User.query.get(int(user_id))
 
     from story.events import socketio
-    socketio.init_app(
-        app,
-        cors_allowed_origins="*",
-        message_queue='redis://localhost:6379/0',
-        async_mode='threading',
-        transports=['polling'],
-        logger=False,
-        engineio_logger=False
-    )
+    socketio_options = {
+        'cors_allowed_origins': '*',
+        'async_mode': 'threading',
+        'transports': ['polling'],
+        'logger': False,
+        'engineio_logger': False,
+    }
+    if redis_client is not None:
+        socketio_options['message_queue'] = redis_url
+    socketio.init_app(app, **socketio_options)
 
     with app.app_context():
         db.create_all()
