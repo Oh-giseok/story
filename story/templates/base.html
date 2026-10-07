@@ -561,6 +561,31 @@
                 uploadProgress.querySelector('[role="progressbar"]').setAttribute('aria-valuenow', value);
             };
 
+            const uploadPostThroughApp = files => new Promise((resolve, reject) => {
+                const formData = new FormData(postForm);
+                formData.delete('media_file');
+                files.forEach(file => formData.append('media_file', file, file.name));
+                uploadStatus.textContent = '서버를 통해 게시물을 업로드하는 중...';
+                btnSubmit.textContent = '업로드 중...';
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', postForm.action);
+                xhr.upload.addEventListener('progress', progressEvent => {
+                    if (progressEvent.lengthComputable) updatePostUploadProgress(progressEvent.loaded / progressEvent.total * 100);
+                });
+                xhr.addEventListener('load', () => {
+                    if (xhr.status >= 200 && xhr.status < 400) {
+                        uploadStatus.textContent = '저장 중...';
+                        updatePostUploadProgress(100);
+                        window.location.assign(xhr.responseURL || postForm.action);
+                        resolve();
+                    } else {
+                        reject(new Error(`업로드에 실패했습니다. (${xhr.status})`));
+                    }
+                });
+                xhr.addEventListener('error', () => reject(new Error('네트워크 오류로 업로드하지 못했습니다. 연결을 확인한 뒤 다시 시도해주세요.')));
+                xhr.send(formData);
+            });
+
             const resetPostComposer = () => {
                 if (previewSwiper) { previewSwiper.destroy(true, true); previewSwiper = null; }
                 previewUrls.forEach(url => URL.revokeObjectURL(url));
@@ -641,45 +666,89 @@
                 try {
                     const files = Array.from(fileInput.files);
                     const optimizedFiles = await Promise.all(files.map(compressPostImage));
-                    const formData = new FormData(postForm);
-                    formData.delete('media_file');
-                    optimizedFiles.forEach(file => formData.append('media_file', file, file.name));
-
-                    uploadStatus.textContent = '게시물을 업로드하는 중...';
-                    btnSubmit.textContent = '업로드 중...';
-                    const xhr = new XMLHttpRequest();
-                    xhr.open('POST', postForm.action);
-                    xhr.upload.addEventListener('progress', progressEvent => {
-                        if (!progressEvent.lengthComputable) return;
-                        updatePostUploadProgress(progressEvent.loaded / progressEvent.total * 100);
+                    const csrfToken = postForm.elements.csrf_token.value;
+                    uploadStatus.textContent = '저장소에 연결하는 중...';
+                    const signingResponse = await fetch(postForm.action, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify({
+                            phase: 'sign',
+                            files: optimizedFiles.map(file => ({ name: file.name, size: file.size, type: file.type }))
+                        })
                     });
-                    xhr.addEventListener('load', () => {
-                        if (xhr.status >= 200 && xhr.status < 400) {
-                            uploadStatus.textContent = '저장 중...';
+
+                    if (signingResponse.ok) {
+                        const signingData = await signingResponse.json();
+                        if (signingData.available) {
+                            let completedBytes = 0;
+                            const totalBytes = optimizedFiles.reduce((sum, file) => sum + file.size, 0);
+                            let nextFileIndex = 0;
+                            const uploadOne = index => new Promise((resolve, reject) => {
+                                const file = optimizedFiles[index];
+                                const signedUpload = signingData.uploads[index];
+                                const xhr = new XMLHttpRequest();
+                                xhr.open('PUT', signedUpload.url);
+                                xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+                                xhr.setRequestHeader('x-upsert', 'false');
+                                xhr.upload.addEventListener('progress', progressEvent => {
+                                    const currentBytes = progressEvent.lengthComputable ? progressEvent.loaded : 0;
+                                    updatePostUploadProgress((completedBytes + currentBytes) / totalBytes * 100);
+                                });
+                                xhr.addEventListener('load', () => {
+                                    if (xhr.status >= 200 && xhr.status < 300) {
+                                        completedBytes += file.size;
+                                        updatePostUploadProgress(completedBytes / totalBytes * 100);
+                                        resolve();
+                                    } else {
+                                        reject(new Error(`파일 업로드에 실패했습니다. (${xhr.status})`));
+                                    }
+                                });
+                                xhr.addEventListener('error', () => reject(new Error('저장소 연결에 실패했습니다. 네트워크 또는 저장소 CORS 설정을 확인해주세요.')));
+                                xhr.send(file);
+                            });
+
+                            uploadStatus.textContent = '사진과 동영상을 저장소에 직접 업로드하는 중...';
+                            const worker = async () => {
+                                while (nextFileIndex < optimizedFiles.length) {
+                                    const index = nextFileIndex++;
+                                    await uploadOne(index);
+                                }
+                            };
+                            try {
+                                await Promise.all(Array.from({ length: Math.min(3, optimizedFiles.length) }, worker));
+                            } catch (uploadError) {
+                                // Storage CORS 등으로 직접 전송을 막는 환경에서는 기존 경로로 재시도합니다.
+                                await uploadPostThroughApp(optimizedFiles);
+                                return;
+                            }
+
+                            uploadStatus.textContent = '게시물을 등록하는 중...';
+                            const publishResponse = await fetch(postForm.action, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                                body: JSON.stringify({
+                                    phase: 'publish',
+                                    keys: signingData.uploads.map(upload => upload.key),
+                                    caption: postForm.elements.caption.value
+                                })
+                            });
+                            if (!publishResponse.ok) throw new Error('게시물 등록에 실패했습니다. 다시 시도해주세요.');
+                            const publishedPost = await publishResponse.json();
+                            uploadStatus.textContent = '게시물이 등록되었습니다.';
                             updatePostUploadProgress(100);
-                            window.location.assign(xhr.responseURL || postForm.action);
+                            window.location.assign(publishedPost.redirect);
                             return;
                         }
-                        postUploadInProgress = false;
-                        btnSubmit.disabled = false;
-                        btnBack.disabled = false;
-                        btnSubmit.textContent = '다시 시도';
-                        uploadStatus.textContent = `업로드에 실패했습니다. (${xhr.status}) 다시 시도해주세요.`;
-                    });
-                    xhr.addEventListener('error', () => {
-                        postUploadInProgress = false;
-                        btnSubmit.disabled = false;
-                        btnBack.disabled = false;
-                        btnSubmit.textContent = '다시 시도';
-                        uploadStatus.textContent = '네트워크 오류로 업로드하지 못했습니다. 연결을 확인한 뒤 다시 시도해주세요.';
-                    });
-                    xhr.send(formData);
+                    }
+
+                    // Supabase Storage 설정이 없는 개발 환경은 기존 서버 업로드를 사용합니다.
+                    await uploadPostThroughApp(optimizedFiles);
                 } catch (error) {
                     postUploadInProgress = false;
                     btnSubmit.disabled = false;
                     btnBack.disabled = false;
                     btnSubmit.textContent = '다시 시도';
-                    uploadStatus.textContent = '사진을 준비하지 못했습니다. 다시 시도해주세요.';
+                    uploadStatus.textContent = error.message || '게시물을 등록하지 못했습니다. 다시 시도해주세요.';
                 }
             });
         }
