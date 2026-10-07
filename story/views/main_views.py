@@ -32,7 +32,7 @@ def index():
         all_stories = Story.query.filter(
             Story.expires_at > now_time
         ).order_by(
-            Story.create_date.asc()
+            Story.create_date.desc()
         ).all()
 
         user_ids = set()
@@ -41,7 +41,6 @@ def index():
                 stories.append(story)
                 user_ids.add(story.user_id)
 
-        stories.reverse()
     except Exception as e:
         print(f"[Story Query Error]: {e}")
 

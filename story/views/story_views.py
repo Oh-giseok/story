@@ -19,7 +19,7 @@ def get_unique_story_list():
     all_stories = Story.query.filter(
         Story.expires_at > now_time
     ).order_by(
-        Story.create_date.asc()
+        Story.create_date.desc ()
     ).all()
 
     story_list = []
@@ -30,7 +30,6 @@ def get_unique_story_list():
             story_list.append(story)
             user_ids.add(story.user_id)
 
-    story_list.reverse()
     return story_list
 
 
@@ -86,10 +85,6 @@ def detail(story_id):
 
     if story.expires_at <= kst_now_naive():
         return redirect(url_for('story.story_list'))
-
-    # 현재 유효한 모든 스토리 목록을 가져옵니다 (목록 정렬 기준과 동일하게 세팅)
-    now = kst_now_naive()
-    active_stories = Story.query.filter(Story.expires_at > now).order_by(Story.create_date.desc()).all()
 
     prev_story = None
 
