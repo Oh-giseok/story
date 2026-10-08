@@ -1,21 +1,19 @@
 # 베이스 이미지 선택
-FROM python:3.12-slim
+FROM python:3.13-slim
 
-# 시간대 설정 (KST)
+# [수정] 시간대 설정 (KST)
+# tzdata를 설치하고 환경 변수를 설정합니다.
 ENV TZ=Asia/Seoul
 RUN apt-get update && apt-get install -y \
     tzdata \
     libglib2.0-0 \
     libgl1 \
-    libsm6 \
-    libxext6 \
-    libxrender1 \
     libxcb1 \
-    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
-    && echo $TZ > /etc/timezone \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
+    && \
+    ln -snf /usr/share/zoneinfo/Asia/Seoul /etc/localtime && \
+    echo Asia/Seoul > /etc/timezone && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 # 작업 디렉토리 생성 및 이동
 WORKDIR /app
 
@@ -33,5 +31,5 @@ ENV FLASK_ENV=production
 # 포트 오픈
 EXPOSE 5000
 
-# 프로덕션 환경(Gunicorn + Eventlet 워커)을 이용해 실행
-CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", "-b", "0.0.0.0:5000", "story:create_app()"]
+# 앱 실행
+CMD ["flask", "run", "--host=0.0.0.0"]
