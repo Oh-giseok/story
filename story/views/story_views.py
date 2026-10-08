@@ -1,7 +1,7 @@
 import os
 from datetime import timedelta
 from collections import defaultdict
-from flask import Blueprint, render_template, request, redirect, url_for, current_app, g, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, current_app, g, jsonify, flash
 
 from story import db
 from story.forms import StoryForm
