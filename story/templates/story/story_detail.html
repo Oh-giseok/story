@@ -110,6 +110,9 @@
         <button type="button" class="story-nav-button story-nav-next" id="storyNextButton" aria-label="다음 스토리">
             <i class="bi bi-chevron-right" aria-hidden="true"></i>
         </button>
+        <button type="button" class="story-play-toggle" aria-label="스토리 일시정지" aria-pressed="false">
+            <i class="bi bi-pause-fill" aria-hidden="true"></i>
+        </button>
 
 
         <!-- 작성자 정보 -->
@@ -495,6 +498,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const storyDetailBase = {{ url_for('story.detail', story_id=0) | tojson }};
 
     viewerWrapper?.addEventListener('click', (event) => {
+        const playbackButton = event.target.closest('.story-play-toggle');
+        if (playbackButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            setStoryPaused(!isStoryPaused);
+            return;
+        }
         const deleteButton = event.target.closest('[data-story-action="delete"]');
         if (deleteButton) {
             event.preventDefault();
@@ -543,6 +553,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     let storyTimer = null;
+    let isStoryPaused = false;
     let isTransitioning = false;
     let pendingTransitionAdvance = false;
     const mediaCache = new Map();
@@ -625,6 +636,21 @@ document.addEventListener("DOMContentLoaded", () => {
         if (storyTimer !== null) { clearInterval(storyTimer); storyTimer = null; }
         if (mainVideo) { mainVideo.onended = null; mainVideo.pause(); }
     }
+    function updatePlaybackButton(root = document) {
+        const button = root.querySelector('.story-play-toggle');
+        if (!button) return;
+        button.setAttribute('aria-label', isStoryPaused ? '스토리 재생' : '스토리 일시정지');
+        button.setAttribute('aria-pressed', String(isStoryPaused));
+        button.innerHTML = `<i class="bi ${isStoryPaused ? 'bi-play-fill' : 'bi-pause-fill'}" aria-hidden="true"></i>`;
+    }
+    function setStoryPaused(paused) {
+        isStoryPaused = paused;
+        updatePlaybackButton();
+        if (mainVideo) {
+            if (paused) mainVideo.pause();
+            else mainVideo.play().catch(() => {});
+        }
+    }
     function resetProgress(index) {
         fills.forEach((fill, i) => {
             fill.classList.remove('active', 'watched');
@@ -638,6 +664,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const activeFill = fills[currentIdx];
         let width = activeFill ? Number.parseFloat(activeFill.style.width) || 0 : 0;
         storyTimer = setInterval(() => {
+            if (isStoryPaused) return;
             width = Math.min(100, width + 1);
             if (activeFill) activeFill.style.width = `${width}%`;
             if (width >= 100) { clearStoryTimer(); goNext(); }
@@ -647,6 +674,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (storyTimer !== null) clearInterval(storyTimer);
         const activeFill = fills[currentIdx];
         storyTimer = setInterval(() => {
+            if (isStoryPaused) return;
             if (mainVideo?.duration && activeFill) activeFill.style.width = `${mainVideo.currentTime / mainVideo.duration * 100}%`;
         }, 70);
         mainVideo.onended = () => { clearStoryTimer(); goNext(); };
@@ -677,7 +705,8 @@ document.addEventListener("DOMContentLoaded", () => {
             name?.after(badge);
         } else if (data.username !== 'test1' && badge) badge.remove();
     }
-    async function displayStory(data) {
+    async function displayStory(data, direction = 0) {
+        setStoryPaused(false);
         const token = ++displayToken;
         clearStoryTimer();
         const media = await preloadStory(data);
@@ -687,8 +716,13 @@ document.addEventListener("DOMContentLoaded", () => {
         viewerRoot.querySelector('.story-viewer-image').replaceChildren(media);
         media.id = isVideoFile(data.media_url) ? 'main-story-video' : 'main-story-img';
         media.classList.remove('is-visible');
+        media.classList.remove('story-slide-from-left', 'story-slide-from-right');
+        if (direction < 0) media.classList.add('story-slide-from-left');
+        else if (direction > 0) media.classList.add('story-slide-from-right');
         requestAnimationFrame(() => {
-            if (token === displayToken && media.isConnected) media.classList.add('is-visible');
+            if (token === displayToken && media.isConnected) {
+                requestAnimationFrame(() => media.classList.add('is-visible'));
+            }
         });
         mainVideo = media.tagName === 'VIDEO' ? media : null;
         viewerRoot.querySelector('.story-viewer-caption').textContent = data.caption || '';
@@ -696,6 +730,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (timeLabel) timeLabel.textContent = data.created_label || '';
         updateHeader(data, viewerRoot);
         updateOwnerButtons(data, viewerRoot);
+        updatePlaybackButton(viewerRoot);
         if (mainVideo) {
             const video = mainVideo;
             video.muted = true; video.playsInline = true; video.currentTime = 0;
@@ -809,11 +844,13 @@ document.addEventListener("DOMContentLoaded", () => {
             incomingSlide = document.createElement('div');
             incomingSlide.className = 'swiper-slide story-user-slide';
             const incomingViewer = viewer.cloneNode(true);
+            incomingViewer.classList.add('story-viewer-entering');
             incomingViewer.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
             incomingViewer.querySelector('.story-viewer-caption').textContent = data.caption || '';
             const incomingTime = incomingViewer.querySelector('.story-viewer-time');
             if (incomingTime) incomingTime.textContent = data.created_label || '';
             updateHeader(group, incomingViewer);
+            updatePlaybackButton(incomingViewer);
             const incomingOwnerButtons = incomingViewer.querySelector('.story-viewer-buttons');
             if (incomingOwnerButtons) incomingOwnerButtons.style.display = data.is_owner ? 'flex' : 'none';
             media.classList.add('is-visible');
@@ -828,6 +865,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 swiper.wrapperEl.prepend(incomingSlide);
             }
             swiper.update();
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                if (incomingViewer.isConnected) incomingViewer.classList.add('story-viewer-entered');
+            }));
             if (direction < 0) swiper.slideTo(1, 0, false);
             await new Promise(resolve => {
                 let resolved = false;
@@ -855,6 +895,7 @@ document.addEventListener("DOMContentLoaded", () => {
             previousUserStoryId = group.previous_story_id;
             renderProgress(userStories, currentIdx);
             mainVideo = media.tagName === 'VIDEO' ? media : null;
+            setStoryPaused(false);
             if (mainVideo) {
                 const video = mainVideo;
                 video.onended = () => {
@@ -864,6 +905,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     else goNext();
                 };
                 storyTimer = setInterval(() => {
+                    if (isStoryPaused) return;
                     const activeFill = fills[currentIdx];
                     if (video.duration && activeFill) activeFill.style.width = `${video.currentTime / video.duration * 100}%`;
                 }, 70);
@@ -904,7 +946,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function goNext() {
         if (isTransitioning) return;
         if (currentIdx + 1 < userStories.length) {
-            currentIdx += 1; resetProgress(currentIdx); updateStoryNavigation(); await displayStory(userStories[currentIdx]);
+            currentIdx += 1; resetProgress(currentIdx); updateStoryNavigation(); await displayStory(userStories[currentIdx], 1);
             return;
         }
         if (!nextUserStoryId) {
@@ -916,7 +958,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function goPrevious() {
         if (isTransitioning) return;
         if (currentIdx > 0) {
-            currentIdx -= 1; resetProgress(currentIdx); updateStoryNavigation(); await displayStory(userStories[currentIdx]);
+            currentIdx -= 1; resetProgress(currentIdx); updateStoryNavigation(); await displayStory(userStories[currentIdx], -1);
             return;
         }
         await transitionUser(-1);
@@ -931,8 +973,20 @@ document.addEventListener("DOMContentLoaded", () => {
     let swipeActionTaken = false;
     viewerWrapper?.addEventListener('click', event => {
         if (swipeActionTaken) return;
-        if (event.target.closest('.story-nav-prev')) goPrevious();
-        else if (event.target.closest('.story-nav-next')) goNext();
+        if (event.target.closest('.story-nav-prev')) {
+            goPrevious();
+            return;
+        }
+        if (event.target.closest('.story-nav-next')) {
+            goNext();
+            return;
+        }
+        if (!window.matchMedia('(max-width: 576px)').matches) return;
+        const viewer = event.target.closest('.story-viewer');
+        if (!viewer || event.target.closest('.story-viewer-user, .story-play-toggle, .story-viewer-buttons, a, button, input, textarea, select, .dropdown-menu')) return;
+        const bounds = viewer.getBoundingClientRect();
+        if (event.clientX < bounds.left + bounds.width / 2) goPrevious();
+        else goNext();
     });
     document.querySelectorAll('.story-adjacent-group').forEach(group => group.addEventListener('click', event => {
         const card = event.target.closest('.story-adjacent-card');
