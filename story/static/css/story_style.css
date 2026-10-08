@@ -502,8 +502,7 @@
 /* 스토리 게이지 바 컨테이너 */
 .story-progress-bar-container {
     position: fixed;
-    top: max(24px, calc((100vh - 700px) / 2 + 25px));
-    top: max(24px, calc((100dvh - 700px) / 2 + 25px));
+    top: 18px;
     left: 50%;
     z-index: 1045;
     width: min(394px, calc(100vw - 24px));
