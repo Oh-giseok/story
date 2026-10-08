@@ -706,6 +706,6 @@
 }
 
 @media (max-height: 723px) {
-    .story-viewer-user { padding-top: 34px; t}
+    .story-viewer-user { padding-top: 34px;}
     .story-viewer-caption { padding-bottom: 72px; }
 }
