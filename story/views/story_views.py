@@ -7,9 +7,14 @@ from story import db
 from story.forms import StoryForm
 from story.models import Story
 from story.time_utils import kst_now_naive
-from story.media_storage import upload_media
+from story.media_storage import media_content_type, media_url as resolve_media_url, upload_media
 
 bp = Blueprint('story', __name__, url_prefix='/story')
+
+
+def _is_video_media(value):
+    value = str(value or '')
+    return value.lower().endswith(('.mp4', '.webm', '.ogg', '.mov')) or media_content_type(value).startswith('video/')
 
 
 def _active_story_groups():
@@ -32,7 +37,8 @@ def _story_payload(item):
     return {
         'id': item.id,
         'user_id': item.user_id,
-        'media_url': url_for('static', filename=item.media_url),
+        'media_url': resolve_media_url(item.media_url),
+        'is_video': _is_video_media(item.media_url),
         'caption': item.caption or '',
         'created_label': current_app.jinja_env.filters['time_ago_local'](item.create_date),
         'is_owner': is_owner,
@@ -43,7 +49,8 @@ def _story_payload(item):
         'profile_page_url': url_for('auth.mypage', user_id=item.user_id),
         'stories': [{
             'id': story.id,
-            'media_url': url_for('static', filename=story.media_url),
+            'media_url': resolve_media_url(story.media_url),
+            'is_video': _is_video_media(story.media_url),
             'caption': story.caption or '',
             'created_label': current_app.jinja_env.filters['time_ago_local'](story.create_date),
             'is_owner': is_owner,
@@ -65,8 +72,8 @@ def _adjacent_story_payload(item):
     return {
         'id': item.id,
         'detail_url': url_for('story.detail', story_id=item.id),
-        'media_url': url_for('static', filename=item.media_url),
-        'is_video': item.media_url.lower().endswith(('.mp4', '.webm', '.ogg', '.mov')),
+        'media_url': resolve_media_url(item.media_url),
+        'is_video': _is_video_media(item.media_url),
         'username': item.user.username,
         'profile_url': url_for('static', filename=item.user.profile_img_url) if item.user.profile_img_url else None,
         'created_label': current_app.jinja_env.filters['time_ago_local'](item.create_date),
@@ -157,11 +164,18 @@ def detail(story_id):
         'story/story_detail.html',
         story=current_story,
         user_stories=user_stories,
+        story_media_url=resolve_media_url(current_story.media_url),
+        story_is_video=_is_video_media(current_story.media_url),
+        video_story_ids={item.id for item in user_stories if _is_video_media(item.media_url)},
         prev_story=prev_story,
 
         prev_story2=prev_story2,
+        prev_story_is_video=_is_video_media(prev_story.media_url) if prev_story else False,
+        prev_story2_is_video=_is_video_media(prev_story2.media_url) if prev_story2 else False,
         next_story=next_story,
-        next_story2=next_story2
+        next_story2=next_story2,
+        next_story_is_video=_is_video_media(next_story.media_url) if next_story else False,
+        next_story2_is_video=_is_video_media(next_story2.media_url) if next_story2 else False,
     )
 
 
@@ -189,7 +203,8 @@ def story_create():
         image_path = None
 
         if image_file:
-            image_path = upload_media(image_file, 'story-posts', resource_type='image')
+            upload_type = 'video' if (image_file.mimetype or '').startswith('video/') else 'image'
+            image_path = upload_media(image_file, 'story-posts', resource_type=upload_type)
 
         now = kst_now_naive()
         expires_at = now + timedelta(days=1)
@@ -227,7 +242,8 @@ def modify(story_id):
         image_file = form.image.data
 
         if image_file:
-            story.media_url = upload_media(image_file, 'story-posts', resource_type='image')
+            upload_type = 'video' if (image_file.mimetype or '').startswith('video/') else 'image'
+            story.media_url = upload_media(image_file, 'story-posts', resource_type=upload_type)
 
         story.caption = form.caption.data
         db.session.commit()
