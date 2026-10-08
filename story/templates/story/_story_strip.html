@@ -1,3 +1,44 @@
+<style>
+    .story-page-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: grid;
+        place-items: center;
+        background: rgba(0, 0, 0, .82);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 280ms ease, visibility 280ms ease;
+    }
+    .story-page-modal[hidden] { display: none; }
+    .story-page-modal.is-open { opacity: 1; visibility: visible; }
+    .story-page-modal-frame {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: #1a1a1a;
+        opacity: 0;
+        transition: opacity 180ms ease;
+    }
+    .story-page-modal.is-open .story-page-modal-frame { opacity: 1; }
+    .story-page-modal.is-loading .story-page-modal-frame { opacity: 0; }
+    .story-page-modal-close {
+        position: absolute;
+        top: 12px;
+        right: 18px;
+        z-index: 1;
+        width: 48px;
+        height: 48px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: #fff;
+        font-size: 40px;
+        line-height: 1;
+        cursor: pointer;
+    }
+</style>
+
 <section class="mb-5 mt-3" aria-label="스토리">
     <div class="d-flex align-items-center justify-content-between mb-2 px-1">
         <h2 class="h6 fw-bold mb-0">스토리</h2>
@@ -11,7 +52,7 @@
         <div class="insta-story-container" id="homeStoryTrack">
         {% if story_list %}
             {% for story in story_list %}
-                <a class="insta-story-item text-decoration-none"
+                <a class="insta-story-item text-decoration-none story-modal-link"
                    href="{{ url_for('story.detail', story_id=story.id) }}"
                    aria-label="{{ story.user.username }}님의 스토리">
                     <div class="insta-story-ring">
@@ -56,4 +97,87 @@
         window.addEventListener('resize', update);
         update();
     })();
+</script>
+
+<div class="story-page-modal" id="storyPageModal" role="dialog" aria-modal="true"
+     aria-label="스토리 보기" aria-hidden="true" hidden>
+    <button type="button" class="story-page-modal-close" id="storyPageModalClose"
+            aria-label="스토리 닫기">×</button>
+    <iframe class="story-page-modal-frame" id="storyPageModalFrame"
+            title="스토리 보기" src="about:blank"></iframe>
+</div>
+
+<script>
+(() => {
+    const modal = document.getElementById('storyPageModal');
+    const frame = document.getElementById('storyPageModalFrame');
+    const closeButton = document.getElementById('storyPageModalClose');
+    if (!modal || !frame || !closeButton) return;
+
+    let opener = null;
+    let priorBodyOverflow = '';
+    let priorBodyPaddingRight = '';
+    let closeTimer = null;
+    let pendingLoadUrl = '';
+
+    function openStory(url, source) {
+        window.clearTimeout(closeTimer);
+        opener = source;
+        priorBodyOverflow = document.body.style.overflow;
+        priorBodyPaddingRight = document.body.style.paddingRight;
+        const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+        document.body.style.overflow = 'hidden';
+        if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
+        modal.hidden = false;
+        modal.classList.add('is-loading');
+        modal.setAttribute('aria-hidden', 'false');
+        const storyUrl = new URL(url, window.location.href);
+        storyUrl.searchParams.set('modal', '1');
+        pendingLoadUrl = storyUrl.href;
+        frame.src = pendingLoadUrl;
+        requestAnimationFrame(() => modal.classList.add('is-open'));
+        closeButton.focus({ preventScroll: true });
+    }
+
+    function closeStory() {
+        if (modal.hidden) return;
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+        pendingLoadUrl = '';
+        closeTimer = window.setTimeout(() => {
+            modal.hidden = true;
+            modal.classList.remove('is-loading');
+            frame.src = 'about:blank';
+            document.body.style.overflow = priorBodyOverflow;
+            document.body.style.paddingRight = priorBodyPaddingRight;
+            opener?.focus({ preventScroll: true });
+        }, 300);
+    }
+
+    document.querySelectorAll('.story-modal-link').forEach(link => {
+        link.addEventListener('click', event => {
+            if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            event.preventDefault();
+            openStory(link.href, link);
+        });
+    });
+
+    closeButton.addEventListener('click', closeStory);
+    modal.addEventListener('click', event => {
+        if (event.target === modal) closeStory();
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !modal.hidden) closeStory();
+    });
+
+    frame.addEventListener('load', () => {
+        try {
+            if (!pendingLoadUrl || modal.hidden) return;
+            if (new URL(frame.contentWindow.location.href).href !== pendingLoadUrl) return;
+            modal.classList.remove('is-loading');
+        } catch (error) {
+            console.warn('스토리 모달을 불러오지 못했습니다.', error);
+        }
+    });
+})();
 </script>

@@ -230,8 +230,10 @@
         </div>
     </div>
 
-    <!-- 닫기 버튼은 스와이프되는 슬라이드 바깥에 고정 -->
-    <a href="{{ url_for('main.index') }}" class="story-viewer-close" aria-label="스토리 닫기">×</a>
+    {% if not request.args.get('modal') %}
+        <!-- 단독 상세 페이지에서만 표시하는 닫기 버튼 -->
+        <a href="{{ url_for('main.index') }}" class="story-viewer-close" aria-label="스토리 닫기">×</a>
+    {% endif %}
 
     <!-- 우측 대기 카드 2개 -->
     <div class="story-adjacent-group next-group">
