@@ -304,9 +304,8 @@ def create_app():
         if user_id:
             if redis_client:
                 try:
-                    # TTL을 300초(5분)로 설정하여 로그인 상태를 유지하되,
-                    # 5분 이상 요청이 없으면 Redis 키 만료 또는 모델의 last_activity_at 비교로 idle 판정 가능하도록 함
-                    redis_client.setex(f'user_online:{user_id}', 300, '1')
+                    # Socket.IO heartbeat와 같은 TTL로 두어 비정상 종료도 빠르게 정리한다.
+                    redis_client.setex(f'user_online:{user_id}', 60, '1')
                 except Exception:
                     pass
 
