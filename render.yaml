@@ -1,11 +1,11 @@
 services:
   - type: web
     name: story-test
-    runtime: python
+    runtime: docker
     plan: free
     region: singapore
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --worker-class gthread --workers 1 --threads 100 --bind 0.0.0.0:$PORT 'story:create_app()'
+    dockerfilePath: ./dockerfile
+    dockerContext: .
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.11

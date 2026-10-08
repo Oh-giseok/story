@@ -18,6 +18,25 @@ python seed.py --reset-seed
 - `--migrate-seed-media-v4` removes first-run Seed posts/reels/stories and obsolete legacy accounts, migrates the active Seed profiles/posts/stories to real JPG assets, and retains posts with ordinary-user activity by updating only their media path. Take a database backup before running it. Run `python seed.py` after migration to refill missing Seed rows.
 - `--reset-seed` replaces only content rows whose media paths/filenames match the Seed markers. It stops before deleting anything if it finds ambiguous account identity, unmarked content owned by a Seed account, or external reactions on Seed media.
 
+## Teammate first run (Windows PowerShell)
+
+The seed is local to each teammate's database. `instance/story.db` is ignored by Git, so every person gets their own SQLite database and runs the seed locally. From the project root:
+
+```powershell
+git pull
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
+python seed.py
+```
+
+The default local database is `instance/story.db`. The normal SQLite seed command creates missing tables and the instance directory, so it works on a clean checkout. For an existing database, back it up first; `db.create_all()` adds missing tables but does not upgrade columns in old schemas. Start the app once after updating, which runs the project's compatibility migrations, then run the seed.
+
+**The contact sheets are required source files.** Commit and push `story/static/seed_media/photo_sheets/*.jpg` together with `seed.py` and `requirements.txt`; these ten source JPGs total about 4.6 MB. The generated v4 JPGs and Reel/Story MP4s are created locally by `python seed.py`, so they do not need to be committed. If the source sheets are absent, the seed exits with a missing-file error. In this workspace the media directory is currently untracked, so teammates will not receive those files until they are included in the shared commit.
+
+If a teammate has an older Seed dataset in their local database, they should back it up and run `python seed.py --migrate-seed-media-v4` once, then `python seed.py`. Do not set `DATABASE_URL` for this local workflow: `seed.py` honors that variable and would use the pointed database instead of `instance/story.db`.
+
 Reset deletes database rows in one transaction. Existing Seed account rows, profile choices, ordinary activity, conversations/messages, and unmarked friendships/notifications are preserved. Friendship rows and notifications created by this version carry a private marker in the unused notification message field; unread, unchanged, marked Seed relationships can be rebuilt. It removes captured media files only after commit and only when no remaining profile, post, story, or reel references those paths. Shared photo sheets and unrelated upload directories are left in place. A database failure rolls back the row changes.
 
 Three accounts from the previous portfolio dataset (`seed_film_jun`, `seed_plant_nana`, `seed_draw_jiu`) are outside the current manifest. The migration removes these only when their remaining relationships are Seed-only; if an ordinary account has interacted with one, it leaves that identity intact.
