@@ -492,8 +492,8 @@
 
 /* 이전 / 다음 스토리 프로필 */
 .adjacent-profile-img {
-    width: 48px;
-    height: 48px;
+    width: 48px !important;
+    height: 48px !important;
     border-radius: 50%;
     object-fit: cover;
     border: 2px solid #ffffff;
@@ -534,7 +534,8 @@
 /* 스토리 게이지 바 컨테이너 */
 .story-progress-bar-container {
     position: fixed;
-    top: 18px;
+    top: max(24px, calc((100vh - 700px) / 2 + 25px));
+    top: max(24px, calc((100dvh - 700px) / 2 + 25px));
     left: 50%;
     z-index: 1045;
     width: min(394px, calc(100vw - 24px));
