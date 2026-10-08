@@ -123,6 +123,39 @@ def create_signed_upload_url(object_key):
     }
 
 
+def has_image_signature(header):
+    """Accept only the raster formats supported by the Post composer."""
+    header = bytes(header or b'')
+    return (
+        header.startswith(b'\xff\xd8\xff')
+        or header.startswith(b'\x89PNG\r\n\x1a\n')
+        or header.startswith((b'GIF87a', b'GIF89a'))
+        or (len(header) >= 12 and header[:4] == b'RIFF' and header[8:12] == b'WEBP')
+    )
+
+
+def verify_stored_image(object_key):
+    """Read the uploaded object's signature from Supabase before publishing a Post."""
+    settings = _storage_settings()
+    if not settings or not object_key or '/' in object_key or '..' in object_key:
+        return False
+    base_url, service_key, bucket = settings
+    request = Request(
+        f"{base_url}/storage/v1/object/{quote(bucket, safe='')}/{quote(object_key, safe='')}",
+        headers={
+            'apikey': service_key,
+            'Authorization': f'Bearer {service_key}',
+            'Range': 'bytes=0-31',
+        },
+        method='GET',
+    )
+    try:
+        with urlopen(request, timeout=10) as response:
+            return has_image_signature(response.read(32))
+    except (HTTPError, URLError, TimeoutError):
+        return False
+
+
 def media_url(value):
     """Turn compact Supabase references and legacy paths into display URLs."""
     if not value:
