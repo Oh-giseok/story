@@ -361,7 +361,7 @@
 <div class="story-progress-bar-container" aria-label="스토리 진행 상태">
     {% for s in user_stories %}
         <div class="story-progress-bar-track">
-            <div class="story-progress-bar-fill{% if s.id == story.id %} active{% elif s.create_date < story.create_date %} watched{% endif %}"
+            <div class="story-progress-bar-fill{% if s.id == story.id %} active{% elif s.create_date > story.create_date or (s.create_date == story.create_date and s.id > story.id) %} watched{% endif %}"
                  data-story-id="{{ s.id }}"></div>
         </div>
     {% endfor %}
@@ -770,7 +770,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!storyId) return;
         loadUserGroup(storyId).then(group => {
             const items = group.user_stories;
-            preloadStory(direction > 0 ? items[0] : items[items.length - 1]);
+            preloadStory(items[0]);
         }).catch(() => {});
     }
     function renderProgress(items, activeIndex) {
@@ -845,7 +845,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const incomingStories = group.user_stories;
             const data = requestedStoryId
                 ? incomingStories.find(item => item.id === Number(requestedStoryId)) || incomingStories[0]
-                : direction > 0 ? incomingStories[0] : incomingStories[incomingStories.length - 1];
+                : incomingStories[0];
             const media = await preloadStory(data);
             if (!media) return;
             clearStoryTimer();
