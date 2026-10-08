@@ -5,8 +5,7 @@ import secrets
 from story import db
 from story.models import Post, User, PostLike, PostComment, PostRepost, Story, Notification
 from story.time_utils import utc_isoformat, kst_now_naive, utc_now_naive
-from story.media_storage import create_signed_upload_url, upload_media
-from story.media_storage import create_signed_upload_url, upload_media
+from story.media_storage import create_signed_upload_url, has_image_signature, upload_media, verify_stored_image
 from story.views.story_views import get_unique_story_list
 
 # /post 경로로 들어오는 요청들을 처리할 블루프린트 생성
@@ -95,15 +94,17 @@ def _create():
                 return jsonify({'error': '게시물 파일은 1개 이상 10개 이하로 선택해주세요.'}), 400
 
             signed_uploads = []
-            allowed_extensions = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'webm'}
+            allowed_extensions = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
             for item in files:
                 if not isinstance(item, dict):
                     return jsonify({'error': '잘못된 파일 정보입니다.'}), 400
                 filename = os.path.basename(str(item.get('name') or ''))
                 extension = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
                 size = item.get('size')
-                if extension not in allowed_extensions or not isinstance(size, int) or size <= 0:
-                    return jsonify({'error': '지원하지 않는 파일이거나 파일 크기가 올바르지 않습니다.'}), 400
+                content_type = str(item.get('type') or '').lower()
+                if (extension not in allowed_extensions or not content_type.startswith('image/')
+                        or not isinstance(size, int) or isinstance(size, bool) or size <= 0):
+                    return jsonify({'error': '이미지 파일만 업로드할 수 있습니다.'}), 400
                 object_key = f"{secrets.token_urlsafe(12)}.{extension}"
                 signed_upload = create_signed_upload_url(object_key)
                 if signed_upload is None:
@@ -118,8 +119,12 @@ def _create():
                 return jsonify({'error': '게시물 파일 정보가 올바르지 않습니다.'}), 400
             pending_keys = session.get('pending_post_upload_keys', [])
             if (any(not isinstance(key, str) or '..' in key or '/' in key for key in keys)
-                    or keys != pending_keys):
+                    or keys != pending_keys
+                    or any(key.rsplit('.', 1)[-1].lower() not in {'jpg', 'jpeg', 'png', 'gif', 'webp'} for key in keys)):
                 return jsonify({'error': '게시물 파일 정보가 올바르지 않습니다.'}), 400
+            if not all(verify_stored_image(key) for key in keys):
+                session.pop('pending_post_upload_keys', None)
+                return jsonify({'error': '실제 이미지 파일만 게시물에 등록할 수 있습니다.'}), 400
             post = Post(user_id=user_id, caption=payload.get('caption'), media_url=','.join(f'sb:{key}' for key in keys))
             db.session.add(post)
             db.session.commit()
@@ -130,15 +135,20 @@ def _create():
     saved_urls = []
 
     media_files = [file for file in media_files if file and file.filename]
-    if not media_files:
-        flash('사진이나 동영상을 선택해주세요.')
+    if not media_files or len(media_files) > 10:
+        flash('게시물에는 이미지 파일을 1개 이상 10개 이하로 선택해주세요.')
         return redirect(url_for('main.index'))
 
-    allowed_extensions = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'webm'}
+    allowed_extensions = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
     for file in media_files:
         extension = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
-        if extension not in allowed_extensions:
-            flash('지원하지 않는 사진 또는 동영상 형식입니다.')
+        if extension not in allowed_extensions or not (file.mimetype or '').lower().startswith('image/'):
+            flash('이미지 파일만 업로드할 수 있습니다.')
+            return redirect(url_for('main.index'))
+        header = file.stream.read(32)
+        file.stream.seek(0)
+        if not has_image_signature(header):
+            flash('실제 이미지 파일만 업로드할 수 있습니다.')
             return redirect(url_for('main.index'))
 
     for file in media_files:

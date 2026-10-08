@@ -8,6 +8,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
+_MEDIA_CONTENT_TYPE_CACHE = {}
+
 from flask import current_app, url_for
 
 
@@ -28,15 +30,18 @@ def upload_media(file_storage, folder, resource_type='image'):
 
     if settings:
         base_url, service_key, bucket = settings
-        object_key = secrets.token_urlsafe(16)
+        extension = os.path.splitext(original_name)[1].lower()
+        if not extension[1:].isalnum() or len(extension) > 11:
+            extension = ''
+        object_key = f'{secrets.token_urlsafe(16)}{extension}'
 
         guessed_type_tuple = mimetypes.guess_type(original_name)
         guessed_type = guessed_type_tuple[0] if guessed_type_tuple else None
 
+        uploaded_type = getattr(file_storage, 'mimetype', None)
         content_type = (
-            getattr(file_storage, 'mimetype', None)
-            or guessed_type
-            or 'application/octet-stream'
+            guessed_type if uploaded_type in (None, '', 'application/octet-stream') and guessed_type
+            else uploaded_type or guessed_type or 'application/octet-stream'
         )
 
         # 💡 파일 데이터를 바이트 단위로 읽어옵니다.
@@ -118,6 +123,39 @@ def create_signed_upload_url(object_key):
     }
 
 
+def has_image_signature(header):
+    """Accept only the raster formats supported by the Post composer."""
+    header = bytes(header or b'')
+    return (
+        header.startswith(b'\xff\xd8\xff')
+        or header.startswith(b'\x89PNG\r\n\x1a\n')
+        or header.startswith((b'GIF87a', b'GIF89a'))
+        or (len(header) >= 12 and header[:4] == b'RIFF' and header[8:12] == b'WEBP')
+    )
+
+
+def verify_stored_image(object_key):
+    """Read the uploaded object's signature from Supabase before publishing a Post."""
+    settings = _storage_settings()
+    if not settings or not object_key or '/' in object_key or '..' in object_key:
+        return False
+    base_url, service_key, bucket = settings
+    request = Request(
+        f"{base_url}/storage/v1/object/{quote(bucket, safe='')}/{quote(object_key, safe='')}",
+        headers={
+            'apikey': service_key,
+            'Authorization': f'Bearer {service_key}',
+            'Range': 'bytes=0-31',
+        },
+        method='GET',
+    )
+    try:
+        with urlopen(request, timeout=10) as response:
+            return has_image_signature(response.read(32))
+    except (HTTPError, URLError, TimeoutError):
+        return False
+
+
 def media_url(value):
     """Turn compact Supabase references and legacy paths into display URLs."""
     if not value:
@@ -135,6 +173,39 @@ def media_url(value):
     if value.startswith(('http://', 'https://', '/')):
         return value
     return url_for('static', filename=value)
+
+
+def media_content_type(value):
+    """Return a stored asset's MIME type, including legacy extensionless objects."""
+    if not value:
+        return ''
+    value = str(value)
+    guessed_type = mimetypes.guess_type(value)[0]
+    if guessed_type:
+        return guessed_type
+    if not value.startswith('sb:'):
+        return ''
+    if value in _MEDIA_CONTENT_TYPE_CACHE:
+        return _MEDIA_CONTENT_TYPE_CACHE[value]
+
+    settings = _storage_settings()
+    if not settings:
+        return ''
+    base_url, _, bucket = settings
+    object_key = value[3:]
+    object_url = (
+        f"{base_url}/storage/v1/object/public/{quote(bucket, safe='')}/"
+        f"{quote(object_key, safe='')}"
+    )
+    content_type = ''
+    try:
+        request = Request(object_url, method='HEAD')
+        with urlopen(request, timeout=3) as response:
+            content_type = response.headers.get_content_type()
+    except (HTTPError, URLError, TimeoutError):
+        pass
+    _MEDIA_CONTENT_TYPE_CACHE[value] = content_type
+    return content_type
 
 
 def media_urls(value):

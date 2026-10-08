@@ -48,17 +48,17 @@
         .status-dot.offline { background-color: #6c757d; }/* 회색 (오프라인) */
 
         /* 콘텐츠는 화면 중앙 열에 고정하고 DM 사이드바는 별도 좌측 열에 둡니다. */
-        .content-layout-wrapper {
-            display: grid;
-            grid-template-columns: 280px minmax(0, 800px) 280px;
-            gap: 24px;
-            max-width: 1448px;
-            width: 100%;
-            margin: 0 auto;
-            justify-content: center;
-            align-items: flex-start;
-            padding: 0 20px;
-        }
+        {#.content-layout-wrapper {#}
+        {#    display: grid;#}
+        {#    grid-template-columns: 280px minmax(0, 800px) 280px;#}
+        {#    gap: 24px;#}
+        {#    max-width: 1448px;#}
+        {#    width: 100%;#}
+        {#    margin: 0 auto;#}
+        {#    justify-content: center;#}
+        {#    align-items: flex-start;#}
+        {#    padding: 0 20px;#}
+        {#}#}
 
         .left-dm-sidebar {
             width: 280px;
@@ -207,6 +207,7 @@
         .page-search-area {
             width: 100%;
             max-width: 100%;
+            padding: 0 20px;
             box-sizing: border-box;
             padding-top: 0;
             margin-bottom: 1rem;
@@ -301,7 +302,13 @@
         .notification-trigger:hover { background: #f8f9fa; }
         .notification-badge { position: absolute; top: -4px; right: -5px; min-width: 20px; }
         .notification-list { max-height: min(65vh, 520px); overflow-y: auto; }
-        .notification-item { color: inherit; text-decoration: none; }
+        .notification-item { color: inherit; text-decoration: none; padding-block: 12px; }
+        .notification-item + .notification-item{
+            font-size: 14px;
+        }
+        .notification-item:first-child{
+            padding-top: 0;
+        }
         .notification-item:hover { background: #f8f9fa; }
         .notification-item.unread { background: #f2f7ff; }
         .notification-avatar { width: 42px; height: 42px; object-fit: cover; flex: 0 0 42px; }
@@ -309,6 +316,21 @@
         .notification-modal-content { border-radius: 12px; overflow: hidden; }
         @media (max-width: 992px) { .notification-widget { top: 14px; right: 14px; } }
         @media (max-width: 576px) { .notification-widget { top: 10px; right: 10px; } }
+        @media (max-width: 767.98px) {
+            .notification-widget {
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
+                transform: translateY(-8px);
+                transition: opacity .2s ease, transform .2s ease, visibility .2s ease;
+            }
+            body.notification-scroll-visible .notification-widget {
+                opacity: 1;
+                visibility: visible;
+                pointer-events: auto;
+                transform: translateY(0);
+            }
+        }
     </style>
     {% block head %}{% endblock %}
 </head>
@@ -394,7 +416,7 @@
 
             <!-- 우측 콘텐츠 영역 (검색창 + 중앙 정렬된 메인 피드/스토리) -->
             <div class="main-content-column{% if request.endpoint in ['main.index', 'post._list'] %} post-list-layout{% endif %}">
-                {% if current_user.is_authenticated and request.endpoint in ['main.index', 'post._list', 'reels.reels', 'dm.user_list', 'main.search'] and request.endpoint != 'dm.user_list' %}
+                {% if current_user.is_authenticated and request.endpoint in ['main.index', 'post._list', 'dm.user_list', 'main.search'] and request.endpoint != 'dm.user_list' %}
                 <div class="page-search-area">
                     <form class="page-search-bar" role="search" action="{{ url_for('main.search') }}" method="get">
                         <div class="input-group">
@@ -413,13 +435,22 @@
         </div>
     </main>
 
-    {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage', 'story.detail'] %}
+    {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage', 'story.detail', 'dm.user_list', 'reels.reels'] %}
     <div class="notification-widget">
         <button type="button" class="notification-trigger" id="notificationTrigger" data-bs-toggle="modal" data-bs-target="#notificationModal" aria-label="알림 열기">
             <i class="bi bi-bell" aria-hidden="true"></i>
             <span class="badge rounded-pill text-bg-danger notification-badge {% if unread_notification_count == 0 %}d-none{% endif %}" id="notificationBadge">{{ unread_notification_count }}</span>
         </button>
     </div>
+    <script>
+        (() => {
+            const updateNotificationVisibility = () => {
+                document.body.classList.toggle('notification-scroll-visible', window.scrollY > 36);
+            };
+            updateNotificationVisibility();
+            window.addEventListener('scroll', updateNotificationVisibility, { passive: true });
+        })();
+    </script>
     <div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalTitle" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content notification-modal-content">
@@ -597,7 +628,7 @@
             let postUploadInProgress = false;
 
             const compressPostImage = async file => {
-                // 사진 원본만 축소하고, 동영상·애니메이션·투명 이미지 등은 그대로 보냅니다.
+                // 큰 JPEG 사진만 축소하고 다른 이미지 형식은 그대로 보냅니다.
                 if (!/^image\/jpeg$/i.test(file.type) || file.size < 1_500_000) return file;
                 if (!('createImageBitmap' in window)) return file;
                 let bitmap;
@@ -686,16 +717,9 @@
                     previewUrls.push(url);
                     const slide = document.createElement('div');
                     slide.className = 'swiper-slide';
-                    if (file.type.startsWith('video/')) {
-                        const video = document.createElement('video');
-                        video.src = url; video.controls = true; video.playsInline = true; video.preload = 'metadata';
-                        video.className = 'preview-img'; video.setAttribute('aria-label', '동영상 미리보기');
-                        slide.append(video);
-                    } else {
-                        const image = document.createElement('img');
-                        image.src = url; image.alt = '미리보기 이미지'; image.className = 'preview-img';
-                        slide.append(image);
-                    }
+                    const image = document.createElement('img');
+                    image.src = url; image.alt = '미리보기 이미지'; image.className = 'preview-img';
+                    slide.append(image);
                     previewWrapper.append(slide);
                 });
 
@@ -717,6 +741,10 @@
             dropArea.addEventListener('drop', event => {
                 event.preventDefault(); dropArea.classList.remove('bg-light');
                 if (!event.dataTransfer.files.length) return;
+                if (Array.from(event.dataTransfer.files).some(file => !file.type.startsWith('image/'))) {
+                    alert('이미지 파일만 업로드할 수 있습니다.');
+                    return;
+                }
                 fileInput.files = event.dataTransfer.files;
                 showPostPreview(fileInput.files);
             });
@@ -736,6 +764,9 @@
 
                 try {
                     const files = Array.from(fileInput.files);
+                    if (!files.length || files.some(file => !file.type.startsWith('image/'))) {
+                        throw new Error('이미지 파일만 업로드할 수 있습니다.');
+                    }
                     const optimizedFiles = await Promise.all(files.map(compressPostImage));
                     const csrfToken = postForm.elements.csrf_token.value;
                     uploadStatus.textContent = '저장소에 연결하는 중...';
@@ -778,7 +809,7 @@
                                 xhr.send(file);
                             });
 
-                            uploadStatus.textContent = '사진과 동영상을 저장소에 직접 업로드하는 중...';
+                            uploadStatus.textContent = '이미지를 저장소에 직접 업로드하는 중...';
                             const worker = async () => {
                                 while (nextFileIndex < optimizedFiles.length) {
                                     const index = nextFileIndex++;
@@ -1126,7 +1157,7 @@
     {% endif %}
 
     {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage'] %}
-    {% if (current_user.is_authenticated or g.user) and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage', 'story.detail'] %}
+    {% if (current_user.is_authenticated or g.user) and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage', 'story.detail', 'dm.user_list', 'reels.reels'] %}
         <script src="/socket.io/socket.io.js"></script>
         <script>
         document.addEventListener('DOMContentLoaded', () => {

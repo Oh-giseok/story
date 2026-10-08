@@ -16,14 +16,14 @@
                class="story-adjacent-card prev-card-far">
 
                 {% if prev_story2.media_url %}
-                    {% if prev_story2.media_url.endswith(('.mp4', '.webm', '.ogg', '.mov')) %}
-                        <video src="{{ url_for('static', filename=prev_story2.media_url) }}"
+                    {% if prev_story2_is_video %}
+                        <video src="{{ prev_story2.media_url | media_url }}"
                                muted
                                playsinline
                                style="width: 100%; height: 100%; object-fit: cover;">
                         </video>
                     {% else %}
-                        <img src="{{ url_for('static', filename=prev_story2.media_url) }}"
+                        <img src="{{ prev_story2.media_url | media_url }}"
                              alt="이전 스토리2">
                     {% endif %}
                 {% endif %}
@@ -58,14 +58,14 @@
                class="story-adjacent-card prev-card">
 
                 {% if prev_story.media_url %}
-                    {% if prev_story.media_url.endswith(('.mp4', '.webm', '.ogg', '.mov')) %}
-                        <video src="{{ url_for('static', filename=prev_story.media_url) }}"
+                    {% if prev_story_is_video %}
+                        <video src="{{ prev_story.media_url | media_url }}"
                                muted
                                playsinline
                                style="width: 100%; height: 100%; object-fit: cover;">
                         </video>
                     {% else %}
-                        <img src="{{ url_for('static', filename=prev_story.media_url) }}"
+                        <img src="{{ prev_story.media_url | media_url }}"
                              alt="이전 스토리1">
                     {% endif %}
                 {% endif %}
@@ -98,20 +98,20 @@
     </div>
 
 
+    <!-- 계정별 스토리 전환을 담당하는 Swiper -->
+    <div class="swiper story-user-swiper">
+        <div class="swiper-wrapper">
+            <div class="swiper-slide story-user-slide">
     <!-- 현재 스토리 -->
     <div class="story-viewer">
-
-        <!-- 스토리 닫기 -->
-        <a href="{{ url_for('main.index') }}"
-           class="story-viewer-close">
-            ×
-        </a>
-
         <button type="button" class="story-nav-button story-nav-prev" id="storyPrevButton" aria-label="이전 스토리">
             <i class="bi bi-chevron-left" aria-hidden="true"></i>
         </button>
         <button type="button" class="story-nav-button story-nav-next" id="storyNextButton" aria-label="다음 스토리">
             <i class="bi bi-chevron-right" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="story-play-toggle" aria-label="스토리 일시정지" aria-pressed="false">
+            <i class="bi bi-pause-fill" aria-hidden="true"></i>
         </button>
 
 
@@ -169,19 +169,19 @@
 
         <!-- 현재 스토리 이미지 / 영상 -->
         <div class="story-viewer-image">
-            {% if story.media_url.endswith(('.mp4', '.webm', '.ogg', '.mov')) %}
+            {% if story_is_video %}
                 <img id="main-story-img"
                      alt="스토리 이미지">
 
                 <video id="main-story-video"
-                       src="{{ url_for('static', filename=story.media_url) }}"
+                       src="{{ story_media_url }}"
                        muted
                        playsinline
                        preload="auto">
                 </video>
             {% else %}
                 <img id="main-story-img"
-                     src="{{ url_for('static', filename=story.media_url) }}"
+                     src="{{ story_media_url }}"
                      alt="스토리 이미지">
 
                 <video id="main-story-video"
@@ -226,7 +226,14 @@
         {% endif %}
 
     </div>
+            </div>
+        </div>
+    </div>
 
+    {% if not request.args.get('modal') %}
+        <!-- 단독 상세 페이지에서만 표시하는 닫기 버튼 -->
+        <a href="{{ url_for('main.index') }}" class="story-viewer-close" aria-label="스토리 닫기">×</a>
+    {% endif %}
 
     <!-- 우측 대기 카드 2개 -->
     <div class="story-adjacent-group next-group">
@@ -238,9 +245,9 @@
 
                 {% if next_story.media_url %}
 
-                    {% if next_story.media_url.endswith(('.mp4', '.webm', '.ogg', '.mov')) %}
+                    {% if next_story_is_video %}
 
-                        <video src="{{ url_for('static', filename=next_story.media_url) }}"
+                        <video src="{{ next_story.media_url | media_url }}"
                                muted
                                playsinline
                                style="width: 100%; height: 100%; object-fit: cover;">
@@ -248,7 +255,7 @@
 
                     {% else %}
 
-                        <img src="{{ url_for('static', filename=next_story.media_url) }}"
+                        <img src="{{ next_story.media_url | media_url }}"
                              alt="다음 스토리1">
 
                     {% endif %}
@@ -296,9 +303,9 @@
 
                 {% if next_story2.media_url %}
 
-                    {% if next_story2.media_url.endswith(('.mp4', '.webm', '.ogg', '.mov')) %}
+                    {% if next_story2_is_video %}
 
-                        <video src="{{ url_for('static', filename=next_story2.media_url) }}"
+                        <video src="{{ next_story2.media_url | media_url }}"
                                muted
                                playsinline
                                style="width: 100%; height: 100%; object-fit: cover;">
@@ -306,7 +313,7 @@
 
                     {% else %}
 
-                        <img src="{{ url_for('static', filename=next_story2.media_url) }}"
+                        <img src="{{ next_story2.media_url | media_url }}"
                              alt="다음 스토리2">
 
                     {% endif %}
@@ -354,7 +361,7 @@
 <div class="story-progress-bar-container" aria-label="스토리 진행 상태">
     {% for s in user_stories %}
         <div class="story-progress-bar-track">
-            <div class="story-progress-bar-fill{% if s.id == story.id %} active{% elif s.create_date < story.create_date %} watched{% endif %}"
+            <div class="story-progress-bar-fill{% if s.id == story.id %} active{% elif s.create_date > story.create_date or (s.create_date == story.create_date and s.id > story.id) %} watched{% endif %}"
                  data-story-id="{{ s.id }}"></div>
         </div>
     {% endfor %}
@@ -375,8 +382,8 @@
                 <div class="modal-body p-0">
                     <div class="row g-0">
                         <div class="col-md-7 bg-dark d-flex align-items-center justify-content-center" style="min-height: 420px;">
-                            <img id="editStoryPreview" src="{{ url_for('static', filename=story.media_url) }}" alt="현재 스토리 미리보기" class="w-100 h-100" style="max-height: 520px; object-fit: contain;">
-                            <video id="editStoryVideoPreview" class="w-100 h-100 d-none" controls playsinline style="max-height: 520px; object-fit: contain;"></video>
+                            <img id="editStoryPreview" src="{{ story_media_url if not story_is_video else '' }}" alt="현재 스토리 미리보기" class="w-100 h-100{% if story_is_video %} d-none{% endif %}" style="max-height: 520px; object-fit: contain;">
+                            <video id="editStoryVideoPreview" class="w-100 h-100{% if not story_is_video %} d-none{% endif %}" src="{{ story_media_url if story_is_video else '' }}" controls playsinline style="max-height: 520px; object-fit: contain;"></video>
                         </div>
                         <div class="col-md-5 d-flex flex-column p-3" style="min-height: 420px;">
                             <div class="d-flex align-items-center gap-3 border-bottom pb-3 mb-3">
@@ -427,7 +434,9 @@ document.addEventListener("DOMContentLoaded", () => {
             id: {{ s.id }},
 
             media_url:
-                {{ url_for('static', filename=s.media_url) | tojson }},
+                {{ s.media_url | media_url | tojson }},
+
+            is_video: {{ 'true' if s.id in video_story_ids else 'false' }},
 
             caption:
                 {{ (s.caption if s.caption else '') | tojson }},
@@ -479,9 +488,27 @@ document.addEventListener("DOMContentLoaded", () => {
     const editStoryMedia = document.getElementById('editStoryMedia');
     const editStoryModal = document.getElementById('editStoryModal');
     const viewerWrapper = document.querySelector('.story-viewer-wrapper');
+    const storySwiperElement = document.querySelector('.story-user-swiper');
+    const userStorySwiper = storySwiperElement && typeof Swiper === 'function'
+        ? new Swiper(storySwiperElement, {
+            slidesPerView: 1,
+            speed: 360,
+            allowTouchMove: false,
+            watchOverflow: true,
+            resistanceRatio: 0.75
+        })
+        : null;
     const storyHomeUrl = {{ url_for('main.index') | tojson }};
+    const storyDetailBase = {{ url_for('story.detail', story_id=0) | tojson }};
 
     viewerWrapper?.addEventListener('click', (event) => {
+        const playbackButton = event.target.closest('.story-play-toggle');
+        if (playbackButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            setStoryPaused(!isStoryPaused);
+            return;
+        }
         const deleteButton = event.target.closest('[data-story-action="delete"]');
         if (deleteButton) {
             event.preventDefault();
@@ -530,6 +557,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     let storyTimer = null;
+    let isStoryPaused = false;
     let isTransitioning = false;
     let pendingTransitionAdvance = false;
     const mediaCache = new Map();
@@ -538,12 +566,16 @@ document.addEventListener("DOMContentLoaded", () => {
         return /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url);
     }
 
+    function isVideoStory(data) {
+        return Boolean(data?.is_video) || isVideoFile(data?.media_url);
+    }
+
     // Cache and reuse the actual prepared media element on navigation.
     function preloadStory(data) {
         if (!data) return Promise.resolve(null);
         if (mediaCache.has(data.media_url)) return mediaCache.get(data.media_url);
 
-        const isVideo = isVideoFile(data.media_url);
+        const isVideo = isVideoStory(data);
         const media = document.createElement(isVideo ? 'video' : 'img');
         const ready = new Promise(resolve => {
             const finish = () => resolve(media);
@@ -589,7 +621,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (editStoryForm) editStoryForm.action = data.modify_url;
         if (editStoryCaption) editStoryCaption.value = data.caption || '';
         if (editStoryPreview && editStoryVideoPreview) {
-            if (isVideoFile(data.media_url)) {
+            if (isVideoStory(data)) {
                 editStoryPreview.classList.add('d-none');
                 editStoryVideoPreview.classList.remove('d-none');
                 editStoryVideoPreview.src = data.media_url;
@@ -612,6 +644,21 @@ document.addEventListener("DOMContentLoaded", () => {
         if (storyTimer !== null) { clearInterval(storyTimer); storyTimer = null; }
         if (mainVideo) { mainVideo.onended = null; mainVideo.pause(); }
     }
+    function updatePlaybackButton(root = document) {
+        const button = root.querySelector('.story-play-toggle');
+        if (!button) return;
+        button.setAttribute('aria-label', isStoryPaused ? '스토리 재생' : '스토리 일시정지');
+        button.setAttribute('aria-pressed', String(isStoryPaused));
+        button.innerHTML = `<i class="bi ${isStoryPaused ? 'bi-play-fill' : 'bi-pause-fill'}" aria-hidden="true"></i>`;
+    }
+    function setStoryPaused(paused) {
+        isStoryPaused = paused;
+        updatePlaybackButton();
+        if (mainVideo) {
+            if (paused) mainVideo.pause();
+            else mainVideo.play().catch(() => {});
+        }
+    }
     function resetProgress(index) {
         fills.forEach((fill, i) => {
             fill.classList.remove('active', 'watched');
@@ -625,6 +672,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const activeFill = fills[currentIdx];
         let width = activeFill ? Number.parseFloat(activeFill.style.width) || 0 : 0;
         storyTimer = setInterval(() => {
+            if (isStoryPaused) return;
             width = Math.min(100, width + 1);
             if (activeFill) activeFill.style.width = `${width}%`;
             if (width >= 100) { clearStoryTimer(); goNext(); }
@@ -634,6 +682,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (storyTimer !== null) clearInterval(storyTimer);
         const activeFill = fills[currentIdx];
         storyTimer = setInterval(() => {
+            if (isStoryPaused) return;
             if (mainVideo?.duration && activeFill) activeFill.style.width = `${mainVideo.currentTime / mainVideo.duration * 100}%`;
         }, 70);
         mainVideo.onended = () => { clearStoryTimer(); goNext(); };
@@ -664,7 +713,8 @@ document.addEventListener("DOMContentLoaded", () => {
             name?.after(badge);
         } else if (data.username !== 'test1' && badge) badge.remove();
     }
-    async function displayStory(data) {
+    async function displayStory(data, direction = 0) {
+        setStoryPaused(false);
         const token = ++displayToken;
         clearStoryTimer();
         const media = await preloadStory(data);
@@ -672,10 +722,15 @@ document.addEventListener("DOMContentLoaded", () => {
         clearStoryTimer();
         const viewerRoot = document.querySelector('.story-viewer');
         viewerRoot.querySelector('.story-viewer-image').replaceChildren(media);
-        media.id = isVideoFile(data.media_url) ? 'main-story-video' : 'main-story-img';
+        media.id = media.tagName === 'VIDEO' ? 'main-story-video' : 'main-story-img';
         media.classList.remove('is-visible');
+        media.classList.remove('story-slide-from-left', 'story-slide-from-right');
+        if (direction < 0) media.classList.add('story-slide-from-left');
+        else if (direction > 0) media.classList.add('story-slide-from-right');
         requestAnimationFrame(() => {
-            if (token === displayToken && media.isConnected) media.classList.add('is-visible');
+            if (token === displayToken && media.isConnected) {
+                requestAnimationFrame(() => media.classList.add('is-visible'));
+            }
         });
         mainVideo = media.tagName === 'VIDEO' ? media : null;
         viewerRoot.querySelector('.story-viewer-caption').textContent = data.caption || '';
@@ -683,6 +738,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (timeLabel) timeLabel.textContent = data.created_label || '';
         updateHeader(data, viewerRoot);
         updateOwnerButtons(data, viewerRoot);
+        updatePlaybackButton(viewerRoot);
         if (mainVideo) {
             const video = mainVideo;
             video.muted = true; video.playsInline = true; video.currentTime = 0;
@@ -714,7 +770,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!storyId) return;
         loadUserGroup(storyId).then(group => {
             const items = group.user_stories;
-            preloadStory(direction > 0 ? items[0] : items[items.length - 1]);
+            preloadStory(items[0]);
         }).catch(() => {});
     }
     function renderProgress(items, activeIndex) {
@@ -768,124 +824,101 @@ document.addEventListener("DOMContentLoaded", () => {
             }));
         }
     }
-    function transitionTimeMs(element) {
-        const style = getComputedStyle(element);
-        const properties = style.transitionProperty.split(',').map(value => value.trim());
-        const durations = style.transitionDuration.split(',').map(value => value.trim());
-        const delays = style.transitionDelay.split(',').map(value => value.trim());
-        const toMs = value => value.endsWith('ms') ? Number.parseFloat(value) : Number.parseFloat(value) * 1000;
-        let maxTime = 0;
-        properties.forEach((property, index) => {
-            if (property !== 'transform' && property !== 'all') return;
-            const duration = toMs(durations[index % durations.length] || '0s');
-            const delay = toMs(delays[index % delays.length] || '0s');
-            maxTime = Math.max(maxTime, duration + delay);
-        });
-        return Number.isFinite(maxTime) ? maxTime : 0;
-    }
-
-    function waitForTransform(element) {
-        return new Promise(resolve => {
-            const duration = transitionTimeMs(element);
-            if (duration <= 0) { resolve(); return; }
-            let fallbackTimer = null;
-            const finish = event => {
-                if (event && (event.target !== element || event.propertyName !== 'transform')) return;
-                element.removeEventListener('transitionend', finish);
-                element.removeEventListener('transitioncancel', finish);
-                if (fallbackTimer !== null) window.clearTimeout(fallbackTimer);
-                resolve();
-            };
-            element.addEventListener('transitionend', finish);
-            element.addEventListener('transitioncancel', finish);
-            // Bound only by the actual CSS transition duration; normal completion uses transitionend.
-            fallbackTimer = window.setTimeout(() => finish(), duration + 50);
-        });
-    }
-    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
-
     async function transitionUser(direction, requestedStoryId = null) {
         if (isTransitioning) return;
         const targetId = requestedStoryId || (direction > 0 ? nextUserStoryId : previousUserStoryId);
         if (!targetId) return;
+        if (!userStorySwiper) {
+            window.location.assign(storyDetailBase.replace(/0\/$/, `${targetId}/`));
+            return;
+        }
         isTransitioning = true;
         const transitionToken = ++displayToken;
         let transitionCompleted = false;
-        let incoming = null;
-        let viewer = document.querySelector('.story-viewer');
+        let incomingSlide = null;
+        const swiper = userStorySwiper;
+        const outgoingSlide = swiper.slides[swiper.activeIndex];
+        const viewer = outgoingSlide?.querySelector('.story-viewer');
         try {
+            if (!viewer || !outgoingSlide) throw new Error('스토리 화면을 찾을 수 없습니다.');
             const group = await loadUserGroup(targetId);
             const incomingStories = group.user_stories;
             const data = requestedStoryId
                 ? incomingStories.find(item => item.id === Number(requestedStoryId)) || incomingStories[0]
-                : direction > 0 ? incomingStories[0] : incomingStories[incomingStories.length - 1];
+                : incomingStories[0];
             const media = await preloadStory(data);
             if (!media) return;
             clearStoryTimer();
-            const rect = viewer.getBoundingClientRect();
-            incoming = viewer.cloneNode(true);
-            incoming.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
-            Object.assign(incoming.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
-            incoming.classList.add('story-viewer--incoming', direction > 0 ? 'story-viewer--from-right' : 'story-viewer--from-left');
-            incoming.querySelector('.story-viewer-caption').textContent = data.caption || '';
-            const incomingTime = incoming.querySelector('.story-viewer-time');
+            incomingSlide = document.createElement('div');
+            incomingSlide.className = 'swiper-slide story-user-slide';
+            const incomingViewer = viewer.cloneNode(true);
+            incomingViewer.classList.add('story-viewer-entering');
+            incomingViewer.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+            incomingViewer.querySelector('.story-viewer-caption').textContent = data.caption || '';
+            const incomingTime = incomingViewer.querySelector('.story-viewer-time');
             if (incomingTime) incomingTime.textContent = data.created_label || '';
-            updateHeader(group, incoming);
-            const incomingOwnerButtons = incoming.querySelector('.story-viewer-buttons');
+            updateHeader(group, incomingViewer);
+            updatePlaybackButton(incomingViewer);
+            const incomingOwnerButtons = incomingViewer.querySelector('.story-viewer-buttons');
             if (incomingOwnerButtons) incomingOwnerButtons.style.display = data.is_owner ? 'flex' : 'none';
             media.classList.add('is-visible');
             if (media.tagName === 'VIDEO') { media.pause(); media.currentTime = 0; media.muted = true; media.playsInline = true; }
-            incoming.querySelector('.story-viewer-image').replaceChildren(media);
-            document.body.appendChild(incoming);
-            viewer.classList.add('story-viewer--sliding');
-            incoming.classList.add('story-viewer--sliding');
-            const outgoingDone = waitForTransform(viewer);
-            const incomingDone = waitForTransform(incoming);
-            await nextFrame(); await nextFrame();
-            viewer.classList.add(direction > 0 ? 'story-viewer--to-left' : 'story-viewer--to-right');
-            incoming.classList.add('story-viewer--center');
+            incomingViewer.querySelector('.story-viewer-image').replaceChildren(media);
+            incomingSlide.appendChild(incomingViewer);
 
-            // Commit the new user's state as the two prepared Viewers begin moving.
-            // Keep the prepared media in the incoming DOM; displayStory() would detach
-            // and reinsert it after the transition, causing a visible snap/blank frame.
-            const token = transitionToken;
+            const targetIndex = direction > 0 ? 1 : 0;
+            if (direction > 0) {
+                swiper.wrapperEl.appendChild(incomingSlide);
+            } else {
+                swiper.wrapperEl.prepend(incomingSlide);
+            }
+            swiper.update();
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                if (incomingViewer.isConnected) incomingViewer.classList.add('story-viewer-entered');
+            }));
+            if (direction < 0) swiper.slideTo(1, 0, false);
+            await new Promise(resolve => {
+                let resolved = false;
+                let fallbackTimer = null;
+                const finish = () => {
+                    if (resolved) return;
+                    resolved = true;
+                    if (fallbackTimer !== null) window.clearTimeout(fallbackTimer);
+                    swiper.off('transitionEnd', finish);
+                    resolve();
+                };
+                fallbackTimer = window.setTimeout(finish, swiper.params.speed + 150);
+                swiper.once('transitionEnd', finish);
+                swiper.slideTo(targetIndex, swiper.params.speed);
+            });
+
+            // Keep only the incoming account's slide after Swiper completes the transition.
+            outgoingSlide.remove();
+            swiper.update();
+            swiper.slideTo(0, 0, false);
+
             userStories = incomingStories;
             currentIdx = userStories.findIndex(item => item.id === data.id);
             nextUserStoryId = group.next_story_id;
             previousUserStoryId = group.previous_story_id;
             renderProgress(userStories, currentIdx);
             mainVideo = media.tagName === 'VIDEO' ? media : null;
+            setStoryPaused(false);
             if (mainVideo) {
                 const video = mainVideo;
                 video.onended = () => {
-                    if (token !== displayToken || video !== mainVideo) return;
+                    if (transitionToken !== displayToken || video !== mainVideo) return;
                     clearStoryTimer();
                     if (isTransitioning) pendingTransitionAdvance = true;
                     else goNext();
                 };
                 storyTimer = setInterval(() => {
+                    if (isStoryPaused) return;
                     const activeFill = fills[currentIdx];
                     if (video.duration && activeFill) activeFill.style.width = `${video.currentTime / video.duration * 100}%`;
                 }, 70);
                 video.play().catch(() => {});
             } else startImageTimer();
-
-            await Promise.all([outgoingDone, incomingDone]);
-
-            // Remove the outgoing Viewer and promote the prepared incoming Viewer in its place.
-            incoming.style.transition = 'none';
-            incoming.classList.remove(
-                'story-viewer--incoming', 'story-viewer--from-right', 'story-viewer--from-left',
-                'story-viewer--sliding', 'story-viewer--center'
-            );
-            incoming.style.left = '';
-            incoming.style.top = '';
-            incoming.style.width = '';
-            incoming.style.height = '';
-            viewer.replaceWith(incoming);
-            incoming.style.transition = '';
-            viewer = incoming;
-            incoming = null;
             renderAdjacentCards(group);
             updateStoryNavigation();
             preloadStory(userStories[currentIdx + 1]);
@@ -897,8 +930,9 @@ document.addEventListener("DOMContentLoaded", () => {
             window.alert('스토리를 불러오지 못했습니다. 다시 시도해 주세요.');
         }
         finally {
-            if (incoming) incoming.remove();
-            if (viewer) viewer.classList.remove('story-viewer--sliding', 'story-viewer--to-left', 'story-viewer--to-right');
+            if (incomingSlide?.isConnected && !transitionCompleted) incomingSlide.remove();
+            swiper.update();
+            swiper.slideTo(0, 0, false);
             isTransitioning = false;
             if (pendingTransitionAdvance) {
                 pendingTransitionAdvance = false;
@@ -920,7 +954,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function goNext() {
         if (isTransitioning) return;
         if (currentIdx + 1 < userStories.length) {
-            currentIdx += 1; resetProgress(currentIdx); updateStoryNavigation(); await displayStory(userStories[currentIdx]);
+            currentIdx += 1; resetProgress(currentIdx); updateStoryNavigation(); await displayStory(userStories[currentIdx], 1);
             return;
         }
         if (!nextUserStoryId) {
@@ -932,7 +966,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function goPrevious() {
         if (isTransitioning) return;
         if (currentIdx > 0) {
-            currentIdx -= 1; resetProgress(currentIdx); updateStoryNavigation(); await displayStory(userStories[currentIdx]);
+            currentIdx -= 1; resetProgress(currentIdx); updateStoryNavigation(); await displayStory(userStories[currentIdx], -1);
             return;
         }
         await transitionUser(-1);
@@ -947,8 +981,20 @@ document.addEventListener("DOMContentLoaded", () => {
     let swipeActionTaken = false;
     viewerWrapper?.addEventListener('click', event => {
         if (swipeActionTaken) return;
-        if (event.target.closest('.story-nav-prev')) goPrevious();
-        else if (event.target.closest('.story-nav-next')) goNext();
+        if (event.target.closest('.story-nav-prev')) {
+            goPrevious();
+            return;
+        }
+        if (event.target.closest('.story-nav-next')) {
+            goNext();
+            return;
+        }
+        if (!window.matchMedia('(max-width: 576px)').matches) return;
+        const viewer = event.target.closest('.story-viewer');
+        if (!viewer || event.target.closest('.story-viewer-user, .story-play-toggle, .story-viewer-buttons, a, button, input, textarea, select, .dropdown-menu')) return;
+        const bounds = viewer.getBoundingClientRect();
+        if (event.clientX < bounds.left + bounds.width / 2) goPrevious();
+        else goNext();
     });
     document.querySelectorAll('.story-adjacent-group').forEach(group => group.addEventListener('click', event => {
         const card = event.target.closest('.story-adjacent-card');
@@ -970,9 +1016,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (Math.abs(deltaX) < 50) return;
         swipeActionTaken = true;
         window.setTimeout(() => { swipeActionTaken = false; }, 400);
-        if (deltaX < 0) goNext();
-        else goPrevious();
+        if (deltaX < 0) transitionUser(1);
+        else transitionUser(-1);
     }, { passive: true });
+
     /* 첫 스토리 시작 */
     if (typeof currentIdx !== 'undefined' && currentIdx >= 0) {
         updateStoryNavigation();

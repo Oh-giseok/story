@@ -36,6 +36,10 @@
         color: #adb5bd;
         flex-shrink: 0;
     }
+<<<<<<< HEAD
+=======
+
+>>>>>>> develop
     .unread-dot {
         width: 10px;
         height: 10px;
@@ -44,6 +48,10 @@
         flex-shrink: 0;
         margin-left: 8px;
     }
+<<<<<<< HEAD
+=======
+
+>>>>>>> develop
     .dm-chat-header {
         gap: .5rem;
         min-width: 0;
@@ -195,6 +203,13 @@
                                 <span class="status-dot {{ conn_status_target }}" id="chat-header-dot"></span>
                                 <span class="dm-chat-name">{{ target_name }}</span>
                                 <span class="status-text" id="chat-header-text">({% if conn_status_target == 'online' %}Online{% elif conn_status_target == 'idle' %}자리 비움{% else %}Offline{% endif %})</span>
+<<<<<<< HEAD
+=======
+<!--                                {% set is_online_target = is_self_target or (target_user and target_user.is_online) %}-->
+<!--                                <span class="status-dot {{ 'online' if is_online_target else 'offline' }}" id="chat-header-dot"></span>-->
+<!--                                <span class="dm-chat-name">{{ target_name }}</span>-->
+<!--                                <span class="status-text" id="chat-header-text">({{ 'Online' if is_online_target else 'Offline' }})</span>-->
+>>>>>>> develop
                             {% else %}
                                 대화 상대를 선택하세요
                             {% endif %}
@@ -261,11 +276,19 @@ function handleImageError(imgElement) {
 const senderElem = document.getElementById('sender_id');
 const currentUserId = senderElem ? senderElem.value : "{{ current_uid }}";
 
+<<<<<<< HEAD
 const socket = io({
     query: { user_id: currentUserId },
     transports: ['polling']
 });
 let currentConvId = null;
+=======
+let currentConvId = null;
+const socket = window.io ? window.io({
+    query: { user_id: currentUserId },
+    transports: ['polling']
+}) : null;
+>>>>>>> develop
 
 function parseUtcTimestamp(value) {
     if (!value) return null;
@@ -327,11 +350,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!socket) console.error('Socket.IO 클라이언트를 불러오지 못해 DM 폴링 모드로 연결합니다.');
 });
 
-socket?.on('presence_change', (data) => {
-    const userId = String(data.user_id);
+function applyPresence(userId, status) {
+    userId = String(userId);
     if (userId === String(currentUserId)) return;
 
+<<<<<<< HEAD
     const status = data.status || 'offline';
+=======
+    // data.status를 그대로 반영 (online, idle, offline)
+    status = status || 'offline';
+>>>>>>> develop
     const statusClass = status;
     const statusTextMap = { 'online': 'Online', 'idle': '자리 비움', 'offline': 'Offline' };
     const textLabel = statusTextMap[status] || 'Offline';
@@ -356,6 +384,11 @@ socket?.on('presence_change', (data) => {
             text.innerText = `(${textLabel})`;
         }
     });
+}
+
+socket?.on('presence_change', (data) => applyPresence(data.user_id, data.status));
+socket?.on('presence_snapshot', (statuses) => {
+    Object.entries(statuses || {}).forEach(([userId, status]) => applyPresence(userId, status));
 });
 
 async function connectChat() {
@@ -386,9 +419,14 @@ async function connectChat() {
         const data = await res.json();
         currentConvId = data.conversation_id;
 
+<<<<<<< HEAD
         socket.emit('join_room', { conversation_id: currentConvId });
         socket.emit('mark_read', { conversation_id: currentConvId, user_id: userId1 });
 
+=======
+        socket?.emit('join_room', { conversation_id: currentConvId });
+        socket?.emit('mark_read', { conversation_id: currentConvId, user_id: userId1 });
+>>>>>>> develop
         markUserAsReadUI(userId2);
         await loadMessages();
     } catch (error) {
@@ -469,19 +507,24 @@ async function leaveConversation(targetId) {
 
 socket?.on('receive_message', function(msg) {
     const senderElem = document.getElementById('sender_id');
-    const currentUserId = senderElem ? parseInt(senderElem.value) : null;
+    const activeUserId = senderElem ? Number(senderElem.value) : null;
     const targetInput = document.getElementById('target_id');
-    const currentTargetId = targetInput ? parseInt(targetInput.value) : null;
+    const currentTargetId = targetInput ? Number(targetInput.value) : null;
+    const messageSenderId = Number(msg.sender_id);
 
-    if (currentConvId && msg.conversation_id === currentConvId) {
+    if (currentConvId && Number(msg.conversation_id) === Number(currentConvId)) {
         appendMessage(msg);
-        if (currentUserId && msg.sender_id !== currentUserId) {
-            socket.emit('mark_read', { conversation_id: currentConvId, user_id: currentUserId });
-            markUserAsReadUI(msg.sender_id);
+        if (activeUserId && messageSenderId !== activeUserId) {
+            socket?.emit('mark_read', { conversation_id: currentConvId, user_id: activeUserId });
+            markUserAsReadUI(messageSenderId);
         }
     }
 
+<<<<<<< HEAD
     const otherUserId = (msg.sender_id === currentUserId) ? currentTargetId : msg.sender_id;
+=======
+    const otherUserId = (messageSenderId === activeUserId) ? currentTargetId : messageSenderId;
+>>>>>>> develop
     if (otherUserId) {
         const recentItem = document.getElementById(`recent-item-${otherUserId}`);
         const recentName = document.getElementById(`recent-name-${otherUserId}`);
@@ -491,7 +534,7 @@ socket?.on('receive_message', function(msg) {
 
         if (recentMsgText) {
             recentMsgText.textContent = msg.text;
-            if (msg.sender_id === currentUserId) {
+            if (messageSenderId === activeUserId) {
                 recentMsgText.classList.remove('fw-bold', 'text-dark');
                 recentMsgText.classList.add('text-muted');
             } else if (currentTargetId !== otherUserId) {
@@ -501,7 +544,7 @@ socket?.on('receive_message', function(msg) {
         }
 
         if (recentName) {
-            if (msg.sender_id === currentUserId) {
+            if (messageSenderId === activeUserId) {
                 recentName.classList.remove('fw-bold', 'text-dark');
             } else if (currentTargetId !== otherUserId) {
                 recentName.classList.add('fw-bold', 'text-dark');
@@ -509,7 +552,7 @@ socket?.on('receive_message', function(msg) {
         }
 
         if (recentBadge) {
-            if (msg.sender_id === currentUserId || currentTargetId === otherUserId) {
+            if (messageSenderId === activeUserId || currentTargetId === otherUserId) {
                 recentBadge.classList.add('d-none');
             } else {
                 recentBadge.classList.remove('d-none');

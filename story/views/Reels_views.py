@@ -1,4 +1,5 @@
 import os
+import re
 import cv2
 import tempfile
 import secrets
@@ -331,6 +332,26 @@ def uploaded_file(filename):
     if asset_ref.startswith('sb:'):
         return redirect(media_url(asset_ref))
     upload_folder = currunt_app.config['UPLOAD_FOLDER']
+    # Older seed runs stored OpenCV's mp4v videos, which browsers commonly cannot decode.
+    # Prefer the same seed clip re-encoded as WebM; keep the existing DB reference working.
+    if filename.startswith('videos/') and filename.lower().endswith('.mp4'):
+        stem = os.path.basename(filename)[:-4]
+        original_path = os.path.join(upload_folder, filename.replace('/', os.sep))
+        if os.path.isfile(original_path):
+            with open(original_path, 'rb') as original_file:
+                if b'avc1' in original_file.read(2 * 1024 * 1024):
+                    return send_from_directory(upload_folder, filename)
+        webm_candidates = [f"videos/{stem}.webm"]
+        seed_match = re.fullmatch(
+            r'(mori_cafe|film_jun|run_haru|trip_min|plant_nana|food_tae|draw_jiu|music_ian|fashion_roe|pet_dodo)_reel_(\d+)',
+            stem,
+        )
+        if seed_match:
+            webm_candidates.append(f"videos/{seed_match.group(1)}_{int(seed_match.group(2)):02}.webm")
+        for candidate in webm_candidates:
+            candidate_path = os.path.join(upload_folder, candidate.replace('/', os.sep))
+            if os.path.isfile(candidate_path):
+                return send_from_directory(upload_folder, candidate)
     return send_from_directory(upload_folder, filename)
 
 

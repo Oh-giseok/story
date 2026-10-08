@@ -1,12 +1,10 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, g
-from story.models import db, Conversation, Message, MessageRead, User, Friendship
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, g, current_app
-from story.models import db, Conversation, Message, MessageRead, User
-from flask_login import current_user
 from datetime import datetime
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, g, current_app
+from flask_login import current_user
+from story.models import db, Conversation, Message, MessageRead, User, Friendship
+from sqlalchemy import and_, func
 
 bp = Blueprint('dm', __name__, url_prefix='/dm')
-
 
 @bp.before_request
 def check_login():
@@ -73,6 +71,102 @@ def get_active_chat_users(user_id, current_target_id=None):
         reverse=True
     )
     return active_chat_users
+
+
+def get_recent_chat_users(user_id):
+    """Return the main-page DM summary with a fixed number of database queries."""
+    if not user_id:
+        return []
+
+    user_id = int(user_id)
+    conversations = Conversation.query.filter(
+        (Conversation.user_id1 == user_id) | (Conversation.user_id2 == user_id)
+    ).all()
+    if not conversations:
+        return []
+
+    conversation_ids = [conversation.id for conversation in conversations]
+    target_ids = {
+        conversation.user_id2 if conversation.user_id1 == user_id else conversation.user_id1
+        for conversation in conversations
+    }
+
+    users_by_id = {
+        user.id: user
+        for user in User.query.filter(User.id.in_(target_ids)).all()
+    }
+
+    ranked_messages = (
+        db.session.query(
+            Message.id.label('message_id'),
+            Message.conversation_id.label('conversation_id'),
+            func.row_number().over(
+                partition_by=Message.conversation_id,
+                order_by=[Message.created_at.desc(), Message.id.desc()],
+            ).label('message_rank'),
+        )
+        .filter(Message.conversation_id.in_(conversation_ids))
+        .subquery()
+    )
+    latest_messages = (
+        Message.query
+        .join(ranked_messages, Message.id == ranked_messages.c.message_id)
+        .filter(ranked_messages.c.message_rank == 1)
+        .all()
+    )
+    latest_by_conversation = {
+        message.conversation_id: message
+        for message in latest_messages
+    }
+
+    unread_rows = (
+        db.session.query(Message.conversation_id, func.count(Message.id))
+        .outerjoin(
+            MessageRead,
+            and_(
+                MessageRead.message_id == Message.id,
+                MessageRead.user_id == user_id,
+            ),
+        )
+        .filter(
+            Message.conversation_id.in_(conversation_ids),
+            Message.sender_id != user_id,
+            MessageRead.id.is_(None),
+        )
+        .group_by(Message.conversation_id)
+        .all()
+    )
+    unread_by_conversation = dict(unread_rows)
+
+    recent_users = []
+    for conversation in conversations:
+        target_id = (
+            conversation.user_id2
+            if conversation.user_id1 == user_id
+            else conversation.user_id1
+        )
+        target_user = users_by_id.get(target_id)
+        last_message = latest_by_conversation.get(conversation.id)
+        if not target_user or not last_message:
+            continue
+
+        unread_count = unread_by_conversation.get(conversation.id, 0)
+        # Keep the current main-page behavior: a latest message sent by me clears the badge.
+        if last_message.sender_id == user_id:
+            unread_count = 0
+
+        recent_users.append({
+            'user': target_user,
+            'last_message': last_message,
+            'unread_count': unread_count,
+            'has_unread': unread_count > 0,
+        })
+
+    recent_users.sort(
+        key=lambda item: item['last_message'].created_at or datetime.min,
+        reverse=True,
+    )
+    return recent_users
 
 
 @bp.route('/')

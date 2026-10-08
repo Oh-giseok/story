@@ -25,13 +25,13 @@
 
 <div class="modal fade reel-detail-modal" id="reelDetailModal" tabindex="-1" aria-hidden="true" aria-labelledby="reelDetailModalTitle">
     <div class="modal-dialog modal-dialog-centered position-relative">
-        <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="닫기" style="z-index: 1070; transform: translate(150%, -50%); cursor: pointer !important; pointer-events: auto;"></button>
+        <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 reel-detail-close" data-bs-dismiss="modal" aria-label="닫기" style="z-index: 1070; cursor: pointer !important; pointer-events: auto;"></button>
         <div class="modal-content">
-            <div class="reel-detail-body row g-0 h-100">
-                <div class="col-md-7 reel-detail-video d-flex align-items-center position-relative h-100">
+            <div class="modal-body reel-detail-body row g-0 h-100 p-0">
+                <div class="col-md-7 reel-detail-video d-flex align-items-center justify-content-center position-relative">
                     <video id="reelDetailVideo" controls playsinline></video>
                 </div>
-                <section class="col-md-5 d-flex flex-column bg-white h-100 reel-detail-panel">
+                <section class="col-md-5 d-flex flex-column bg-white reel-detail-panel">
                     <header class="p-3 border-bottom d-flex align-items-center justify-content-between">
                         <a id="reelDetailOwnerLink" href="#" class="d-flex align-items-center text-decoration-none text-dark">
                             <img id="reelDetailAvatar" class="rounded-circle me-2 d-none" src="" alt="프로필 이미지" width="32" height="32" style="object-fit: cover;">

@@ -1,7 +1,7 @@
  /* 스토리 목록 전체 영역 */
 .insta-story-container {
     display: flex;
-    gap: 24px;
+    gap: 12px;
     align-items: center;
     overflow-x: auto;
     scroll-behavior: smooth;
@@ -10,10 +10,7 @@
     white-space: nowrap;
     width: 100%;
     box-sizing: border-box;
-    padding: 18px;
-    background-color: #ffffff;
     border-radius: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .insta-story-container::-webkit-scrollbar {
@@ -283,7 +280,6 @@
     border-radius: 12px;
     overflow: hidden;
     z-index: 20;
-    transition: transform 0.45s ease;
     touch-action: pan-y;
 }
 
@@ -312,6 +308,30 @@
     opacity: .35;
 }
 
+.story-play-toggle {
+    position: absolute;
+    top: 40px;
+    right: 16px;
+    z-index: 35;
+    display: grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, .32);
+    color: #fff;
+    font-size: 1.25rem;
+    cursor: pointer;
+}
+
+.story-play-toggle:hover,
+.story-play-toggle:focus-visible {
+    background: rgba(0, 0, 0, .58);
+    color: #fff;
+}
+
 .story-nav-prev { left: 10px; }
 .story-nav-next { right: 10px; }
 
@@ -334,7 +354,18 @@
     object-fit: cover;
     opacity: 0;
     z-index: 1;
-    transition: opacity 240ms ease;
+    transform: translateX(0);
+    transition: opacity 240ms ease, transform 300ms cubic-bezier(.22, .61, .36, 1);
+}
+
+.story-viewer-image img.story-slide-from-left,
+.story-viewer-image video.story-slide-from-left {
+    transform: translateX(-100%);
+}
+
+.story-viewer-image img.story-slide-from-right,
+.story-viewer-image video.story-slide-from-right {
+    transform: translateX(100%);
 }
 
 /* 스토리 이미지 / 영상 표시 */
@@ -342,6 +373,7 @@
 .story-viewer-image video.is-visible {
     opacity: 1;
     z-index: 2;
+    transform: translateX(0);
 }
 
 /* 닫기 버튼 */
@@ -460,8 +492,8 @@
 
 /* 이전 / 다음 스토리 프로필 */
 .adjacent-profile-img {
-    width: 48px;
-    height: 48px;
+    width: 48px !important;
+    height: 48px !important;
     border-radius: 50%;
     object-fit: cover;
     border: 2px solid #ffffff;
@@ -541,9 +573,64 @@
     display: block;
 }
 
+.story-user-swiper {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(394px, calc(100vw - 24px));
+    height: min(700px, calc(100vh - 24px));
+    height: min(700px, calc(100dvh - 24px));
+    overflow: hidden;
+    transform: translate(-50%, -50%);
+    z-index: 20;
+}
+
+.story-user-swiper .swiper-wrapper {
+    display: flex;
+    height: 100%;
+    transition-property: transform;
+    transition-timing-function: cubic-bezier(.22, .61, .36, 1);
+}
+
+.story-user-slide {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    flex: 0 0 100%;
+}
+
 .story-viewer {
     left: 50%;
     top: 50%;
+}
+
+.story-user-swiper .story-viewer {
+    position: relative;
+    inset: auto;
+    left: auto;
+    top: auto;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    translate: none;
+    z-index: 1;
+}
+
+.story-user-swiper .story-viewer-entering {
+    transform: scale(.92);
+    opacity: .72;
+    transition: transform 360ms cubic-bezier(.22, .61, .36, 1), opacity 360ms ease;
+}
+
+.story-user-swiper .story-viewer-entering.story-viewer-entered {
+    transform: scale(1);
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .story-user-swiper .story-viewer-entering {
+        transition-duration: 1ms;
+    }
 }
 
 .story-adjacent-group {
@@ -564,52 +651,6 @@
 .story-adjacent-group.next-group::before {
     display: none;
     content: none;
-}
-
-/* User-to-user transitions use two real viewer panels; inner-story changes never use these classes. */
-.story-viewer.story-viewer--sliding {
-    transition: transform 360ms cubic-bezier(0.2, 0.7, 0.2, 1), opacity 300ms ease;
-    will-change: transform;
-}
-
-.story-viewer.story-viewer--incoming {
-    position: fixed;
-    left: auto;
-    top: auto;
-    translate: none;
-    margin: 0;
-    z-index: 1040;
-    pointer-events: none;
-    transition: none;
-}
-
-.story-viewer.story-viewer--incoming.story-viewer--from-right {
-    transform: translateX(28px) scale(0.985);
-    opacity: 0;
-}
-
-.story-viewer.story-viewer--incoming.story-viewer--from-left {
-    transform: translateX(-28px) scale(0.985);
-    opacity: 0;
-}
-
-.story-viewer.story-viewer--incoming.story-viewer--sliding {
-    transition: transform 360ms cubic-bezier(0.2, 0.7, 0.2, 1), opacity 300ms ease;
-}
-
-.story-viewer.story-viewer--sliding.story-viewer--to-left {
-    transform: translateX(-28px) scale(0.985);
-    opacity: 0;
-}
-
-.story-viewer.story-viewer--sliding.story-viewer--to-right {
-    transform: translateX(28px) scale(0.985);
-    opacity: 0;
-}
-
-.story-viewer.story-viewer--incoming.story-viewer--center {
-    transform: translateX(0) scale(1);
-    opacity: 1;
 }
 
 .story-delete-confirm-modal .modal-content {
@@ -654,9 +695,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .story-viewer.story-viewer--sliding,
-    .story-viewer.story-viewer--incoming.story-viewer--sliding {
-        transition-duration: 1ms;
+    .story-user-swiper .swiper-wrapper {
+        transition-duration: 1ms !important;
     }
 
     .story-viewer-image img,

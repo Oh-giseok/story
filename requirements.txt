@@ -19,6 +19,7 @@ greenlet==3.5.5
 gunicorn==26.2.0
 h11==0.16.0
 idna==3.19
+imageio-ffmpeg==0.6.0
 itsdangerous==2.2.0
 Jinja2==3.1.6
 joblib==1.6.0
