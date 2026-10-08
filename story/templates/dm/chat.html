@@ -36,10 +36,6 @@
         color: #adb5bd;
         flex-shrink: 0;
     }
-<<<<<<< HEAD
-=======
-
->>>>>>> develop
     .unread-dot {
         width: 10px;
         height: 10px;
@@ -48,10 +44,6 @@
         flex-shrink: 0;
         margin-left: 8px;
     }
-<<<<<<< HEAD
-=======
-
->>>>>>> develop
     .dm-chat-header {
         gap: .5rem;
         min-width: 0;
@@ -203,13 +195,6 @@
                                 <span class="status-dot {{ conn_status_target }}" id="chat-header-dot"></span>
                                 <span class="dm-chat-name">{{ target_name }}</span>
                                 <span class="status-text" id="chat-header-text">({% if conn_status_target == 'online' %}Online{% elif conn_status_target == 'idle' %}자리 비움{% else %}Offline{% endif %})</span>
-<<<<<<< HEAD
-=======
-<!--                                {% set is_online_target = is_self_target or (target_user and target_user.is_online) %}-->
-<!--                                <span class="status-dot {{ 'online' if is_online_target else 'offline' }}" id="chat-header-dot"></span>-->
-<!--                                <span class="dm-chat-name">{{ target_name }}</span>-->
-<!--                                <span class="status-text" id="chat-header-text">({{ 'Online' if is_online_target else 'Offline' }})</span>-->
->>>>>>> develop
                             {% else %}
                                 대화 상대를 선택하세요
                             {% endif %}
@@ -276,19 +261,12 @@ function handleImageError(imgElement) {
 const senderElem = document.getElementById('sender_id');
 const currentUserId = senderElem ? senderElem.value : "{{ current_uid }}";
 
-<<<<<<< HEAD
-const socket = io({
-    query: { user_id: currentUserId },
-    transports: ['polling']
-});
-let currentConvId = null;
-=======
-let currentConvId = null;
 const socket = window.io ? window.io({
     query: { user_id: currentUserId },
     transports: ['polling']
 }) : null;
->>>>>>> develop
+
+let currentConvId = null;
 
 function parseUtcTimestamp(value) {
     if (!value) return null;
@@ -354,15 +332,9 @@ function applyPresence(userId, status) {
     userId = String(userId);
     if (userId === String(currentUserId)) return;
 
-<<<<<<< HEAD
-    const status = data.status || 'offline';
-=======
-    // data.status를 그대로 반영 (online, idle, offline)
-    status = status || 'offline';
->>>>>>> develop
-    const statusClass = status;
+    const statusClass = status || 'offline';
     const statusTextMap = { 'online': 'Online', 'idle': '자리 비움', 'offline': 'Offline' };
-    const textLabel = statusTextMap[status] || 'Offline';
+    const textLabel = statusTextMap[statusClass] || 'Offline';
 
     const targetInput = document.getElementById('target_id');
     const currentTargetId = targetInput ? String(targetInput.value) : null;
@@ -419,14 +391,8 @@ async function connectChat() {
         const data = await res.json();
         currentConvId = data.conversation_id;
 
-<<<<<<< HEAD
-        socket.emit('join_room', { conversation_id: currentConvId });
-        socket.emit('mark_read', { conversation_id: currentConvId, user_id: userId1 });
-
-=======
         socket?.emit('join_room', { conversation_id: currentConvId });
         socket?.emit('mark_read', { conversation_id: currentConvId, user_id: userId1 });
->>>>>>> develop
         markUserAsReadUI(userId2);
         await loadMessages();
     } catch (error) {
@@ -520,11 +486,7 @@ socket?.on('receive_message', function(msg) {
         }
     }
 
-<<<<<<< HEAD
-    const otherUserId = (msg.sender_id === currentUserId) ? currentTargetId : msg.sender_id;
-=======
     const otherUserId = (messageSenderId === activeUserId) ? currentTargetId : messageSenderId;
->>>>>>> develop
     if (otherUserId) {
         const recentItem = document.getElementById(`recent-item-${otherUserId}`);
         const recentName = document.getElementById(`recent-name-${otherUserId}`);
