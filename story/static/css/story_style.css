@@ -280,7 +280,6 @@
     border-radius: 12px;
     overflow: hidden;
     z-index: 20;
-    transition: transform 0.45s ease;
     touch-action: pan-y;
 }
 
@@ -538,9 +537,47 @@
     display: block;
 }
 
+.story-user-swiper {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(394px, calc(100vw - 24px));
+    height: min(700px, calc(100vh - 24px));
+    height: min(700px, calc(100dvh - 24px));
+    overflow: hidden;
+    transform: translate(-50%, -50%);
+    z-index: 20;
+}
+
+.story-user-swiper .swiper-wrapper {
+    display: flex;
+    height: 100%;
+    transition-property: transform;
+    transition-timing-function: cubic-bezier(.22, .61, .36, 1);
+}
+
+.story-user-slide {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    flex: 0 0 100%;
+}
+
 .story-viewer {
     left: 50%;
     top: 50%;
+}
+
+.story-user-swiper .story-viewer {
+    position: relative;
+    inset: auto;
+    left: auto;
+    top: auto;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    translate: none;
+    z-index: 1;
 }
 
 .story-adjacent-group {
@@ -561,52 +598,6 @@
 .story-adjacent-group.next-group::before {
     display: none;
     content: none;
-}
-
-/* User-to-user transitions use two real viewer panels; inner-story changes never use these classes. */
-.story-viewer.story-viewer--sliding {
-    transition: transform 360ms cubic-bezier(0.2, 0.7, 0.2, 1), opacity 300ms ease;
-    will-change: transform;
-}
-
-.story-viewer.story-viewer--incoming {
-    position: fixed;
-    left: auto;
-    top: auto;
-    translate: none;
-    margin: 0;
-    z-index: 1040;
-    pointer-events: none;
-    transition: none;
-}
-
-.story-viewer.story-viewer--incoming.story-viewer--from-right {
-    transform: translateX(28px) scale(0.985);
-    opacity: 0;
-}
-
-.story-viewer.story-viewer--incoming.story-viewer--from-left {
-    transform: translateX(-28px) scale(0.985);
-    opacity: 0;
-}
-
-.story-viewer.story-viewer--incoming.story-viewer--sliding {
-    transition: transform 360ms cubic-bezier(0.2, 0.7, 0.2, 1), opacity 300ms ease;
-}
-
-.story-viewer.story-viewer--sliding.story-viewer--to-left {
-    transform: translateX(-28px) scale(0.985);
-    opacity: 0;
-}
-
-.story-viewer.story-viewer--sliding.story-viewer--to-right {
-    transform: translateX(28px) scale(0.985);
-    opacity: 0;
-}
-
-.story-viewer.story-viewer--incoming.story-viewer--center {
-    transform: translateX(0) scale(1);
-    opacity: 1;
 }
 
 .story-delete-confirm-modal .modal-content {
@@ -651,9 +642,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .story-viewer.story-viewer--sliding,
-    .story-viewer.story-viewer--incoming.story-viewer--sliding {
-        transition-duration: 1ms;
+    .story-user-swiper .swiper-wrapper {
+        transition-duration: 1ms !important;
     }
 
     .story-viewer-image img,

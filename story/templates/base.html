@@ -416,7 +416,7 @@
 
             <!-- 우측 콘텐츠 영역 (검색창 + 중앙 정렬된 메인 피드/스토리) -->
             <div class="main-content-column{% if request.endpoint in ['main.index', 'post._list'] %} post-list-layout{% endif %}">
-                {% if current_user.is_authenticated and request.endpoint in ['main.index', 'post._list', 'reels.reels', 'dm.user_list', 'main.search'] and request.endpoint != 'dm.user_list' %}
+                {% if current_user.is_authenticated and request.endpoint in ['main.index', 'post._list', 'dm.user_list', 'main.search'] and request.endpoint != 'dm.user_list' %}
                 <div class="page-search-area">
                     <form class="page-search-bar" role="search" action="{{ url_for('main.search') }}" method="get">
                         <div class="input-group">

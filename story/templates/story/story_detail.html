@@ -98,15 +98,12 @@
     </div>
 
 
+    <!-- 계정별 스토리 전환을 담당하는 Swiper -->
+    <div class="swiper story-user-swiper">
+        <div class="swiper-wrapper">
+            <div class="swiper-slide story-user-slide">
     <!-- 현재 스토리 -->
     <div class="story-viewer">
-
-        <!-- 스토리 닫기 -->
-        <a href="{{ url_for('main.index') }}"
-           class="story-viewer-close">
-            ×
-        </a>
-
         <button type="button" class="story-nav-button story-nav-prev" id="storyPrevButton" aria-label="이전 스토리">
             <i class="bi bi-chevron-left" aria-hidden="true"></i>
         </button>
@@ -226,7 +223,12 @@
         {% endif %}
 
     </div>
+            </div>
+        </div>
+    </div>
 
+    <!-- 닫기 버튼은 스와이프되는 슬라이드 바깥에 고정 -->
+    <a href="{{ url_for('main.index') }}" class="story-viewer-close" aria-label="스토리 닫기">×</a>
 
     <!-- 우측 대기 카드 2개 -->
     <div class="story-adjacent-group next-group">
@@ -479,7 +481,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const editStoryMedia = document.getElementById('editStoryMedia');
     const editStoryModal = document.getElementById('editStoryModal');
     const viewerWrapper = document.querySelector('.story-viewer-wrapper');
+    const storySwiperElement = document.querySelector('.story-user-swiper');
+    const userStorySwiper = storySwiperElement && typeof Swiper === 'function'
+        ? new Swiper(storySwiperElement, {
+            slidesPerView: 1,
+            speed: 360,
+            allowTouchMove: false,
+            watchOverflow: true,
+            resistanceRatio: 0.75
+        })
+        : null;
     const storyHomeUrl = {{ url_for('main.index') | tojson }};
+    const storyDetailBase = {{ url_for('story.detail', story_id=0) | tojson }};
 
     viewerWrapper?.addEventListener('click', (event) => {
         const deleteButton = event.target.closest('[data-story-action="delete"]');
@@ -768,52 +781,23 @@ document.addEventListener("DOMContentLoaded", () => {
             }));
         }
     }
-    function transitionTimeMs(element) {
-        const style = getComputedStyle(element);
-        const properties = style.transitionProperty.split(',').map(value => value.trim());
-        const durations = style.transitionDuration.split(',').map(value => value.trim());
-        const delays = style.transitionDelay.split(',').map(value => value.trim());
-        const toMs = value => value.endsWith('ms') ? Number.parseFloat(value) : Number.parseFloat(value) * 1000;
-        let maxTime = 0;
-        properties.forEach((property, index) => {
-            if (property !== 'transform' && property !== 'all') return;
-            const duration = toMs(durations[index % durations.length] || '0s');
-            const delay = toMs(delays[index % delays.length] || '0s');
-            maxTime = Math.max(maxTime, duration + delay);
-        });
-        return Number.isFinite(maxTime) ? maxTime : 0;
-    }
-
-    function waitForTransform(element) {
-        return new Promise(resolve => {
-            const duration = transitionTimeMs(element);
-            if (duration <= 0) { resolve(); return; }
-            let fallbackTimer = null;
-            const finish = event => {
-                if (event && (event.target !== element || event.propertyName !== 'transform')) return;
-                element.removeEventListener('transitionend', finish);
-                element.removeEventListener('transitioncancel', finish);
-                if (fallbackTimer !== null) window.clearTimeout(fallbackTimer);
-                resolve();
-            };
-            element.addEventListener('transitionend', finish);
-            element.addEventListener('transitioncancel', finish);
-            // Bound only by the actual CSS transition duration; normal completion uses transitionend.
-            fallbackTimer = window.setTimeout(() => finish(), duration + 50);
-        });
-    }
-    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
-
     async function transitionUser(direction, requestedStoryId = null) {
         if (isTransitioning) return;
         const targetId = requestedStoryId || (direction > 0 ? nextUserStoryId : previousUserStoryId);
         if (!targetId) return;
+        if (!userStorySwiper) {
+            window.location.assign(storyDetailBase.replace(/0\/$/, `${targetId}/`));
+            return;
+        }
         isTransitioning = true;
         const transitionToken = ++displayToken;
         let transitionCompleted = false;
-        let incoming = null;
-        let viewer = document.querySelector('.story-viewer');
+        let incomingSlide = null;
+        const swiper = userStorySwiper;
+        const outgoingSlide = swiper.slides[swiper.activeIndex];
+        const viewer = outgoingSlide?.querySelector('.story-viewer');
         try {
+            if (!viewer || !outgoingSlide) throw new Error('스토리 화면을 찾을 수 없습니다.');
             const group = await loadUserGroup(targetId);
             const incomingStories = group.user_stories;
             const data = requestedStoryId
@@ -822,33 +806,49 @@ document.addEventListener("DOMContentLoaded", () => {
             const media = await preloadStory(data);
             if (!media) return;
             clearStoryTimer();
-            const rect = viewer.getBoundingClientRect();
-            incoming = viewer.cloneNode(true);
-            incoming.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
-            Object.assign(incoming.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
-            incoming.classList.add('story-viewer--incoming', direction > 0 ? 'story-viewer--from-right' : 'story-viewer--from-left');
-            incoming.querySelector('.story-viewer-caption').textContent = data.caption || '';
-            const incomingTime = incoming.querySelector('.story-viewer-time');
+            incomingSlide = document.createElement('div');
+            incomingSlide.className = 'swiper-slide story-user-slide';
+            const incomingViewer = viewer.cloneNode(true);
+            incomingViewer.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+            incomingViewer.querySelector('.story-viewer-caption').textContent = data.caption || '';
+            const incomingTime = incomingViewer.querySelector('.story-viewer-time');
             if (incomingTime) incomingTime.textContent = data.created_label || '';
-            updateHeader(group, incoming);
-            const incomingOwnerButtons = incoming.querySelector('.story-viewer-buttons');
+            updateHeader(group, incomingViewer);
+            const incomingOwnerButtons = incomingViewer.querySelector('.story-viewer-buttons');
             if (incomingOwnerButtons) incomingOwnerButtons.style.display = data.is_owner ? 'flex' : 'none';
             media.classList.add('is-visible');
             if (media.tagName === 'VIDEO') { media.pause(); media.currentTime = 0; media.muted = true; media.playsInline = true; }
-            incoming.querySelector('.story-viewer-image').replaceChildren(media);
-            document.body.appendChild(incoming);
-            viewer.classList.add('story-viewer--sliding');
-            incoming.classList.add('story-viewer--sliding');
-            const outgoingDone = waitForTransform(viewer);
-            const incomingDone = waitForTransform(incoming);
-            await nextFrame(); await nextFrame();
-            viewer.classList.add(direction > 0 ? 'story-viewer--to-left' : 'story-viewer--to-right');
-            incoming.classList.add('story-viewer--center');
+            incomingViewer.querySelector('.story-viewer-image').replaceChildren(media);
+            incomingSlide.appendChild(incomingViewer);
 
-            // Commit the new user's state as the two prepared Viewers begin moving.
-            // Keep the prepared media in the incoming DOM; displayStory() would detach
-            // and reinsert it after the transition, causing a visible snap/blank frame.
-            const token = transitionToken;
+            const targetIndex = direction > 0 ? 1 : 0;
+            if (direction > 0) {
+                swiper.wrapperEl.appendChild(incomingSlide);
+            } else {
+                swiper.wrapperEl.prepend(incomingSlide);
+            }
+            swiper.update();
+            if (direction < 0) swiper.slideTo(1, 0, false);
+            await new Promise(resolve => {
+                let resolved = false;
+                let fallbackTimer = null;
+                const finish = () => {
+                    if (resolved) return;
+                    resolved = true;
+                    if (fallbackTimer !== null) window.clearTimeout(fallbackTimer);
+                    swiper.off('transitionEnd', finish);
+                    resolve();
+                };
+                fallbackTimer = window.setTimeout(finish, swiper.params.speed + 150);
+                swiper.once('transitionEnd', finish);
+                swiper.slideTo(targetIndex, swiper.params.speed);
+            });
+
+            // Keep only the incoming account's slide after Swiper completes the transition.
+            outgoingSlide.remove();
+            swiper.update();
+            swiper.slideTo(0, 0, false);
+
             userStories = incomingStories;
             currentIdx = userStories.findIndex(item => item.id === data.id);
             nextUserStoryId = group.next_story_id;
@@ -858,7 +858,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (mainVideo) {
                 const video = mainVideo;
                 video.onended = () => {
-                    if (token !== displayToken || video !== mainVideo) return;
+                    if (transitionToken !== displayToken || video !== mainVideo) return;
                     clearStoryTimer();
                     if (isTransitioning) pendingTransitionAdvance = true;
                     else goNext();
@@ -869,23 +869,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }, 70);
                 video.play().catch(() => {});
             } else startImageTimer();
-
-            await Promise.all([outgoingDone, incomingDone]);
-
-            // Remove the outgoing Viewer and promote the prepared incoming Viewer in its place.
-            incoming.style.transition = 'none';
-            incoming.classList.remove(
-                'story-viewer--incoming', 'story-viewer--from-right', 'story-viewer--from-left',
-                'story-viewer--sliding', 'story-viewer--center'
-            );
-            incoming.style.left = '';
-            incoming.style.top = '';
-            incoming.style.width = '';
-            incoming.style.height = '';
-            viewer.replaceWith(incoming);
-            incoming.style.transition = '';
-            viewer = incoming;
-            incoming = null;
             renderAdjacentCards(group);
             updateStoryNavigation();
             preloadStory(userStories[currentIdx + 1]);
@@ -897,8 +880,9 @@ document.addEventListener("DOMContentLoaded", () => {
             window.alert('스토리를 불러오지 못했습니다. 다시 시도해 주세요.');
         }
         finally {
-            if (incoming) incoming.remove();
-            if (viewer) viewer.classList.remove('story-viewer--sliding', 'story-viewer--to-left', 'story-viewer--to-right');
+            if (incomingSlide?.isConnected && !transitionCompleted) incomingSlide.remove();
+            swiper.update();
+            swiper.slideTo(0, 0, false);
             isTransitioning = false;
             if (pendingTransitionAdvance) {
                 pendingTransitionAdvance = false;
@@ -970,9 +954,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (Math.abs(deltaX) < 50) return;
         swipeActionTaken = true;
         window.setTimeout(() => { swipeActionTaken = false; }, 400);
-        if (deltaX < 0) goNext();
-        else goPrevious();
+        if (deltaX < 0) transitionUser(1);
+        else transitionUser(-1);
     }, { passive: true });
+
     /* 첫 스토리 시작 */
     if (typeof currentIdx !== 'undefined' && currentIdx >= 0) {
         updateStoryNavigation();
