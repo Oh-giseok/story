@@ -83,17 +83,52 @@
     }
     .dm-chat-leave-mobile { display: none; }
     @media (max-width: 575.98px) {
-        .dm-chat-header { gap: .35rem; padding: .65rem !important; }
-        .dm-chat-back { padding: .3rem .4rem; font-size: .8rem; }
-        .dm-chat-header-user { gap: .35rem; }
-        .dm-chat-header-user img { width: 30px; height: 30px; flex-basis: 30px; }
-        .dm-chat-title { gap: .15rem; }
+        .dm-chat-header {
+            gap: .35rem;
+            padding: .65rem !important;
+        }
+
+        .dm-chat-back {
+            padding: .3rem .4rem;
+            font-size: .8rem;
+        }
+
+        .dm-chat-header-user {
+            gap: .35rem;
+        }
+
+        .dm-chat-header-user img {
+            width: 30px;
+            height: 30px;
+            flex-basis: 30px;
+        }
+
+        .dm-chat-title {
+            gap: .15rem;
+        }
+
         .dm-chat-title h5,
-        h5.dm-chat-title { font-size: .95rem; }
-        .dm-chat-title .status-text { font-size: .65rem; margin-left: 0; }
-        .dm-chat-leave { padding: .3rem .4rem; font-size: .75rem; }
-        .dm-chat-leave-desktop { display: none; }
-        .dm-chat-leave-mobile { display: inline; }
+        h5.dm-chat-title {
+            font-size: .95rem;
+        }
+
+        .dm-chat-title .status-text {
+            font-size: .65rem;
+            margin-left: 0;
+        }
+
+        .dm-chat-leave {
+            padding: .3rem .4rem;
+            font-size: .75rem;
+        }
+
+        .dm-chat-leave-desktop {
+            display: none;
+        }
+
+        .dm-chat-leave-mobile {
+            display: inline;
+        }}}
 </style>
 
 {% set current_uid = g.user.id if g.user and g.user.id else session.get('user_id') %}
@@ -331,12 +366,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!socket) console.error('Socket.IO 클라이언트를 불러오지 못해 DM 폴링 모드로 연결합니다.');
 });
 
-socket?.on('presence_change', (data) => {
-    const userId = String(data.user_id);
+function applyPresence(userId, status) {
+    userId = String(userId);
     if (userId === String(currentUserId)) return;
 
     // data.status를 그대로 반영 (online, idle, offline)
-    const status = data.status || 'offline';
+    status = status || 'offline';
     const statusClass = status;
     const statusTextMap = { 'online': 'Online', 'idle': '자리 비움', 'offline': 'Offline' };
     const textLabel = statusTextMap[status] || 'Offline';
@@ -361,6 +396,11 @@ socket?.on('presence_change', (data) => {
             text.innerText = `(${textLabel})`;
         }
     });
+}
+
+socket?.on('presence_change', (data) => applyPresence(data.user_id, data.status));
+socket?.on('presence_snapshot', (statuses) => {
+    Object.entries(statuses || {}).forEach(([userId, status]) => applyPresence(userId, status));
 });
 
 async function connectChat() {
