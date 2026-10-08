@@ -597,7 +597,7 @@
             let postUploadInProgress = false;
 
             const compressPostImage = async file => {
-                // 사진 원본만 축소하고, 동영상·애니메이션·투명 이미지 등은 그대로 보냅니다.
+                // 큰 JPEG 사진만 축소하고 다른 이미지 형식은 그대로 보냅니다.
                 if (!/^image\/jpeg$/i.test(file.type) || file.size < 1_500_000) return file;
                 if (!('createImageBitmap' in window)) return file;
                 let bitmap;
@@ -686,16 +686,9 @@
                     previewUrls.push(url);
                     const slide = document.createElement('div');
                     slide.className = 'swiper-slide';
-                    if (file.type.startsWith('video/')) {
-                        const video = document.createElement('video');
-                        video.src = url; video.controls = true; video.playsInline = true; video.preload = 'metadata';
-                        video.className = 'preview-img'; video.setAttribute('aria-label', '동영상 미리보기');
-                        slide.append(video);
-                    } else {
-                        const image = document.createElement('img');
-                        image.src = url; image.alt = '미리보기 이미지'; image.className = 'preview-img';
-                        slide.append(image);
-                    }
+                    const image = document.createElement('img');
+                    image.src = url; image.alt = '미리보기 이미지'; image.className = 'preview-img';
+                    slide.append(image);
                     previewWrapper.append(slide);
                 });
 
@@ -717,6 +710,10 @@
             dropArea.addEventListener('drop', event => {
                 event.preventDefault(); dropArea.classList.remove('bg-light');
                 if (!event.dataTransfer.files.length) return;
+                if (Array.from(event.dataTransfer.files).some(file => !file.type.startsWith('image/'))) {
+                    alert('이미지 파일만 업로드할 수 있습니다.');
+                    return;
+                }
                 fileInput.files = event.dataTransfer.files;
                 showPostPreview(fileInput.files);
             });
@@ -736,6 +733,9 @@
 
                 try {
                     const files = Array.from(fileInput.files);
+                    if (!files.length || files.some(file => !file.type.startsWith('image/'))) {
+                        throw new Error('이미지 파일만 업로드할 수 있습니다.');
+                    }
                     const optimizedFiles = await Promise.all(files.map(compressPostImage));
                     const csrfToken = postForm.elements.csrf_token.value;
                     uploadStatus.textContent = '저장소에 연결하는 중...';
@@ -778,7 +778,7 @@
                                 xhr.send(file);
                             });
 
-                            uploadStatus.textContent = '사진과 동영상을 저장소에 직접 업로드하는 중...';
+                            uploadStatus.textContent = '이미지를 저장소에 직접 업로드하는 중...';
                             const worker = async () => {
                                 while (nextFileIndex < optimizedFiles.length) {
                                     const index = nextFileIndex++;
