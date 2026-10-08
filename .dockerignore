@@ -3,7 +3,6 @@
 __pycache__/
 **/__pycache__/
 *.py[cod]
-instance/
 reports/
 .build/
 .idea/

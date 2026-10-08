@@ -75,7 +75,7 @@ FRIEND_PAIRS = [(0,1),(0,4),(0,6),(1,3),(1,7),(2,3),(2,5),(2,8),(3,8),(4,6),(4,9
 
 
 def seed_app() -> Flask:
-    """Build a DB-only Flask context; avoid create_app's automatic schema migration."""
+    """Build a DB-only Flask context without starting the web app or Redis."""
     root = Path(__file__).resolve().parent
     app = Flask("seed", static_folder=str(root / "story" / "static"), instance_path=str(root / "instance"))
     app.config.from_object("config")
@@ -89,6 +89,7 @@ def seed_app() -> Flask:
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite:"):
         app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"connect_args": {"timeout": 30}}
+    Path(app.instance_path).mkdir(parents=True, exist_ok=True)
     db.init_app(app)
     return app
 
@@ -909,6 +910,10 @@ def main(argv=None):
                 for key, value in result.items():
                     print(f"{key}: {value}")
                 return 0
+            if not args.dry_run and app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite:"):
+                # A new teammate's local SQLite DB has no schema yet. create_all
+                # is additive and lets the documented one-command seed setup work.
+                db.create_all()
             plan = plan_reset()
             counts = _counts_for_plan(plan)
             print("[Seed Dry Run: identified rows]" if args.dry_run else "[Seed plan: identified rows]")
