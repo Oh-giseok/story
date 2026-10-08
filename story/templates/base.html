@@ -1152,13 +1152,8 @@
     </script>
     {% endif %}
 
-    {% if current_user.is_authenticated %}
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    {% endif %}
-
     {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage'] %}
     {% if (current_user.is_authenticated or g.user) and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage', 'story.detail', 'dm.user_list', 'reels.reels'] %}
-        <script src="/socket.io/socket.io.js"></script>
         <script>
         document.addEventListener('DOMContentLoaded', () => {
             const notificationModal = document.getElementById('notificationModal');
@@ -1255,7 +1250,7 @@
             });
 
             if (typeof io !== 'function') return;
-            const notificationSocket = io();
+            const notificationSocket = io({ transports: ['polling'] });
 
             notificationSocket.on('new_notification', (notification) => {
                 if (!notification || notificationList.querySelector(`[data-notification-id="${notification.id}"]`)) return;

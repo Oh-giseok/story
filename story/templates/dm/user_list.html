@@ -196,7 +196,7 @@ const senderElem = document.getElementById('sender_id');
 const currentUserId = senderElem ? senderElem.value : "{{ current_uid }}";
 
 let currentConvId = null;
-const socket = window.io ? window.io({ query: { user_id: currentUserId } }) : null;
+const socket = window.io ? window.io({ query: { user_id: currentUserId }, transports: ['polling'] }) : null;
 
 function parseUtcTimestamp(value) {
     if (!value) return null;
