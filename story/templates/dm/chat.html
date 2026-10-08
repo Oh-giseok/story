@@ -16,6 +16,9 @@
     .status-dot.online {
         background-color: #28a745;
     }
+    .status-dot.idle {
+        background-color: #ffc107;
+    }
     .status-dot.offline {
         background-color: #6c757d;
     }
@@ -33,6 +36,16 @@
         color: #adb5bd;
         flex-shrink: 0;
     }
+
+    .unread-dot {
+        width: 10px;
+        height: 10px;
+        background-color: #dc3545;
+        border-radius: 50%;
+        flex-shrink: 0;
+        margin-left: 8px;
+    }
+
     .dm-chat-header {
         gap: .5rem;
         min-width: 0;
@@ -98,50 +111,46 @@
 
                 <div class="card-body p-2 overflow-auto" style="max-height: 650px;">
                     <div class="fw-bold small text-muted px-2 my-2">최근 대화</div>
-                    <div class="list-group list-group-flush mb-3">
+                    <div class="list-group list-group-flush mb-3" id="recent-chat-list">
                         {% for item in active_chat_users %}
                             {% set is_self_recent = (item.user.id == current_uid) %}
-                            {% set is_online_recent = is_self_recent or item.user.is_online %}
+                            {% set conn_status_recent = 'online' if is_self_recent else item.user.connection_status %}
+                            {% set has_unread = item.has_unread if item.has_unread is defined else False %}
+
                             <a href="{{ url_for('dm.user_list', target_id=item.user.id) }}"
-                               class="list-group-item list-group-item-action border-0 rounded mb-1 d-flex justify-content-between align-items-center py-2 {% if target_id == item.user.id %}active bg-light text-dark fw-bold{% endif %}">
-                                <div class="d-flex align-items-center text-truncate">
+                               id="recent-item-{{ item.user.id }}"
+                               class="list-group-item list-group-item-action border-0 rounded mb-1 d-flex justify-content-between align-items-center py-2 {% if target_id == item.user.id %}active bg-light text-dark{% endif %}">
+                                <div class="d-flex align-items-center text-truncate pe-2">
                                     <img src="{{ item.user.profile_img_url | profile_img }}"
                                          onerror="handleImageError(this)"
                                          class="rounded-circle me-2 flex-shrink-0" width="40" height="40" style="object-fit: cover;">
                                     <div class="text-truncate">
                                         <div class="small text-dark d-flex align-items-center">
-                                            <span class="status-dot {{ 'online' if is_online_recent else 'offline' }}" id="left-recent-dot-{{ item.user.id }}"></span>
-                                            <span>{{ item.user.name or item.user.username }}</span>
-                                            <span class="status-text" id="left-recent-text-{{ item.user.id }}">({{ 'Online' if is_online_recent else 'Offline' }})</span>
+                                            <span class="status-dot {{ conn_status_recent }}" id="left-recent-dot-{{ item.user.id }}"></span>
+                                            <span class="{% if has_unread %}fw-bold text-dark{% endif %}" id="recent-name-{{ item.user.id }}">{{ item.user.name or item.user.username }}</span>
+                                            <span class="status-text" id="left-recent-text-{{ item.user.id }}">({% if conn_status_recent == 'online' %}Online{% elif conn_status_recent == 'idle' %}자리 비움{% else %}Offline{% endif %})</span>
                                         </div>
-                                        <small class="text-muted d-block text-truncate" style="font-size: 0.75rem;">
+                                        <small class="d-block text-truncate {% if has_unread %}fw-bold text-dark{% else %}text-muted{% endif %}" id="recent-msg-{{ item.user.id }}" style="font-size: 0.75rem;">
                                             {{ item.last_message.text if item.last_message else '대화 없음' }}
                                         </small>
                                     </div>
                                 </div>
+
+                                <span class="unread-dot {% if not has_unread %}d-none{% endif %}" id="recent-badge-{{ item.user.id }}" title="읽지 않은 메시지 있음"></span>
                             </a>
                         {% else %}
-                            <div class="text-muted small px-2">진행 중인 대화가 없습니다.</div>
+                            <div class="text-muted small px-2" id="no-recent-chat">진행 중인 대화가 없습니다.</div>
                         {% endfor %}
                     </div>
 
                     <hr class="my-2">
 
                     <div class="fw-bold small text-muted px-2 my-2">새 메시지 보내기</div>
-                    <form method="GET" action="{{ url_for('dm.user_list') }}" class="mb-2 px-1">
-                        {% if target_id %}
-                            <input type="hidden" name="target_id" value="{{ target_id }}">
-                        {% endif %}
-                        <div class="input-group input-group-sm">
-                            <input type="text" name="q" class="form-control" placeholder="검색..." value="{{ keyword }}">
-                            <button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i></button>
-                        </div>
-                    </form>
 
                     <div class="list-group list-group-flush">
-                        {% for user in all_users %}
+                        {% for user in friends %}
                             {% set is_self_all = (user.id == current_uid) %}
-                            {% set is_online_all = is_self_all or user.is_online %}
+                            {% set conn_status_all = 'online' if is_self_all else user.connection_status %}
                             <a href="{{ url_for('dm.user_list', target_id=user.id) }}"
                                class="list-group-item list-group-item-action border-0 rounded mb-1 d-flex align-items-center justify-content-between py-2 px-1">
                                 <div class="d-flex align-items-center">
@@ -150,9 +159,9 @@
                                          class="rounded-circle me-2 flex-shrink-0" width="36" height="36" style="object-fit: cover;">
                                     <div>
                                         <div class="small fw-bold text-dark d-flex align-items-center">
-                                            <span class="status-dot {{ 'online' if is_online_all else 'offline' }}" id="left-all-dot-{{ user.id }}"></span>
+                                            <span class="status-dot {{ conn_status_all }}" id="left-all-dot-{{ user.id }}"></span>
                                             <span>{{ user.name or user.username }}</span>
-                                            <span class="status-text" id="left-all-text-{{ user.id }}">({{ 'Online' if is_online_all else 'Offline' }})</span>
+                                            <span class="status-text" id="left-all-text-{{ user.id }}">({% if conn_status_all == 'online' %}Online{% elif conn_status_all == 'idle' %}자리 비움{% else %}Offline{% endif %})</span>
                                         </div>
                                         <small class="text-muted" style="font-size:0.7rem;">@{{ user.username }}</small>
                                     </div>
@@ -160,7 +169,7 @@
                                 <span class="btn btn-xs btn-outline-primary rounded-pill px-2 py-0" style="font-size: 0.75rem;">대화</span>
                             </a>
                         {% else %}
-                            <div class="text-muted small px-2">검색 결과가 없습니다.</div>
+                            <div class="text-muted small px-2">추가된 친구가 없습니다.</div>
                         {% endfor %}
                     </div>
                 </div>
@@ -184,10 +193,14 @@
                         <h5 class="mb-0 fw-bold dm-chat-title">
                             {% if target_name %}
                                 {% set is_self_target = (target_id|int == current_uid|int) %}
-                                {% set is_online_target = is_self_target or (target_user and target_user.is_online) %}
-                                <span class="status-dot {{ 'online' if is_online_target else 'offline' }}" id="chat-header-dot"></span>
+                                {% set conn_status_target = 'online' if is_self_target else (target_user.connection_status if target_user else 'offline') %}
+                                <span class="status-dot {{ conn_status_target }}" id="chat-header-dot"></span>
                                 <span class="dm-chat-name">{{ target_name }}</span>
-                                <span class="status-text" id="chat-header-text">({{ 'Online' if is_online_target else 'Offline' }})</span>
+                                <span class="status-text" id="chat-header-text">({% if conn_status_target == 'online' %}Online{% elif conn_status_target == 'idle' %}자리 비움{% else %}Offline{% endif %})</span>
+<!--                                {% set is_online_target = is_self_target or (target_user and target_user.is_online) %}-->
+<!--                                <span class="status-dot {{ 'online' if is_online_target else 'offline' }}" id="chat-header-dot"></span>-->
+<!--                                <span class="dm-chat-name">{{ target_name }}</span>-->
+<!--                                <span class="status-text" id="chat-header-text">({{ 'Online' if is_online_target else 'Offline' }})</span>-->
                             {% else %}
                                 대화 상대를 선택하세요
                             {% endif %}
@@ -255,7 +268,10 @@ const senderElem = document.getElementById('sender_id');
 const currentUserId = senderElem ? senderElem.value : "{{ current_uid }}";
 
 let currentConvId = null;
-const socket = window.io ? window.io({ query: { user_id: currentUserId } }) : null;
+const socket = window.io ? window.io({
+    query: { user_id: currentUserId },
+    transports: ['polling']
+}) : null;
 
 function parseUtcTimestamp(value) {
     if (!value) return null;
@@ -288,6 +304,23 @@ function messageTimeMarkup(value, className) {
     return `<small class="${className}" style="font-size:0.75rem;" title="${fullKst}">${timeAgo(value)}</small>`;
 }
 
+function markUserAsReadUI(userId) {
+    const recentName = document.getElementById(`recent-name-${userId}`);
+    const recentMsgText = document.getElementById(`recent-msg-${userId}`);
+    const recentBadge = document.getElementById(`recent-badge-${userId}`);
+
+    if (recentBadge) {
+        recentBadge.classList.add('d-none');
+    }
+    if (recentName) {
+        recentName.classList.remove('fw-bold', 'text-dark');
+    }
+    if (recentMsgText) {
+        recentMsgText.classList.remove('fw-bold', 'text-dark');
+        recentMsgText.classList.add('text-muted');
+    }
+}
+
 setInterval(() => {
     if (currentUserId) {
         socket?.emit('heartbeat', { user_id: currentUserId });
@@ -300,11 +333,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!socket) console.error('Socket.IO 클라이언트를 불러오지 못해 DM 폴링 모드로 연결합니다.');
 });
 
-socket?.on('presence_change', (data) => {
-    const userId = String(data.user_id);
+function applyPresence(userId, status) {
+    userId = String(userId);
     if (userId === String(currentUserId)) return;
 
-    const isOnline = (data.status === 'online');
+    // data.status를 그대로 반영 (online, idle, offline)
+    status = status || 'offline';
+    const statusClass = status;
+    const statusTextMap = { 'online': 'Online', 'idle': '자리 비움', 'offline': 'Offline' };
+    const textLabel = statusTextMap[status] || 'Offline';
+
     const targetInput = document.getElementById('target_id');
     const currentTargetId = targetInput ? String(targetInput.value) : null;
 
@@ -312,8 +350,8 @@ socket?.on('presence_change', (data) => {
         const headerDot = document.getElementById('chat-header-dot');
         const headerText = document.getElementById('chat-header-text');
         if (headerDot && headerText) {
-            headerDot.className = `status-dot ${isOnline ? 'online' : 'offline'}`;
-            headerText.innerText = `(${isOnline ? 'Online' : 'Offline'})`;
+            headerDot.className = `status-dot ${statusClass}`;
+            headerText.innerText = `(${textLabel})`;
         }
     }
 
@@ -321,10 +359,15 @@ socket?.on('presence_change', (data) => {
         const dot = document.getElementById(`${prefix}-dot-${userId}`);
         const text = document.getElementById(`${prefix}-text-${userId}`);
         if (dot && text) {
-            dot.className = `status-dot ${isOnline ? 'online' : 'offline'}`;
-            text.innerText = `(${isOnline ? 'Online' : 'Offline'})`;
+            dot.className = `status-dot ${statusClass}`;
+            text.innerText = `(${textLabel})`;
         }
     });
+}
+
+socket?.on('presence_change', (data) => applyPresence(data.user_id, data.status));
+socket?.on('presence_snapshot', (statuses) => {
+    Object.entries(statuses || {}).forEach(([userId, status]) => applyPresence(userId, status));
 });
 
 async function connectChat() {
@@ -357,6 +400,7 @@ async function connectChat() {
 
         socket?.emit('join_room', { conversation_id: currentConvId });
         socket?.emit('mark_read', { conversation_id: currentConvId, user_id: userId1 });
+        markUserAsReadUI(userId2);
         await loadMessages();
     } catch (error) {
         console.error("채팅방 연결 오류:", error);
@@ -436,18 +480,82 @@ async function leaveConversation(targetId) {
 
 socket?.on('receive_message', function(msg) {
     const senderElem = document.getElementById('sender_id');
-    const currentUserId = senderElem ? parseInt(senderElem.value) : null;
+    const activeUserId = senderElem ? Number(senderElem.value) : null;
+    const targetInput = document.getElementById('target_id');
+    const currentTargetId = targetInput ? Number(targetInput.value) : null;
+    const messageSenderId = Number(msg.sender_id);
 
-    appendMessage(msg);
+    if (currentConvId && Number(msg.conversation_id) === Number(currentConvId)) {
+        appendMessage(msg);
+        if (activeUserId && messageSenderId !== activeUserId) {
+            socket?.emit('mark_read', { conversation_id: currentConvId, user_id: activeUserId });
+            markUserAsReadUI(messageSenderId);
+        }
+    }
 
-    if (currentUserId && Number(msg.sender_id) !== Number(currentUserId)) {
-        socket?.emit('mark_read', { conversation_id: currentConvId, user_id: currentUserId });
+    const otherUserId = (messageSenderId === activeUserId) ? currentTargetId : messageSenderId;
+    if (otherUserId) {
+        const recentItem = document.getElementById(`recent-item-${otherUserId}`);
+        const recentName = document.getElementById(`recent-name-${otherUserId}`);
+        const recentMsgText = document.getElementById(`recent-msg-${otherUserId}`);
+        const recentBadge = document.getElementById(`recent-badge-${otherUserId}`);
+        const recentList = document.getElementById('recent-chat-list');
+
+        if (recentMsgText) {
+            recentMsgText.textContent = msg.text;
+            if (messageSenderId === activeUserId) {
+                recentMsgText.classList.remove('fw-bold', 'text-dark');
+                recentMsgText.classList.add('text-muted');
+            } else if (currentTargetId !== otherUserId) {
+                recentMsgText.classList.remove('text-muted');
+                recentMsgText.classList.add('fw-bold', 'text-dark');
+            }
+        }
+
+        if (recentName) {
+            if (messageSenderId === activeUserId) {
+                recentName.classList.remove('fw-bold', 'text-dark');
+            } else if (currentTargetId !== otherUserId) {
+                recentName.classList.add('fw-bold', 'text-dark');
+            }
+        }
+
+        if (recentBadge) {
+            if (messageSenderId === activeUserId || currentTargetId === otherUserId) {
+                recentBadge.classList.add('d-none');
+            } else {
+                recentBadge.classList.remove('d-none');
+                updateNotificationPopup(otherUserId, msg);
+            }
+        }
+
+        if (recentItem && recentList) {
+            recentList.prepend(recentItem);
+        }
     }
 });
+
+function updateNotificationPopup(userId, msg) {
+    const notificationList = document.querySelector('.notification-list, #notification-dropdown, .dropdown-menu-notifications');
+    if (notificationList) {
+        let notifItem = document.getElementById(`notification-item-${userId}`);
+        if (!notifItem) {
+            notifItem = document.createElement('div');
+            notifItem.id = `notification-item-${userId}`;
+            notifItem.className = 'dropdown-item small text-wrap py-2 border-bottom';
+            notificationList.prepend(notifItem);
+        }
+        notifItem.innerHTML = `<span class="fw-bold">새로운 메시지가 있습니다.</span><br><span class="text-muted" style="font-size:0.75rem;">${escapeHtml(msg.text)}</span>`;
+    }
+}
 
 socket?.on('update_read_status', function(data) {
     if (data.conversation_id === currentConvId) {
         loadMessages();
+        const targetInput = document.getElementById('target_id');
+        if (targetInput) {
+            markUserAsReadUI(parseInt(targetInput.value));
+        }
     }
 });
 
@@ -475,14 +583,14 @@ function appendMessage(msg) {
         : '';
 
     if (isMe) {
-        div.innerHTML = `${unreadBadge}<div class="p-2 rounded bg-primary text-white" style="max-width:70%;"><strong>나:</strong> ${escapeHtml(msg.text)} <br>${messageTimeMarkup(msg.created_at, 'text-white-50')}</div>`;
+        div.innerHTML = `${unreadBadge}<div class="p-2 rounded bg-primary text-white" style="max-width:70%;">${escapeHtml(msg.text)} <br>${messageTimeMarkup(msg.created_at, 'text-white-50')}</div>`;
     } else {
         div.innerHTML = `
             <img src="${senderImg}"
                  onerror="handleImageError(this)"
                  class="rounded-circle me-2 flex-shrink-0 align-self-start" width="36" height="36" style="object-fit: cover;">
             <div class="p-2 rounded bg-white border" style="max-width:70%;">
-                <strong>상대방:</strong> ${escapeHtml(msg.text)} <br>
+                ${escapeHtml(msg.text)} <br>
                 ${messageTimeMarkup(msg.created_at, 'text-muted')}
             </div>
             ${unreadBadge}

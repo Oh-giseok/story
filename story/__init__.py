@@ -1,4 +1,7 @@
 import os
+import redis
+from redis.backoff import NoBackoff
+from redis.retry import Retry
 from datetime import datetime, timedelta
 from flask import Flask, redirect, render_template, url_for, g, session
 from flask_migrate import Migrate
@@ -11,11 +14,23 @@ db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
 
+redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+try:
+    redis_client = redis.Redis.from_url(
+        redis_url,
+        decode_responses=True,
+        socket_connect_timeout=0.25,
+        socket_timeout=0.25,
+        retry=Retry(NoBackoff(), 0),
+    )
+    redis_client.ping()
+except Exception:
+    redis_client = None
+
 
 def create_app():
     app = Flask(__name__)
 
-    # 업로드 폴더 설정
     app.config['UPLOAD_FOLDER'] = os.path.join(
         app.root_path, 'static', 'reels_uploads'
     )
@@ -24,12 +39,10 @@ def create_app():
     os.makedirs(upload_folder, exist_ok=True)
     app.config['POST_UPLOAD_FOLDER'] = upload_folder
 
-    # 프로필 이미지는 정적 파일로 제공한다.
     profile_upload_folder = os.path.join(app.root_path, 'static', 'profile')
     os.makedirs(profile_upload_folder, exist_ok=True)
     app.config['PROFILE_UPLOAD_FOLDER'] = profile_upload_folder
 
-    # 설정 로드
     app.config.from_object('config')
 
     # Render 같은 호스팅 환경의 값으로 개발 기본 설정을 덮어쓴다.
@@ -58,13 +71,10 @@ def create_app():
     if not app.config.get('SECRET_KEY'):
         app.config['SECRET_KEY'] = 'dev-secret-key'
 
-    # ORM 초기화
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
-    login_message = '로그인이 필요합니다.'
-    login_message_category = 'info'
 
     @app.template_filter('profile_img')
     def profile_img_filter(img_url):
@@ -135,21 +145,26 @@ def create_app():
             'unread_notification_count': unread_count,
         }
 
-    # 모델 로드
     from . import models
 
-    # Flask-Login 사용자 불러오기
     @login_manager.user_loader
     def load_user(user_id):
         return models.User.query.get(int(user_id))
 
-    # SocketIO 초기화 및 로드
     from story.events import socketio
-    socketio.init_app(app, cors_allowed_origins="*")
+    socketio_options = {
+        'cors_allowed_origins': '*',
+        'async_mode': 'threading',
+        'transports': ['polling'],
+        'logger': False,
+        'engineio_logger': False,
+    }
+    if redis_client is not None:
+        socketio_options['message_queue'] = redis_url
+    socketio.init_app(app, **socketio_options)
 
     with app.app_context():
         db.create_all()
-        # create_all does not add columns to an existing database.
         from sqlalchemy import inspect, text
         user_columns = {column['name'] for column in inspect(db.engine).get_columns('user')}
         schema_changed = False
@@ -169,8 +184,6 @@ def create_app():
                 ))
         table_names = set(inspect(db.engine).get_table_names())
         if 'notification_new' in table_names:
-            # Recover an interrupted prior run: keep the original table when it exists;
-            # if it was already dropped, promote the copied table back to its name.
             with db.engine.begin() as connection:
                 if 'notification' in table_names:
                     connection.exec_driver_sql('DROP TABLE notification_new')
@@ -179,8 +192,6 @@ def create_app():
         notification_columns = {column['name']: column for column in inspect(db.engine).get_columns('notification')}
         if ('post_id' not in notification_columns or 'message' not in notification_columns
                 or notification_columns.get('friendship_id', {}).get('nullable') is False):
-            # Existing databases predate post notifications; rebuild this small table so
-            # friendship_id can be empty while preserving existing friend notifications.
             if db.engine.dialect.name == 'sqlite':
                 db.session.commit()
                 raw_connection = db.engine.raw_connection()
@@ -189,19 +200,20 @@ def create_app():
                     cursor.execute('PRAGMA foreign_keys=OFF')
                     cursor.execute('DROP TABLE IF EXISTS notification_new')
                     cursor.execute('''
-                        CREATE TABLE notification_new (
-                            id INTEGER NOT NULL PRIMARY KEY,
-                            recipient_id INTEGER NOT NULL REFERENCES user(id) ON DELETE CASCADE,
-                            actor_id INTEGER NOT NULL REFERENCES user(id) ON DELETE CASCADE,
-                            friendship_id INTEGER REFERENCES friendship(id) ON DELETE CASCADE,
-                            post_id INTEGER REFERENCES post(id) ON DELETE CASCADE,
-                            message TEXT,
-                            type VARCHAR(40) NOT NULL DEFAULT 'friend_request',
-                            is_read BOOLEAN NOT NULL DEFAULT 0,
-                            created_at DATETIME NOT NULL,
-                            CONSTRAINT unique_friend_request_notification UNIQUE (friendship_id, recipient_id, type)
-                        )
-                    ''')
+                                   CREATE TABLE notification_new
+                                   (
+                                       id            INTEGER     NOT NULL PRIMARY KEY,
+                                       recipient_id  INTEGER     NOT NULL REFERENCES user (id) ON DELETE CASCADE,
+                                       actor_id      INTEGER     NOT NULL REFERENCES user (id) ON DELETE CASCADE,
+                                       friendship_id INTEGER REFERENCES friendship (id) ON DELETE CASCADE,
+                                       post_id       INTEGER REFERENCES post (id) ON DELETE CASCADE,
+                                       message       TEXT,
+                                       type          VARCHAR(40) NOT NULL DEFAULT 'friend_request',
+                                       is_read       BOOLEAN     NOT NULL DEFAULT 0,
+                                       created_at    DATETIME    NOT NULL,
+                                       CONSTRAINT unique_friend_request_notification UNIQUE (friendship_id, recipient_id, type)
+                                   )
+                                   ''')
                     old_columns = set(notification_columns)
                     post_expr = 'post_id' if 'post_id' in old_columns else 'NULL'
                     message_expr = 'message' if 'message' in old_columns else 'NULL'
@@ -252,7 +264,6 @@ def create_app():
         else:
             db.session.rollback()
 
-    # 블루프린트 임포트 및 등록
     from story.views import auth_views, dmviews, main_views, post_views, story_views
     from .views.Reels_views import reels_bp
 
@@ -265,18 +276,13 @@ def create_app():
 
     account_maintenance = {'last_run': datetime.min}
 
-    # 로그인과 회원가입, 정적 파일만 비로그인 상태에서 접근할 수 있다.
     @app.before_request
     def require_login():
         from flask import request
-
-        # Run account lifecycle maintenance on requests, so no external scheduler is
-        # required. Deletion happens on the first request after the 10-day deadline.
         from story.models import User
         from story import db
+
         now = utc_now_naive()
-        # Avoid writing to SQLite on every request. Lifecycle sweeps run at most
-        # every 30 minutes; login separately enforces an expired deletion deadline.
         if now - account_maintenance['last_run'] >= timedelta(minutes=30):
             User.query.filter(
                 User.status == 'active',
@@ -294,26 +300,33 @@ def create_app():
             db.session.commit()
             account_maintenance['last_run'] = now
 
-        # Keep the currently logged-in account's activity timestamp current.
         user_id = session.get('user_id')
         if user_id:
+            if redis_client:
+                try:
+                    # Socket.IO heartbeat와 같은 TTL로 두어 비정상 종료도 빠르게 정리한다.
+                    redis_client.setex(f'user_online:{user_id}', 60, '1')
+                except Exception:
+                    pass
+
             g.user = User.query.get(user_id)
             if g.user and g.user.status == 'active' and (
-                not g.user.last_activity_at or
-                g.user.last_activity_at < now - timedelta(minutes=5)
+                    not g.user.last_activity_at or
+                    g.user.last_activity_at < now - timedelta(minutes=1)
             ):
                 g.user.last_activity_at = now
                 db.session.commit()
 
         if request.endpoint == 'static' or request.endpoint in {
-            'auth.login', 'auth.signup', 'auth.find_info', 'auth.check_signup_value'
+            'auth.login', 'auth.signup', 'auth.find_info', 'auth.check_signup_value',
+            # Like endpoints return their own JSON 401 responses for anonymous AJAX calls.
+            'post.like', 'reels.like_reel'
         }:
             return None
 
         if not current_user.is_authenticated or (g.user and g.user.status != 'active'):
             return redirect(url_for('auth.login', next=request.url))
 
-    # 템플릿 필터 (작성 시간)
     @app.template_filter('time_ago')
     def time_ago_filter(value):
         if not value:
@@ -336,7 +349,6 @@ def create_app():
 
     @app.template_filter('time_ago_local')
     def time_ago_local_filter(value):
-        """Story timestamps predate UTC normalization and are naive KST."""
         if not value:
             return ""
         diff = kst_now_naive() - value

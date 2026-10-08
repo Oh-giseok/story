@@ -1,13 +1,15 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, g, current_app
-from story.models import db, Conversation, Message, MessageRead, User
-from flask_login import current_user
 from datetime import datetime
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, g, current_app
+from flask_login import current_user
+from story.models import db, Conversation, Message, MessageRead, User, Friendship
+from sqlalchemy import and_, func
 
 bp = Blueprint('dm', __name__, url_prefix='/dm')
 
 @bp.before_request
 def check_login():
-    current_user_id = session.get('user_id') or (current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None)
+    current_user_id = session.get('user_id') or (
+        current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None)
     if not current_user_id and hasattr(g, 'user') and g.user:
         current_user_id = g.user.id
     if not current_user_id:
@@ -17,9 +19,12 @@ def check_login():
             return redirect(url_for('auth.login'))
 
 
-def get_active_chat_users(user_id):
+def get_active_chat_users(user_id, current_target_id=None):
     if not user_id:
         return []
+
+    user_id = int(user_id)
+
     conversations = Conversation.query.filter(
         (Conversation.user_id1 == user_id) | (Conversation.user_id2 == user_id)
     ).all()
@@ -30,9 +35,36 @@ def get_active_chat_users(user_id):
         if tuser:
             last_msg = Message.query.filter_by(conversation_id=conv.id).order_by(Message.created_at.desc()).first()
             if last_msg:
+                partner_msg_ids = [m.id for m in Message.query.filter(
+                    Message.conversation_id == conv.id,
+                    Message.sender_id != user_id
+                ).all()]
+
+                unread_count = 0
+                if partner_msg_ids:
+                    read_msg_ids = {r.message_id for r in MessageRead.query.filter(
+                        MessageRead.message_id.in_(partner_msg_ids),
+                        MessageRead.user_id == user_id
+                    ).all()}
+                    unread_count = len(partner_msg_ids) - len(read_msg_ids)
+
+                is_partner_last = (int(last_msg.sender_id) != user_id)
+
+                if not is_partner_last:
+                    has_unread = False
+                    unread_count = 0
+                else:
+                    has_unread = (unread_count > 0)
+
+                if current_target_id and int(current_target_id) == tid:
+                    has_unread = False
+                    unread_count = 0
+
                 active_chat_users.append({
                     'user': tuser,
-                    'last_message': last_msg
+                    'last_message': last_msg,
+                    'unread_count': unread_count,
+                    'has_unread': has_unread
                 })
     active_chat_users.sort(
         key=lambda x: x['last_message'].created_at if x['last_message'] else datetime.min,
@@ -40,34 +72,152 @@ def get_active_chat_users(user_id):
     )
     return active_chat_users
 
+
+def get_recent_chat_users(user_id):
+    """Return the main-page DM summary with a fixed number of database queries."""
+    if not user_id:
+        return []
+
+    user_id = int(user_id)
+    conversations = Conversation.query.filter(
+        (Conversation.user_id1 == user_id) | (Conversation.user_id2 == user_id)
+    ).all()
+    if not conversations:
+        return []
+
+    conversation_ids = [conversation.id for conversation in conversations]
+    target_ids = {
+        conversation.user_id2 if conversation.user_id1 == user_id else conversation.user_id1
+        for conversation in conversations
+    }
+
+    users_by_id = {
+        user.id: user
+        for user in User.query.filter(User.id.in_(target_ids)).all()
+    }
+
+    ranked_messages = (
+        db.session.query(
+            Message.id.label('message_id'),
+            Message.conversation_id.label('conversation_id'),
+            func.row_number().over(
+                partition_by=Message.conversation_id,
+                order_by=[Message.created_at.desc(), Message.id.desc()],
+            ).label('message_rank'),
+        )
+        .filter(Message.conversation_id.in_(conversation_ids))
+        .subquery()
+    )
+    latest_messages = (
+        Message.query
+        .join(ranked_messages, Message.id == ranked_messages.c.message_id)
+        .filter(ranked_messages.c.message_rank == 1)
+        .all()
+    )
+    latest_by_conversation = {
+        message.conversation_id: message
+        for message in latest_messages
+    }
+
+    unread_rows = (
+        db.session.query(Message.conversation_id, func.count(Message.id))
+        .outerjoin(
+            MessageRead,
+            and_(
+                MessageRead.message_id == Message.id,
+                MessageRead.user_id == user_id,
+            ),
+        )
+        .filter(
+            Message.conversation_id.in_(conversation_ids),
+            Message.sender_id != user_id,
+            MessageRead.id.is_(None),
+        )
+        .group_by(Message.conversation_id)
+        .all()
+    )
+    unread_by_conversation = dict(unread_rows)
+
+    recent_users = []
+    for conversation in conversations:
+        target_id = (
+            conversation.user_id2
+            if conversation.user_id1 == user_id
+            else conversation.user_id1
+        )
+        target_user = users_by_id.get(target_id)
+        last_message = latest_by_conversation.get(conversation.id)
+        if not target_user or not last_message:
+            continue
+
+        unread_count = unread_by_conversation.get(conversation.id, 0)
+        # Keep the current main-page behavior: a latest message sent by me clears the badge.
+        if last_message.sender_id == user_id:
+            unread_count = 0
+
+        recent_users.append({
+            'user': target_user,
+            'last_message': last_message,
+            'unread_count': unread_count,
+            'has_unread': unread_count > 0,
+        })
+
+    recent_users.sort(
+        key=lambda item: item['last_message'].created_at or datetime.min,
+        reverse=True,
+    )
+    return recent_users
+
+
 @bp.route('/')
 @bp.route('/users')
 @bp.route('/chat')
 def user_list():
-    current_user_id = session.get('user_id') or (current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None) or (g.user.id if hasattr(g, 'user') and g.user else None)
+    current_user_id = session.get('user_id') or (
+        current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None) or (
+                          g.user.id if hasattr(g, 'user') and g.user else None)
     target_id = request.args.get('target_id', default=None, type=int)
     keyword = request.args.get('q', '', type=str)
-    active_chat_users = get_active_chat_users(current_user_id)
-    query = User.query.filter(User.id != current_user_id)
-    if keyword:
-        query = query.filter((User.username.contains(keyword)) | (User.name.contains(keyword)))
-    all_users = query.all()
+
+    active_chat_users = get_active_chat_users(current_user_id, target_id)
+
+    friends = []
+    if current_user_id:
+        accepted_friendships = Friendship.query.filter(
+            ((Friendship.user_low_id == current_user_id) | (Friendship.user_high_id == current_user_id)),
+            Friendship.status == 'accepted'
+        ).all()
+
+        friend_ids = set()
+        for f in accepted_friendships:
+            fid = f.user_high_id if f.user_low_id == current_user_id else f.user_low_id
+            if fid != int(current_user_id):
+                friend_ids.add(fid)
+
+        if friend_ids:
+            friend_query = User.query.filter(User.id.in_(friend_ids))
+            if keyword:
+                friend_query = friend_query.filter((User.username.contains(keyword)) | (User.name.contains(keyword)))
+            friends = friend_query.all()
+
     target_user = User.query.get(target_id) if target_id else None
     target_name = (target_user.name or target_user.username) if target_user else None
+
     return render_template(
         'dm/chat.html',
         active_chat_users=active_chat_users,
-        all_users=all_users,
+        friends=friends,
         keyword=keyword,
         target_id=target_id,
         target_name=target_name,
         target_user=target_user
     )
 
+
 @bp.route('/conversations', methods=['POST'])
 def get_or_create_conversation():
     data = request.get_json() or {}
-    u1, u2 = sorted([data.get('user_id1'), data.get('user_id2')])
+    u1, u2 = sorted([int(data.get('user_id1')), int(data.get('user_id2'))])
     if not u1 or not u2:
         return jsonify({'error': '유효하지 않은 유저 ID입니다.'}), 400
     conv = Conversation.query.filter_by(user_id1=u1, user_id2=u2).first()
@@ -77,6 +227,7 @@ def get_or_create_conversation():
         db.session.commit()
     return jsonify({'conversation_id': conv.id})
 
+@bp.route('/conversations/<int:conv_id>/messages', methods=['GET'])
 @bp.route('/conversations/<int:conv_id>/messages', methods=['GET', 'POST'])
 def get_messages(conv_id):
     user_id = session.get('user_id') or (current_user.id if current_user.is_authenticated else None) or (g.user.id if g.user else None)
@@ -132,10 +283,13 @@ def get_messages(conv_id):
                 db.session.rollback()
     return jsonify([msg.to_dict() for msg in messages])
 
+
 @bp.route('/leave', methods=['POST'])
 def leave_conversation():
     data = request.get_json() or {}
-    current_user_id = session.get('user_id') or (current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None) or (g.user.id if hasattr(g, 'user') and g.user else None)
+    current_user_id = session.get('user_id') or (
+        current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None) or (
+                          g.user.id if hasattr(g, 'user') and g.user else None)
     target_id = data.get('target_id')
     if not current_user_id or not target_id:
         return jsonify({'error': '잘못된 요청입니다.'}), 400

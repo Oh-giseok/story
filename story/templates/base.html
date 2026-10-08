@@ -12,6 +12,7 @@
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"
         rel="stylesheet">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -24,7 +25,6 @@
             font-family: "Instagram Sans", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
         }
 
-        /* 기본 상태: 인증된 사용자에게만 하단 여백 부여 */
         {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup'] %}
         body {
             padding-bottom: 70px;
@@ -35,31 +35,81 @@
         }
         {% endif %}
 
-            /* 1. 좌측 DM 사이드바 */
+        /* 상태 점 스타일 정의 */
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+        .status-dot.online { background-color: #28a745; } /* 초록색 */
+        .status-dot.idle { background-color: #ffc107; }   /* 노란색 (자리 비움) */
+        .status-dot.offline { background-color: #6c757d; }/* 회색 (오프라인) */
+
+        /* 콘텐츠는 화면 중앙 열에 고정하고 DM 사이드바는 별도 좌측 열에 둡니다. */
+        {#.content-layout-wrapper {#}
+        {#    display: grid;#}
+        {#    grid-template-columns: 280px minmax(0, 800px) 280px;#}
+        {#    gap: 24px;#}
+        {#    max-width: 1448px;#}
+        {#    width: 100%;#}
+        {#    margin: 0 auto;#}
+        {#    justify-content: center;#}
+        {#    align-items: flex-start;#}
+        {#    padding: 0 20px;#}
+        {#}#}
+
         .left-dm-sidebar {
-            position:fixed;
-            top:25px;
-            left:50px;
             width: 280px;
-            flex-shrink: 0;
+            position: fixed;
+            left: 32px;
+            top: 20px;
+            z-index: 1020;
         }
 
-        /* 홈의 메뉴 반응형 기준과 동일하게 좁은 화면에서는 DM 목록 숨김 */
-        @media (max-width: 992px) {
+        .main-content-column {
+            grid-column: 2;
+            min-width: 0;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .main-content-column.post-list-layout {
+            max-width: 500px;
+        }
+
+        @media (max-width: 1448px) {
             .left-dm-sidebar {
                 display: none;
             }
+            .content-layout-wrapper {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 800px) minmax(0, 1fr);
+            }
         }
 
-        /* 하단 고정 네비게이션 Bar 스타일 */
+        @media (max-width: 992px) {
+            .content-layout-wrapper { display: block; }
+            .main-content-column { margin: 0 auto; }
+        }
+
+        @media (max-width: 992px) {
+            .left-dm-sidebar { left: 14px; }
+        }
+
+        @media (max-width: 576px) {
+            .left-dm-sidebar { left: 10px; }
+        }
+
         .bottom-nav {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            margin:0 auto;
-            max-width:800px;
-            width:auto;
+            margin: 0 auto;
+            max-width: 800px;
+            width: auto;
             height: 60px;
             background: #ffffff;
             border-top: 1px solid #dee2e6;
@@ -84,7 +134,6 @@
             background-color: #f8f9fa;
             color: #212529;
         }
-        /* 현재 페이지 또는 선택한 메뉴 */
         .bottom-nav-item.active {
             background-color: transparent;
             color: #212529;
@@ -156,11 +205,20 @@
         .upload-choice-arrow { color: #adb5bd; }
 
         .page-search-area {
-            padding-top: 1.25rem;
+            width: 100%;
+            max-width: 100%;
+            padding: 0 20px;
+            box-sizing: border-box;
+            padding-top: 0;
+            margin-bottom: 1rem;
+            margin-left: auto;
+            margin-right: auto;
         }
         .page-search-bar {
-            width: min(100% - 1.5rem, 500px);
-            margin: 0 auto 1rem;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            margin: 0 auto;
         }
         .page-search-bar .input-group {
             display: flex;
@@ -231,7 +289,7 @@
         html {
             scrollbar-gutter: stable;
         }
-        body{
+        body {
             max-width: 1900px;
             margin: 0 auto;
             overflow-x: hidden;
@@ -244,7 +302,13 @@
         .notification-trigger:hover { background: #f8f9fa; }
         .notification-badge { position: absolute; top: -4px; right: -5px; min-width: 20px; }
         .notification-list { max-height: min(65vh, 520px); overflow-y: auto; }
-        .notification-item { color: inherit; text-decoration: none; }
+        .notification-item { color: inherit; text-decoration: none; padding-block: 12px; }
+        .notification-item + .notification-item{
+            font-size: 14px;
+        }
+        .notification-item:first-child{
+            padding-top: 0;
+        }
         .notification-item:hover { background: #f8f9fa; }
         .notification-item.unread { background: #f2f7ff; }
         .notification-avatar { width: 42px; height: 42px; object-fit: cover; flex: 0 0 42px; }
@@ -252,24 +316,26 @@
         .notification-modal-content { border-radius: 12px; overflow: hidden; }
         @media (max-width: 992px) { .notification-widget { top: 14px; right: 14px; } }
         @media (max-width: 576px) { .notification-widget { top: 10px; right: 10px; } }
+        @media (max-width: 767.98px) {
+            .notification-widget {
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
+                transform: translateY(-8px);
+                transition: opacity .2s ease, transform .2s ease, visibility .2s ease;
+            }
+            body.notification-scroll-visible .notification-widget {
+                opacity: 1;
+                visibility: visible;
+                pointer-events: auto;
+                transform: translateY(0);
+            }
+        }
     </style>
     {% block head %}{% endblock %}
 </head>
 
 <body>
-
-    {% if current_user.is_authenticated and request.endpoint in ['main.index', 'post._list', 'dm.user_list', 'main.search'] %}
-    <div class="page-search-area">
-        <form class="page-search-bar" role="search" action="{{ url_for('main.search') }}" method="get">
-            <div class="input-group">
-                <input type="search" class="form-control" name="q" value="{{ request.args.get('q', '') }}" placeholder="검색" aria-label="검색">
-                <button class="btn" type="submit" aria-label="검색 실행">
-                    <i class="bi bi-search" aria-hidden="true"></i>
-                </button>
-            </div>
-        </form>
-    </div>
-    {% endif %}
 
     <!-- Flash 메시지 및 메인 컨텐츠 영역 -->
     <main class="py-4">
@@ -292,18 +358,99 @@
             });
         </script>
 
-        <!-- 페이지 내용 -->
-        {% block content %}
-        {% endblock %}
+        <!-- 전체 가로 정렬 플렉스 컨테이너 -->
+        <div class="content-layout-wrapper">
+            <!-- 좌측 최근 대화 사이드바 -->
+            {% if current_user.is_authenticated and request.endpoint in ['main.index', 'reels.reels', 'main.search'] %}
+            <aside class="left-dm-sidebar">
+                <div class="card shadow-sm border-0 rounded-3">
+                    <div class="card-header bg-white fw-bold py-3 border-bottom d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-chat-dots text-dark me-1"></i> 최근 대화</span>
+                    </div>
+
+                    <div class="list-group list-group-flush overflow-auto" style="max-height: 650px;">
+                        {% if active_chat_users and active_chat_users|length > 0 %}
+                            {% for item in active_chat_users %}
+                                {% set target_user = item.user %}
+                                {% set conn_status = target_user.connection_status %}
+                                {% set has_unread = item.has_unread if item.has_unread is defined else False %}
+
+                                <a href="{{ url_for('dm.user_list', target_id=target_user.id) }}"
+                                   id="recent-item-{{ target_user.id }}"
+                                   class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-2 px-3 border-0">
+
+                                    <div class="d-flex align-items-center text-truncate pe-2" style="width: 100%;">
+                                        {% if target_user.profile_img_url %}
+                                            <img src="{{ target_user.profile_img_url | profile_img }}"
+                                                 class="rounded-circle me-2 flex-shrink-0" width="40" height="40" style="object-fit: cover;">
+                                        {% else %}
+                                            <i class="bi bi-person-circle fs-3 text-secondary me-2 flex-shrink-0"></i>
+                                        {% endif %}
+
+                                        <div class="text-truncate" style="width: 100%;">
+                                            <div class="small text-dark d-flex align-items-center justify-content-between">
+                                                <span class="text-truncate">
+                                                    <span class="status-dot {{ conn_status }}" id="left-recent-dot-{{ target_user.id }}"></span>
+                                                    <span class="{% if has_unread %}fw-bold text-dark{% endif %}" id="recent-name-{{ target_user.id }}">{{ target_user.username or target_user.name }}</span>
+                                                </span>
+                                                <small class="status-text fw-normal fs-7 ms-1" id="left-recent-text-{{ target_user.id }}">
+                                                    ({% if conn_status == 'online' %}Online{% elif conn_status == 'idle' %}자리 비움{% else %}Offline{% endif %})
+                                                </small>
+                                            </div>
+                                            <small class="d-block text-truncate mt-1 {% if has_unread %}fw-bold text-dark{% else %}text-muted{% endif %}" id="recent-msg-{{ target_user.id }}" style="font-size:0.75rem;">
+                                                {{ item.last_message.text if item.last_message else '대화 없음' }}
+                                            </small>
+                                        </div>
+                                    </div>
+
+                                    <span class="unread-dot {% if not has_unread %}d-none{% endif %}" id="recent-badge-{{ target_user.id }}" style="width: 10px; height: 10px; background-color: #dc3545; border-radius: 50%; flex-shrink: 0; margin-left: 8px;" title="읽지 않은 메시지 있음"></span>
+                                </a>
+                            {% endfor %}
+                        {% else %}
+                            <div class="p-4 text-muted small text-center" id="no-recent-chat">진행 중인 대화가 없습니다.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </aside>
+            {% endif %}
+
+            <!-- 우측 콘텐츠 영역 (검색창 + 중앙 정렬된 메인 피드/스토리) -->
+            <div class="main-content-column{% if request.endpoint in ['main.index', 'post._list'] %} post-list-layout{% endif %}">
+                {% if current_user.is_authenticated and request.endpoint in ['main.index', 'post._list', 'dm.user_list', 'main.search'] and request.endpoint != 'dm.user_list' %}
+                <div class="page-search-area">
+                    <form class="page-search-bar" role="search" action="{{ url_for('main.search') }}" method="get">
+                        <div class="input-group">
+                            <input type="search" class="form-control" name="q" value="{{ request.args.get('q', '') }}" placeholder="검색" aria-label="검색">
+                            <button class="btn" type="submit" aria-label="검색 실행">
+                                <i class="bi bi-search" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
+
+                {% block content %}
+                {% endblock %}
+            </div>
+        </div>
     </main>
 
-    {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage', 'story.detail'] %}
+    {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage', 'story.detail', 'dm.user_list', 'reels.reels'] %}
     <div class="notification-widget">
         <button type="button" class="notification-trigger" id="notificationTrigger" data-bs-toggle="modal" data-bs-target="#notificationModal" aria-label="알림 열기">
             <i class="bi bi-bell" aria-hidden="true"></i>
             <span class="badge rounded-pill text-bg-danger notification-badge {% if unread_notification_count == 0 %}d-none{% endif %}" id="notificationBadge">{{ unread_notification_count }}</span>
         </button>
     </div>
+    <script>
+        (() => {
+            const updateNotificationVisibility = () => {
+                document.body.classList.toggle('notification-scroll-visible', window.scrollY > 36);
+            };
+            updateNotificationVisibility();
+            window.addEventListener('scroll', updateNotificationVisibility, { passive: true });
+        })();
+    </script>
     <div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalTitle" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content notification-modal-content">
@@ -363,51 +510,6 @@
 
     <!-- 하단 고정 네비게이션 Bar (로그인 상태 및 특정 페이지 조건부 노출) -->
     {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup'] %}
-    {% if request.endpoint in ['main.index', 'reels.reels', 'main.search'] %}
-    <!-- 1. 좌측 DM 최근 대화 목록 -->
-    <aside class="left-dm-sidebar">
-        <div class="card shadow-sm border-0 rounded-3">
-            <div class="card-header bg-white fw-bold py-3 border-bottom d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-chat-dots text-dark me-1"></i> 최근 대화</span>
-            </div>
-
-            <div class="list-group list-group-flush overflow-auto" style="max-height: 650px;">
-                {% if active_chat_users and active_chat_users|length > 0 %}
-                    {% for item in active_chat_users %}
-                        {% set target_user = item.user %}
-                        {% set is_online = target_user.is_online if target_user.is_online is defined else False %}
-
-                        <!-- 클릭 시 대화 상대의 target_id 파라미터와 함께 DM 채팅 페이지로 이동 -->
-                        <a href="{{ url_for('dm.user_list', target_id=target_user.id) }}" class="list-group-item list-group-item-action d-flex align-items-center py-2 px-3 border-0">
-                            {% if target_user.profile_img_url %}
-                                <img src="{{ target_user.profile_img_url | profile_img }}"
-                                     class="rounded-circle me-2 flex-shrink-0" width="40" height="40" style="object-fit: cover;">
-                            {% else %}
-                                <i class="bi bi-person-circle fs-3 text-secondary me-2 flex-shrink-0"></i>
-                            {% endif %}
-
-                            <div class="text-truncate" style="width: 100%;">
-                                <div class="small fw-bold text-dark d-flex align-items-center justify-content-between">
-                                    <span class="text-truncate">
-                                        <span class="status-dot {{ 'online' if is_online else 'offline' }}"></span>
-                                        {{ target_user.username or target_user.name }}
-                                    </span>
-                                    <small class="text-muted fw-normal fs-7 ms-1">({{ 'Online' if is_online else 'Offline' }})</small>
-                                </div>
-                                <small class="text-muted d-block text-truncate mt-1" style="font-size:0.75rem;">
-                                    {{ item.last_message.text if item.last_message else '대화 없음' }}
-                                </small>
-                            </div>
-                        </a>
-                    {% endfor %}
-                {% else %}
-                    <div class="p-4 text-muted small text-center">진행 중인 대화가 없습니다.</div>
-                {% endif %}
-            </div>
-        </div>
-    </aside>
-    {% endif %}
-
     {% if request.endpoint != 'story.detail' %}
     <nav class="bottom-nav shadow-lg">
         <a href="#" class="bottom-nav-item {{ 'active' if request.endpoint in ['post._list', 'post._create'] else '' }}" title="업로드" aria-label="게시물 또는 릴스 만들기" data-bs-toggle="modal" data-bs-target="#uploadTypeModal" {% if request.endpoint in ['post._list', 'post._create'] %}aria-current="page"{% endif %}>
@@ -465,9 +567,7 @@
     {% include 'post/post_create_modal.html' %}
     {% include 'reels/reel_create_modal.html' %}
     {% include 'story/story_create_modal.html' %}
-    {% endif %}
 
-    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
     <script>
@@ -528,7 +628,7 @@
             let postUploadInProgress = false;
 
             const compressPostImage = async file => {
-                // 사진 원본만 축소하고, 동영상·애니메이션·투명 이미지 등은 그대로 보냅니다.
+                // 큰 JPEG 사진만 축소하고 다른 이미지 형식은 그대로 보냅니다.
                 if (!/^image\/jpeg$/i.test(file.type) || file.size < 1_500_000) return file;
                 if (!('createImageBitmap' in window)) return file;
                 let bitmap;
@@ -617,16 +717,9 @@
                     previewUrls.push(url);
                     const slide = document.createElement('div');
                     slide.className = 'swiper-slide';
-                    if (file.type.startsWith('video/')) {
-                        const video = document.createElement('video');
-                        video.src = url; video.controls = true; video.playsInline = true; video.preload = 'metadata';
-                        video.className = 'preview-img'; video.setAttribute('aria-label', '동영상 미리보기');
-                        slide.append(video);
-                    } else {
-                        const image = document.createElement('img');
-                        image.src = url; image.alt = '미리보기 이미지'; image.className = 'preview-img';
-                        slide.append(image);
-                    }
+                    const image = document.createElement('img');
+                    image.src = url; image.alt = '미리보기 이미지'; image.className = 'preview-img';
+                    slide.append(image);
                     previewWrapper.append(slide);
                 });
 
@@ -648,6 +741,10 @@
             dropArea.addEventListener('drop', event => {
                 event.preventDefault(); dropArea.classList.remove('bg-light');
                 if (!event.dataTransfer.files.length) return;
+                if (Array.from(event.dataTransfer.files).some(file => !file.type.startsWith('image/'))) {
+                    alert('이미지 파일만 업로드할 수 있습니다.');
+                    return;
+                }
                 fileInput.files = event.dataTransfer.files;
                 showPostPreview(fileInput.files);
             });
@@ -667,6 +764,9 @@
 
                 try {
                     const files = Array.from(fileInput.files);
+                    if (!files.length || files.some(file => !file.type.startsWith('image/'))) {
+                        throw new Error('이미지 파일만 업로드할 수 있습니다.');
+                    }
                     const optimizedFiles = await Promise.all(files.map(compressPostImage));
                     const csrfToken = postForm.elements.csrf_token.value;
                     uploadStatus.textContent = '저장소에 연결하는 중...';
@@ -709,7 +809,7 @@
                                 xhr.send(file);
                             });
 
-                            uploadStatus.textContent = '사진과 동영상을 저장소에 직접 업로드하는 중...';
+                            uploadStatus.textContent = '이미지를 저장소에 직접 업로드하는 중...';
                             const worker = async () => {
                                 while (nextFileIndex < optimizedFiles.length) {
                                     const index = nextFileIndex++;
@@ -837,7 +937,6 @@
                 xhr.addEventListener('error', () => reject(new Error('네트워크 오류로 릴스를 업로드하지 못했습니다.')));
                 xhr.send(formData);
             });
-
             caption.addEventListener('input', () => { captionCount.textContent = caption.value.length; });
             chooseButton.addEventListener('click', () => videoInput.click());
             videoInput.addEventListener('change', () => {
@@ -1051,7 +1150,14 @@
             storyComposer.addEventListener('hidden.bs.modal', resetStoryComposer);
         }
     </script>
-    {% if (current_user.is_authenticated or g.user) and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage', 'story.detail'] %}
+    {% endif %}
+
+    {% if current_user.is_authenticated %}
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    {% endif %}
+
+    {% if current_user.is_authenticated and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage'] %}
+    {% if (current_user.is_authenticated or g.user) and request.endpoint not in ['auth.login', 'auth.signup', 'auth.mypage', 'story.detail', 'dm.user_list', 'reels.reels'] %}
         <script src="/socket.io/socket.io.js"></script>
         <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -1150,6 +1256,7 @@
 
             if (typeof io !== 'function') return;
             const notificationSocket = io();
+
             notificationSocket.on('new_notification', (notification) => {
                 if (!notification || notificationList.querySelector(`[data-notification-id="${notification.id}"]`)) return;
                 document.getElementById('notificationEmpty')?.remove();
@@ -1229,6 +1336,7 @@
             });
         });
     </script>
+    {% endif %}
     {% endif %}
     {% block script %}
     {% endblock %}

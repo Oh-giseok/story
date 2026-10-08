@@ -200,7 +200,7 @@
         <div class="card-body">
             <!-- 좋아요 & 댓글 버튼 -->
             <div class="d-flex align-items-center mb-2">
-                <button type="button" class="btn btn-link p-0 me-3 border-0 btn-like" data-post-id="{{ post.id }}" aria-pressed="{{ 'true' if post.id in liked_post_ids else 'false' }}">
+                <button type="button" class="btn btn-link p-0 me-3 border-0 btn-like post-like-button" data-post-id="{{ post.id }}" aria-label="좋아요" aria-pressed="{{ 'true' if post.id in liked_post_ids else 'false' }}">
                     {% if post.id in liked_post_ids %}
                         <i class="bi bi-heart-fill text-danger fs-5"></i>
                     {% else %}
@@ -225,7 +225,7 @@
                 </button>
             </div>
 
-            <p class="fw-bold mb-1 small">좋아요 <span class="like-count-text">{{ post.likes|length }}</span>개</p>
+            <p class="fw-bold mb-1 small">좋아요 <span class="like-count-text post-like-count" data-post-id="{{ post.id }}">{{ post.likes|length }}</span>개</p>
 <p class="card-text mb-2">
     <span class="fw-bold me-1">{{ post.user.username }}</span>
 
@@ -288,30 +288,7 @@
             });
         });
 
-        // 2. 좋아요 버튼 비동기(AJAX) 클릭 처리
-        document.querySelectorAll('.btn-like').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                e.preventDefault();
-
-                const postId = this.getAttribute('data-post-id');
-                const card = document.getElementById(`post-card-${postId}`);
-                const icon = this.querySelector('i');
-                const likeCountElem = card.querySelector('.like-count-text');
-
-                fetch(`/post/like/${postId}`, { method: 'POST' })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        icon.className = data.liked ? 'bi bi-heart-fill text-danger fs-5' : 'bi bi-heart text-dark fs-5';
-                        this.setAttribute('aria-pressed', data.liked);
-                        likeCountElem.textContent = data.like_count;
-                    } else if (data.message) {
-                        alert(data.message);
-                    }
-                });
-            });
-        });
-                // 3. 캡션이 실제로 잘린 경우에만 ⋯ 표시
+        // 3. 캡션이 실제로 잘린 경우에만 ⋯ 표시
         document.querySelectorAll('.post-caption-wrap').forEach(wrap => {
             const caption = wrap.querySelector('.post-caption');
             const moreButton = wrap.querySelector('.post-caption-more');

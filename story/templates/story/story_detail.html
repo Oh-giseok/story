@@ -16,14 +16,14 @@
                class="story-adjacent-card prev-card-far">
 
                 {% if prev_story2.media_url %}
-                    {% if prev_story2.media_url.endswith(('.mp4', '.webm', '.ogg', '.mov')) %}
-                        <video src="{{ url_for('static', filename=prev_story2.media_url) }}"
+                    {% if prev_story2_is_video %}
+                        <video src="{{ prev_story2.media_url | media_url }}"
                                muted
                                playsinline
                                style="width: 100%; height: 100%; object-fit: cover;">
                         </video>
                     {% else %}
-                        <img src="{{ url_for('static', filename=prev_story2.media_url) }}"
+                        <img src="{{ prev_story2.media_url | media_url }}"
                              alt="이전 스토리2">
                     {% endif %}
                 {% endif %}
@@ -58,14 +58,14 @@
                class="story-adjacent-card prev-card">
 
                 {% if prev_story.media_url %}
-                    {% if prev_story.media_url.endswith(('.mp4', '.webm', '.ogg', '.mov')) %}
-                        <video src="{{ url_for('static', filename=prev_story.media_url) }}"
+                    {% if prev_story_is_video %}
+                        <video src="{{ prev_story.media_url | media_url }}"
                                muted
                                playsinline
                                style="width: 100%; height: 100%; object-fit: cover;">
                         </video>
                     {% else %}
-                        <img src="{{ url_for('static', filename=prev_story.media_url) }}"
+                        <img src="{{ prev_story.media_url | media_url }}"
                              alt="이전 스토리1">
                     {% endif %}
                 {% endif %}
@@ -98,43 +98,20 @@
     </div>
 
 
+    <!-- 계정별 스토리 전환을 담당하는 Swiper -->
+    <div class="swiper story-user-swiper">
+        <div class="swiper-wrapper">
+            <div class="swiper-slide story-user-slide">
     <!-- 현재 스토리 -->
     <div class="story-viewer">
-
-        <!-- 스토리 게이지 -->
-        <div class="story-progress-bar-container">
-
-            {% for s in user_stories %}
-
-                <div class="story-progress-bar-track">
-
-                    <div class="story-progress-bar-fill
-                        {% if s.id == story.id %}
-                            active
-                        {% elif s.create_date < story.create_date %}
-                            watched
-                        {% endif %}"
-                        data-story-id="{{ s.id }}">
-                    </div>
-
-                </div>
-
-            {% endfor %}
-
-        </div>
-
-
-        <!-- 스토리 닫기 -->
-        <a href="{{ url_for('main.index') }}"
-           class="story-viewer-close">
-            ×
-        </a>
-
         <button type="button" class="story-nav-button story-nav-prev" id="storyPrevButton" aria-label="이전 스토리">
             <i class="bi bi-chevron-left" aria-hidden="true"></i>
         </button>
         <button type="button" class="story-nav-button story-nav-next" id="storyNextButton" aria-label="다음 스토리">
             <i class="bi bi-chevron-right" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="story-play-toggle" aria-label="스토리 일시정지" aria-pressed="false">
+            <i class="bi bi-pause-fill" aria-hidden="true"></i>
         </button>
 
 
@@ -192,19 +169,19 @@
 
         <!-- 현재 스토리 이미지 / 영상 -->
         <div class="story-viewer-image">
-            {% if story.media_url.endswith(('.mp4', '.webm', '.ogg', '.mov')) %}
+            {% if story_is_video %}
                 <img id="main-story-img"
                      alt="스토리 이미지">
 
                 <video id="main-story-video"
-                       src="{{ url_for('static', filename=story.media_url) }}"
+                       src="{{ story_media_url }}"
                        muted
                        playsinline
                        preload="auto">
                 </video>
             {% else %}
                 <img id="main-story-img"
-                     src="{{ url_for('static', filename=story.media_url) }}"
+                     src="{{ story_media_url }}"
                      alt="스토리 이미지">
 
                 <video id="main-story-video"
@@ -225,9 +202,9 @@
 
 
         <!-- 내 스토리 메뉴 -->
-        {% if g.user and g.user.id == story.user_id %}
+        {% if g.user %}
             <div class="story-viewer-buttons"
-                 id="owner-buttons">
+                 id="owner-buttons" style="{% if g.user.id != story.user_id %}display: none;{% endif %}">
                 <div class="dropdown">
                     <button type="button" class="btn btn-link text-white p-0 border-0"
                             id="storyOwnerMenuButton" data-bs-toggle="dropdown" aria-expanded="false"
@@ -236,12 +213,12 @@
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="storyOwnerMenuButton">
                         <li>
-                            <button type="button" class="dropdown-item" id="btn-modify">수정</button>
+                            <button type="button" class="dropdown-item" id="btn-modify" data-story-action="modify">수정</button>
                         </li>
                         <li>
-                            <a href="{{ url_for('story.delete', story_id=story.id) }}"
-                               class="dropdown-item text-danger" id="btn-delete"
-                               onclick="return confirm('정말 삭제하시겠습니까?');">삭제</a>
+                            <button type="button" class="dropdown-item text-danger" id="btn-delete"
+                                    data-story-action="delete"
+                                    data-delete-url="{{ url_for('story.delete', story_id=story.id) }}">삭제</button>
                         </li>
                     </ul>
                 </div>
@@ -249,7 +226,14 @@
         {% endif %}
 
     </div>
+            </div>
+        </div>
+    </div>
 
+    {% if not request.args.get('modal') %}
+        <!-- 단독 상세 페이지에서만 표시하는 닫기 버튼 -->
+        <a href="{{ url_for('main.index') }}" class="story-viewer-close" aria-label="스토리 닫기">×</a>
+    {% endif %}
 
     <!-- 우측 대기 카드 2개 -->
     <div class="story-adjacent-group next-group">
@@ -261,9 +245,9 @@
 
                 {% if next_story.media_url %}
 
-                    {% if next_story.media_url.endswith(('.mp4', '.webm', '.ogg', '.mov')) %}
+                    {% if next_story_is_video %}
 
-                        <video src="{{ url_for('static', filename=next_story.media_url) }}"
+                        <video src="{{ next_story.media_url | media_url }}"
                                muted
                                playsinline
                                style="width: 100%; height: 100%; object-fit: cover;">
@@ -271,7 +255,7 @@
 
                     {% else %}
 
-                        <img src="{{ url_for('static', filename=next_story.media_url) }}"
+                        <img src="{{ next_story.media_url | media_url }}"
                              alt="다음 스토리1">
 
                     {% endif %}
@@ -319,9 +303,9 @@
 
                 {% if next_story2.media_url %}
 
-                    {% if next_story2.media_url.endswith(('.mp4', '.webm', '.ogg', '.mov')) %}
+                    {% if next_story2_is_video %}
 
-                        <video src="{{ url_for('static', filename=next_story2.media_url) }}"
+                        <video src="{{ next_story2.media_url | media_url }}"
                                muted
                                playsinline
                                style="width: 100%; height: 100%; object-fit: cover;">
@@ -329,7 +313,7 @@
 
                     {% else %}
 
-                        <img src="{{ url_for('static', filename=next_story2.media_url) }}"
+                        <img src="{{ next_story2.media_url | media_url }}"
                              alt="다음 스토리2">
 
                     {% endif %}
@@ -373,8 +357,18 @@
 
 </div>
 
+<!-- Kept outside the moving Viewer and its stacking context. -->
+<div class="story-progress-bar-container" aria-label="스토리 진행 상태">
+    {% for s in user_stories %}
+        <div class="story-progress-bar-track">
+            <div class="story-progress-bar-fill{% if s.id == story.id %} active{% elif s.create_date > story.create_date or (s.create_date == story.create_date and s.id > story.id) %} watched{% endif %}"
+                 data-story-id="{{ s.id }}"></div>
+        </div>
+    {% endfor %}
+</div>
 
-{% if g.user and g.user.id == story.user_id %}
+
+{% if g.user %}
 <div class="modal fade" id="editStoryModal" tabindex="-1" aria-labelledby="editStoryModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
@@ -388,8 +382,8 @@
                 <div class="modal-body p-0">
                     <div class="row g-0">
                         <div class="col-md-7 bg-dark d-flex align-items-center justify-content-center" style="min-height: 420px;">
-                            <img id="editStoryPreview" src="{{ url_for('static', filename=story.media_url) }}" alt="현재 스토리 미리보기" class="w-100 h-100" style="max-height: 520px; object-fit: contain;">
-                            <video id="editStoryVideoPreview" class="w-100 h-100 d-none" controls playsinline style="max-height: 520px; object-fit: contain;"></video>
+                            <img id="editStoryPreview" src="{{ story_media_url if not story_is_video else '' }}" alt="현재 스토리 미리보기" class="w-100 h-100{% if story_is_video %} d-none{% endif %}" style="max-height: 520px; object-fit: contain;">
+                            <video id="editStoryVideoPreview" class="w-100 h-100{% if not story_is_video %} d-none{% endif %}" src="{{ story_media_url if story_is_video else '' }}" controls playsinline style="max-height: 520px; object-fit: contain;"></video>
                         </div>
                         <div class="col-md-5 d-flex flex-column p-3" style="min-height: 420px;">
                             <div class="d-flex align-items-center gap-3 border-bottom pb-3 mb-3">
@@ -413,6 +407,21 @@
 </div>
 {% endif %}
 
+{% if g.user %}
+<div class="modal fade story-delete-confirm-modal" id="deleteStoryModal" tabindex="-1" aria-labelledby="deleteStoryModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="py-4 px-3 text-center">
+                <h2 class="fs-5 mb-1" id="deleteStoryModalTitle">스토리를 삭제할까요?</h2>
+                <small class="text-secondary">이 스토리를 삭제하시겠어요?</small>
+            </div>
+            <a href="{{ url_for('story.delete', story_id=story.id) }}" class="btn btn-action text-danger fw-bold" id="confirmStoryDelete">삭제</a>
+            <button type="button" class="btn btn-action text-dark" data-bs-dismiss="modal">취소</button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <script>
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -425,10 +434,17 @@ document.addEventListener("DOMContentLoaded", () => {
             id: {{ s.id }},
 
             media_url:
-                {{ url_for('static', filename=s.media_url) | tojson }},
+                {{ s.media_url | media_url | tojson }},
+
+            is_video: {{ 'true' if s.id in video_story_ids else 'false' }},
 
             caption:
                 {{ (s.caption if s.caption else '') | tojson }},
+
+            created_label: {{ (s.create_date | time_ago_local) | tojson }},
+            username: {{ s.user.username | tojson }},
+            profile_url: {% if s.user.profile_img_url %}{{ url_for('static', filename=s.user.profile_img_url) | tojson }}{% else %}null{% endif %},
+            profile_page_url: {{ url_for('auth.mypage', user_id=s.user_id) | tojson }},
 
             is_owner:
                 {% if g.user and g.user.id == s.user_id %}
@@ -457,62 +473,12 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
 
-    /* 현재 사용자의 스토리가 끝난 후 다음 사용자 */
-    const nextUserUrl =
+    let nextUserStoryId = {% if next_story %}{{ next_story.id }}{% else %}null{% endif %};
+    let previousUserStoryId = {% if prev_story %}{{ prev_story.id }}{% else %}null{% endif %};
+    let fills = document.querySelectorAll('.story-progress-bar-fill');
 
-        {% if next_story %}
-
-            {{ url_for('story.detail', story_id=next_story.id) | tojson }}
-
-        {% else %}
-
-            {{ url_for('main.index') | tojson }}
-
-        {% endif %};
-
-    const previousUserUrl =
-        {% if prev_story %}
-            {{ url_for('story.detail', story_id=prev_story.id) | tojson }}
-        {% else %}
-            null
-        {% endif %};
-
-
-    const fills = document.querySelectorAll(
-        '.story-progress-bar-fill'
-    );
-
-    const previousButton = document.getElementById('storyPrevButton');
-    const nextButton = document.getElementById('storyNextButton');
-
-
-    const mainImg = document.getElementById(
-        'main-story-img'
-    );
-
-
-    const mainVideo = document.getElementById(
+    let mainVideo = document.getElementById(
         'main-story-video'
-    );
-
-
-    const mainCaption = document.getElementById(
-        'main-story-caption'
-    );
-
-
-    const ownerButtons = document.getElementById(
-        'owner-buttons'
-    );
-
-
-    const btnModify = document.getElementById(
-        'btn-modify'
-    );
-
-
-    const btnDelete = document.getElementById(
-        'btn-delete'
     );
 
     const editStoryForm = document.getElementById('editStoryForm');
@@ -521,14 +487,53 @@ document.addEventListener("DOMContentLoaded", () => {
     const editStoryVideoPreview = document.getElementById('editStoryVideoPreview');
     const editStoryMedia = document.getElementById('editStoryMedia');
     const editStoryModal = document.getElementById('editStoryModal');
-    const storyOwnerMenuButton = document.getElementById('storyOwnerMenuButton');
+    const viewerWrapper = document.querySelector('.story-viewer-wrapper');
+    const storySwiperElement = document.querySelector('.story-user-swiper');
+    const userStorySwiper = storySwiperElement && typeof Swiper === 'function'
+        ? new Swiper(storySwiperElement, {
+            slidesPerView: 1,
+            speed: 360,
+            allowTouchMove: false,
+            watchOverflow: true,
+            resistanceRatio: 0.75
+        })
+        : null;
+    const storyHomeUrl = {{ url_for('main.index') | tojson }};
+    const storyDetailBase = {{ url_for('story.detail', story_id=0) | tojson }};
 
-    btnModify?.addEventListener('click', (event) => {
+    viewerWrapper?.addEventListener('click', (event) => {
+        const playbackButton = event.target.closest('.story-play-toggle');
+        if (playbackButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            setStoryPaused(!isStoryPaused);
+            return;
+        }
+        const deleteButton = event.target.closest('[data-story-action="delete"]');
+        if (deleteButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            const ownerMenuButton = deleteButton.closest('.dropdown')?.querySelector('[data-bs-toggle="dropdown"]');
+            if (ownerMenuButton && window.bootstrap?.Dropdown) {
+                window.bootstrap.Dropdown.getOrCreateInstance(ownerMenuButton).hide();
+            }
+            const confirmButton = document.getElementById('confirmStoryDelete');
+            const deleteUrl = deleteButton.dataset.deleteUrl;
+            const deleteModal = document.getElementById('deleteStoryModal');
+            if (confirmButton && deleteUrl && deleteModal && window.bootstrap?.Modal) {
+                confirmButton.href = deleteUrl;
+                window.bootstrap.Modal.getOrCreateInstance(deleteModal).show();
+            }
+            return;
+        }
+        const modifyButton = event.target.closest('[data-story-action="modify"]');
+        if (!modifyButton) return;
         event.preventDefault();
         event.stopPropagation();
         if (!editStoryModal || !window.bootstrap?.Modal) return;
-        if (storyOwnerMenuButton && window.bootstrap.Dropdown) {
-            window.bootstrap.Dropdown.getOrCreateInstance(storyOwnerMenuButton).hide();
+        const ownerMenuButton = modifyButton.closest('.dropdown')?.querySelector('[data-bs-toggle="dropdown"]');
+        if (ownerMenuButton && window.bootstrap.Dropdown) {
+            window.bootstrap.Dropdown.getOrCreateInstance(ownerMenuButton).hide();
         }
         window.bootstrap.Modal.getOrCreateInstance(editStoryModal).show();
     });
@@ -552,563 +557,473 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     let storyTimer = null;
+    let isStoryPaused = false;
+    let isTransitioning = false;
+    let pendingTransitionAdvance = false;
+    const mediaCache = new Map();
 
-    let mediaToken = 0;
-
-
-    /* 영상인지 확인 */
     function isVideoFile(url) {
-
         return /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url);
-
     }
 
+    function isVideoStory(data) {
+        return Boolean(data?.is_video) || isVideoFile(data?.media_url);
+    }
 
-    /* 이미지 / 영상 표시 */
-    function showMedia(mediaUrl) {
+    // Cache and reuse the actual prepared media element on navigation.
+    function preloadStory(data) {
+        if (!data) return Promise.resolve(null);
+        if (mediaCache.has(data.media_url)) return mediaCache.get(data.media_url);
 
-        const token = ++mediaToken;
-
-        return new Promise(resolve => {
-
-            /* 기존 미디어는 바로 숨기지 않음 */
-
-            if (isVideoFile(mediaUrl)) {
-
-                const preloadVideo =
-                    document.createElement('video');
-
-                preloadVideo.muted = true;
-                preloadVideo.playsInline = true;
-                preloadVideo.preload = 'auto';
-
-
-                preloadVideo.onloadeddata = () => {
-
-                    if (token !== mediaToken) {
-                        return;
-                    }
-
-
-                    mainVideo.src = mediaUrl;
-                    mainVideo.load();
-
-
-                    mainVideo.onloadeddata = () => {
-
-                        if (token !== mediaToken) {
-                            return;
-                        }
-
-
-                        /* 영상이 준비되면 먼저 표시 */
-                        mainVideo.classList.add('is-visible');
-
-                        mainImg.classList.remove('is-visible');
-
-
-                        const playPromise =
-                            mainVideo.play();
-
-
-                        if (playPromise) {
-
-                            playPromise.catch(() => {
-                            });
-
-                        }
-
-
-                        resolve('video');
-
-                    };
-
-                };
-
-
-                preloadVideo.onerror = () => {
-
-                    if (token === mediaToken) {
-                        resolve('video');
-                    }
-
-                };
-
-
-                preloadVideo.src = mediaUrl;
-                preloadVideo.load();
-
-
+        const isVideo = isVideoStory(data);
+        const media = document.createElement(isVideo ? 'video' : 'img');
+        const ready = new Promise(resolve => {
+            const finish = () => resolve(media);
+            media.addEventListener(isVideo ? 'loadeddata' : 'load', finish, { once: true });
+            media.addEventListener('error', finish, { once: true });
+            if (isVideo) {
+                media.muted = true;
+                media.playsInline = true;
+                media.preload = 'auto';
             } else {
-
-                const preloadImage =
-                    new Image();
-
-
-                preloadImage.onload = () => {
-
-                    if (token !== mediaToken) {
-                        return;
-                    }
-
-                    mainImg.src = mediaUrl;
-
-                    /* 이미지가 준비되면 먼저 표시 */
-                    mainImg.classList.add('is-visible');
-
-                    mainVideo.pause();
-
-                    mainVideo.classList.remove('is-visible');
-
-
-                    resolve('image');
-
-                };
-
-
-                preloadImage.src = mediaUrl;
-
+                media.alt = '스토리 미디어';
+                media.decoding = 'async';
             }
-
+            media.src = data.media_url;
+            if (isVideo) media.load();
+            else if (media.complete) finish();
         });
+        mediaCache.set(data.media_url, ready);
+        return ready;
+    }
 
-}
+    /* Re-query controls because the current Viewer content is replaced after user transitions. */
+    function updateOwnerButtons(data, root = document.querySelector('.story-viewer')) {
+        const ownerButtons = root?.querySelector('.story-viewer-buttons');
+        if (!ownerButtons) return;
 
+        const menuButton = ownerButtons.querySelector('[data-bs-toggle="dropdown"]');
+        const modifyButton = ownerButtons.querySelector('[data-story-action="modify"]');
+        const deleteButton = ownerButtons.querySelector('#btn-delete, [data-story-action="delete"]');
+        ownerButtons.style.display = data.is_owner ? 'flex' : 'none';
+        if (!data.is_owner) return;
 
-    /* 작성자 버튼 */
-    function updateOwnerButtons(data) {
-
-        if (!ownerButtons) {
-            return;
+        if (menuButton) {
+            menuButton.id = 'storyOwnerMenuButton';
+            ownerButtons.querySelector('.dropdown-menu')?.setAttribute('aria-labelledby', menuButton.id);
         }
-
-
-        if (data.is_owner) {
-
-            ownerButtons.style.display = 'flex';
-
-
-            if (btnModify && editStoryForm) editStoryForm.action = data.modify_url;
-            if (editStoryCaption) editStoryCaption.value = data.caption || '';
-            if (editStoryPreview && editStoryVideoPreview) {
-                if (isVideoFile(data.media_url)) {
-                    editStoryPreview.classList.add('d-none');
-                    editStoryVideoPreview.classList.remove('d-none');
-                    editStoryVideoPreview.src = data.media_url;
-                    editStoryVideoPreview.load();
-                } else {
-                    editStoryVideoPreview.pause();
-                    editStoryVideoPreview.removeAttribute('src');
-                    editStoryVideoPreview.load();
-                    editStoryVideoPreview.classList.add('d-none');
-                    editStoryPreview.classList.remove('d-none');
-                    editStoryPreview.src = data.media_url;
-                }
-            }
-
-
-            if (btnDelete) {
-
-                btnDelete.href =
-                    data.delete_url;
-
-            }
-
-        } else {
-
-            ownerButtons.style.display = 'none';
-
+        if (modifyButton) modifyButton.id = 'btn-modify';
+        if (deleteButton) {
+            deleteButton.id = 'btn-delete';
+            deleteButton.dataset.storyAction = 'delete';
+            deleteButton.dataset.deleteUrl = data.delete_url;
         }
-
+        if (editStoryForm) editStoryForm.action = data.modify_url;
+        if (editStoryCaption) editStoryCaption.value = data.caption || '';
+        if (editStoryPreview && editStoryVideoPreview) {
+            if (isVideoStory(data)) {
+                editStoryPreview.classList.add('d-none');
+                editStoryVideoPreview.classList.remove('d-none');
+                editStoryVideoPreview.src = data.media_url;
+                editStoryVideoPreview.load();
+            } else {
+                editStoryVideoPreview.pause();
+                editStoryVideoPreview.removeAttribute('src');
+                editStoryVideoPreview.load();
+                editStoryVideoPreview.classList.add('d-none');
+                editStoryPreview.classList.remove('d-none');
+                editStoryPreview.src = data.media_url;
+            }
+        }
     }
 
 
-    /* 이미지 게이지 */
+    let userStories = stories;
+    let displayToken = 0;
+    function clearStoryTimer() {
+        if (storyTimer !== null) { clearInterval(storyTimer); storyTimer = null; }
+        if (mainVideo) { mainVideo.onended = null; mainVideo.pause(); }
+    }
+    function updatePlaybackButton(root = document) {
+        const button = root.querySelector('.story-play-toggle');
+        if (!button) return;
+        button.setAttribute('aria-label', isStoryPaused ? '스토리 재생' : '스토리 일시정지');
+        button.setAttribute('aria-pressed', String(isStoryPaused));
+        button.innerHTML = `<i class="bi ${isStoryPaused ? 'bi-play-fill' : 'bi-pause-fill'}" aria-hidden="true"></i>`;
+    }
+    function setStoryPaused(paused) {
+        isStoryPaused = paused;
+        updatePlaybackButton();
+        if (mainVideo) {
+            if (paused) mainVideo.pause();
+            else mainVideo.play().catch(() => {});
+        }
+    }
+    function resetProgress(index) {
+        fills.forEach((fill, i) => {
+            fill.classList.remove('active', 'watched');
+            fill.style.width = i < index ? '100%' : '0%';
+            if (i < index) fill.classList.add('watched');
+            if (i === index) fill.classList.add('active');
+        });
+    }
     function startImageTimer() {
-
-        clearInterval(storyTimer);
-
-
-        let currentWidth = 0;
-
-
-        const activeFill =
-            fills[currentIdx];
-
-
+        clearStoryTimer();
+        const activeFill = fills[currentIdx];
+        let width = activeFill ? Number.parseFloat(activeFill.style.width) || 0 : 0;
         storyTimer = setInterval(() => {
-
-            currentWidth += 1;
-
-
-            if (activeFill) {
-
-                activeFill.style.width =
-                    currentWidth + '%';
-
-            }
-
-
-            if (currentWidth >= 100) {
-
-                clearInterval(storyTimer);
-
-                goNext();
-
-            }
-
+            if (isStoryPaused) return;
+            width = Math.min(100, width + 1);
+            if (activeFill) activeFill.style.width = `${width}%`;
+            if (width >= 100) { clearStoryTimer(); goNext(); }
         }, 70);
-
     }
-
-
-    /* 영상 게이지 */
     function startVideoTimer() {
-
-        clearInterval(storyTimer);
-
-
-        const activeFill =
-            fills[currentIdx];
-
-
+        if (storyTimer !== null) clearInterval(storyTimer);
+        const activeFill = fills[currentIdx];
         storyTimer = setInterval(() => {
-
-            if (
-                !mainVideo.duration ||
-                !activeFill
-            ) {
-
-                return;
-
-            }
-
-
-            const progress =
-
-                (
-                    mainVideo.currentTime /
-                    mainVideo.duration
-                ) * 100;
-
-
-            activeFill.style.width =
-                progress + '%';
-
+            if (isStoryPaused) return;
+            if (mainVideo?.duration && activeFill) activeFill.style.width = `${mainVideo.currentTime / mainVideo.duration * 100}%`;
         }, 70);
-
-        mainVideo.onended = () => {
-
-            clearInterval(storyTimer);
-
-            goNext();
-
-        };
-
+        mainVideo.onended = () => { clearStoryTimer(); goNext(); };
     }
-
-    /* 스토리 표시 */
-    async function displayStory(data) {
-
-        mainCaption.textContent =
-            data.caption;
-
-        updateOwnerButtons(data);
-
-        const mediaType =
-            await showMedia(data.media_url);
-
-        if (mediaType === 'video') {
-
-            startVideoTimer();
-
-               } else {
-            startImageTimer();
-        }
-    }
-
-    /* 다음 스토리 */
-    async function goNext() {
-
-        clearInterval(storyTimer);
-
-        /* 다음 스토리가 없는 경우 */
-        if (currentIdx + 1 >= stories.length) {
-            window.location.href = nextUserUrl;
-            return;
-        }
-
-        // 여러 스토리를 올린 사용자는 현재 사용자의 다음 스토리로 바로 전환한다.
-        if (fills && fills[currentIdx]) {
-            fills[currentIdx].classList.remove('active');
-            fills[currentIdx].classList.add('watched');
-            fills[currentIdx].style.width = '100%';
-        }
-        currentIdx += 1;
-        if (fills && fills[currentIdx]) {
-            fills[currentIdx].classList.remove('watched');
-            fills[currentIdx].classList.add('active');
-            fills[currentIdx].style.width = '0%';
-        }
-        updateStoryNavigation();
-        await displayStory(stories[currentIdx]);
-        return;
-
-        const viewer =
-            document.querySelector('.story-viewer');
-
-        const nextCard =
-            document.querySelector('.next-card');
-
-
-        /* 가운데 카드 또는 우측 카드가 없는 경우 */
-        if (!viewer || !nextCard) {
-
-            currentIdx += 1;
-            updateStoryNavigation();
-
-            if (fills && fills[currentIdx]) {
-
-                fills[currentIdx].classList.add('active');
-
-                fills[currentIdx].style.width = '0%';
-
+    function updateHeader(data, root = document) {
+        const userLink = root.querySelector('.story-viewer-user');
+        if (!userLink || !data.username) return;
+        userLink.href = data.profile_page_url;
+        userLink.setAttribute('aria-label', `${data.username}님의 마이페이지`);
+        let profile = userLink.querySelector('.story-viewer-profile, .story-viewer-profile-default');
+        if (data.profile_url) {
+            if (!profile || profile.tagName !== 'IMG') {
+                const image = document.createElement('img');
+                image.className = 'story-viewer-profile'; image.alt = '프로필 이미지';
+                profile?.replaceWith(image); profile = image;
             }
-
-            await displayStory(
-                stories[currentIdx]
-            );
-
+            profile.src = data.profile_url;
+        } else if (profile?.tagName === 'IMG') {
+            const fallback = document.createElement('div'); fallback.className = 'story-viewer-profile-default';
+            fallback.innerHTML = '<i class="bi bi-person-fill"></i>'; profile.replaceWith(fallback);
+        }
+        const name = userLink.querySelector('.story-viewer-username');
+        if (name) name.textContent = data.username;
+        let badge = userLink.querySelector('.bi-check-circle-fill');
+        if (data.username === 'test1' && !badge) {
+            badge = document.createElement('i'); badge.className = 'bi bi-check-circle-fill';
+            badge.style.cssText = 'color: #ffffff; font-size: 11px;';
+            name?.after(badge);
+        } else if (data.username !== 'test1' && badge) badge.remove();
+    }
+    async function displayStory(data, direction = 0) {
+        setStoryPaused(false);
+        const token = ++displayToken;
+        clearStoryTimer();
+        const media = await preloadStory(data);
+        if (!media || token !== displayToken) return;
+        clearStoryTimer();
+        const viewerRoot = document.querySelector('.story-viewer');
+        viewerRoot.querySelector('.story-viewer-image').replaceChildren(media);
+        media.id = media.tagName === 'VIDEO' ? 'main-story-video' : 'main-story-img';
+        media.classList.remove('is-visible');
+        media.classList.remove('story-slide-from-left', 'story-slide-from-right');
+        if (direction < 0) media.classList.add('story-slide-from-left');
+        else if (direction > 0) media.classList.add('story-slide-from-right');
+        requestAnimationFrame(() => {
+            if (token === displayToken && media.isConnected) {
+                requestAnimationFrame(() => media.classList.add('is-visible'));
+            }
+        });
+        mainVideo = media.tagName === 'VIDEO' ? media : null;
+        viewerRoot.querySelector('.story-viewer-caption').textContent = data.caption || '';
+        const timeLabel = viewerRoot.querySelector('.story-viewer-time');
+        if (timeLabel) timeLabel.textContent = data.created_label || '';
+        updateHeader(data, viewerRoot);
+        updateOwnerButtons(data, viewerRoot);
+        updatePlaybackButton(viewerRoot);
+        if (mainVideo) {
+            const video = mainVideo;
+            video.muted = true; video.playsInline = true; video.currentTime = 0;
+            video.play().then(() => {
+                if (token === displayToken && video === mainVideo) startVideoTimer();
+            }).catch(() => {
+                if (token === displayToken && video === mainVideo) startVideoTimer();
+            });
+        } else startImageTimer();
+        preloadStory(userStories[currentIdx + 1]);
+        if (currentIdx === userStories.length - 1) primeAdjacentUser(1);
+        if (currentIdx === 0) primeAdjacentUser(-1);
+    }
+    const groupCache = new Map();
+    const storyApiBase = {{ url_for('story.detail_data', story_id=0) | tojson }};
+    function loadUserGroup(storyId) {
+        if (groupCache.has(storyId)) return groupCache.get(storyId);
+        const request = fetch(storyApiBase.replace(/0\/$/, `${storyId}/`), {
+            headers: { 'Accept': 'application/json' }
+        }).then(response => {
+            if (!response.ok) throw new Error('스토리를 불러오지 못했습니다.');
+            return response.json();
+        }).catch(error => { groupCache.delete(storyId); throw error; });
+        groupCache.set(storyId, request);
+        return request;
+    }
+    function primeAdjacentUser(direction) {
+        const storyId = direction > 0 ? nextUserStoryId : previousUserStoryId;
+        if (!storyId) return;
+        loadUserGroup(storyId).then(group => {
+            const items = group.user_stories;
+            preloadStory(items[0]);
+        }).catch(() => {});
+    }
+    function renderProgress(items, activeIndex) {
+        const container = document.querySelector('.story-progress-bar-container');
+        container.replaceChildren(...items.map((item, index) => {
+            const track = document.createElement('div'); track.className = 'story-progress-bar-track';
+            const fill = document.createElement('div'); fill.className = 'story-progress-bar-fill';
+            fill.dataset.storyId = item.id;
+            if (index < activeIndex) { fill.classList.add('watched'); fill.style.width = '100%'; }
+            if (index === activeIndex) fill.classList.add('active');
+            track.appendChild(fill); return track;
+        }));
+        fills = container.querySelectorAll('.story-progress-bar-fill');
+    }
+    function renderAdjacentCards(group) {
+        const specifications = [
+            { key: 'prev_story2', side: 'prev-group', className: 'prev-card-far', alt: '이전 스토리2' },
+            { key: 'prev_story', side: 'prev-group', className: 'prev-card', alt: '이전 스토리1' },
+            { key: 'next_story', side: 'next-group', className: 'next-card', alt: '다음 스토리1' },
+            { key: 'next_story2', side: 'next-group', className: 'next-card-far', alt: '다음 스토리2' }
+        ];
+        for (const side of ['prev-group', 'next-group']) {
+            const container = document.querySelector(`.story-adjacent-group.${side}`);
+            const cards = specifications.filter(spec => spec.side === side && group.adjacent?.[spec.key]);
+            container.replaceChildren(...cards.map(spec => {
+                const item = group.adjacent[spec.key];
+                const link = document.createElement('a');
+                link.href = item.detail_url;
+                link.dataset.storyId = item.id;
+                link.className = `story-adjacent-card ${spec.className}`;
+                let media;
+                if (item.is_video) {
+                    media = document.createElement('video'); media.muted = true; media.playsInline = true;
+                } else {
+                    media = document.createElement('img'); media.alt = spec.alt;
+                }
+                media.src = item.media_url;
+                if (item.is_video) media.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+                const overlay = document.createElement('div'); overlay.className = 'adjacent-info-overlay';
+                if (item.profile_url) {
+                    const profile = document.createElement('img');
+                    profile.className = 'adjacent-profile-img'; profile.src = item.profile_url; profile.alt = '프로필 이미지';
+                    overlay.appendChild(profile);
+                } else {
+                    const fallback = document.createElement('div'); fallback.className = 'adjacent-profile-default';
+                    fallback.innerHTML = '<i class="bi bi-person-fill"></i>'; overlay.appendChild(fallback);
+                }
+                const username = document.createElement('span'); username.className = 'adjacent-username'; username.textContent = item.username;
+                const time = document.createElement('span'); time.className = 'adjacent-time'; time.textContent = item.created_label;
+                overlay.append(username, time); link.append(media, overlay); return link;
+            }));
+        }
+    }
+    async function transitionUser(direction, requestedStoryId = null) {
+        if (isTransitioning) return;
+        const targetId = requestedStoryId || (direction > 0 ? nextUserStoryId : previousUserStoryId);
+        if (!targetId) return;
+        if (!userStorySwiper) {
+            window.location.assign(storyDetailBase.replace(/0\/$/, `${targetId}/`));
             return;
         }
+        isTransitioning = true;
+        const transitionToken = ++displayToken;
+        let transitionCompleted = false;
+        let incomingSlide = null;
+        const swiper = userStorySwiper;
+        const outgoingSlide = swiper.slides[swiper.activeIndex];
+        const viewer = outgoingSlide?.querySelector('.story-viewer');
+        try {
+            if (!viewer || !outgoingSlide) throw new Error('스토리 화면을 찾을 수 없습니다.');
+            const group = await loadUserGroup(targetId);
+            const incomingStories = group.user_stories;
+            const data = requestedStoryId
+                ? incomingStories.find(item => item.id === Number(requestedStoryId)) || incomingStories[0]
+                : incomingStories[0];
+            const media = await preloadStory(data);
+            if (!media) return;
+            clearStoryTimer();
+            incomingSlide = document.createElement('div');
+            incomingSlide.className = 'swiper-slide story-user-slide';
+            const incomingViewer = viewer.cloneNode(true);
+            incomingViewer.classList.add('story-viewer-entering');
+            incomingViewer.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+            incomingViewer.querySelector('.story-viewer-caption').textContent = data.caption || '';
+            const incomingTime = incomingViewer.querySelector('.story-viewer-time');
+            if (incomingTime) incomingTime.textContent = data.created_label || '';
+            updateHeader(group, incomingViewer);
+            updatePlaybackButton(incomingViewer);
+            const incomingOwnerButtons = incomingViewer.querySelector('.story-viewer-buttons');
+            if (incomingOwnerButtons) incomingOwnerButtons.style.display = data.is_owner ? 'flex' : 'none';
+            media.classList.add('is-visible');
+            if (media.tagName === 'VIDEO') { media.pause(); media.currentTime = 0; media.muted = true; media.playsInline = true; }
+            incomingViewer.querySelector('.story-viewer-image').replaceChildren(media);
+            incomingSlide.appendChild(incomingViewer);
 
-
-        /* 현재 게이지 완료 */
-        if (fills && fills[currentIdx]) {
-
-            fills[currentIdx].classList.remove('active');
-
-            fills[currentIdx].classList.add('watched');
-
-            fills[currentIdx].style.width = '100%';
-
-        }
-
-
-        /* 현재 가운데 카드 위치 */
-        const viewerRect =
-            viewer.getBoundingClientRect();
-
-
-        /* 오른쪽 대기 카드 위치 */
-        const nextRect =
-            nextCard.getBoundingClientRect();
-
-
-        /* 오른쪽 카드를 복제 */
-        const movingCard =
-            nextCard.cloneNode(true);
-
-        movingCard.classList.add(
-            'story-moving-card'
-        );
-
-
-        /* 복제 카드를 현재 오른쪽 카드 위치에 고정 */
-        movingCard.style.position = 'fixed';
-
-        movingCard.style.left =
-            nextRect.left + 'px';
-
-        movingCard.style.top =
-            nextRect.top + 'px';
-
-        movingCard.style.width =
-            nextRect.width + 'px';
-
-        movingCard.style.height =
-            nextRect.height + 'px';
-
-        movingCard.style.margin = '0';
-
-
-        /* 가운데로 이동하는 카드 */
-        movingCard.style.zIndex = '999999';
-
-        movingCard.style.opacity = '1';
-
-        movingCard.style.transition = 'none';
-
-        movingCard.style.pointerEvents = 'none';
-
-
-        document.body.appendChild(
-            movingCard
-        );
-
-
-        /* 원래 오른쪽 카드는 잠시 숨김 */
-        nextCard.style.visibility = 'hidden';
-
-
-        /* 현재 가운데 스토리를 왼쪽으로 이동 */
-        viewer.style.transition =
-            'transform 0.7s ease';
-
-        viewer.style.transform =
-            'translateX(-210px)';
-
-
-        /* 현재 위치를 먼저 브라우저에 적용 */
-        movingCard.offsetWidth;
-
-
-        /* 오른쪽 카드가 가운데로 이동하면서 커짐 */
-        movingCard.style.transition =
-            'left 0.7s cubic-bezier(0.22, 1, 0.36, 1), ' +
-            'top 0.7s cubic-bezier(0.22, 1, 0.36, 1), ' +
-            'width 0.7s cubic-bezier(0.22, 1, 0.36, 1), ' +
-            'height 0.7s cubic-bezier(0.22, 1, 0.36, 1)';
-
-
-        movingCard.style.left =
-            viewerRect.left + 'px';
-
-        movingCard.style.top =
-            viewerRect.top + 'px';
-
-        movingCard.style.width =
-            viewerRect.width + 'px';
-
-        movingCard.style.height =
-            viewerRect.height + 'px';
-
-
-        /* 애니메이션이 끝날 때까지 기다림 */
-        await new Promise(resolve => {
-
-            setTimeout(resolve, 700);
-
-        });
-
-
-        /* 다음 스토리로 변경 */
-        currentIdx += 1;
-        updateStoryNavigation();
-
-
-        if (fills && fills[currentIdx]) {
-
-            fills[currentIdx].classList.add('active');
-
-            fills[currentIdx].style.width = '0%';
-
-        }
-
-
-        /*
-         * 이동 카드가 화면을 가리고 있는 동안
-         * 실제 다음 스토리를 준비
-         */
-        await displayStory(
-            stories[currentIdx]
-        );
-
-
-        /*
-         * 새 스토리가 실제 화면에 그려질 때까지
-         * 한 프레임 더 기다림
-         */
-        await new Promise(resolve => {
-
-            requestAnimationFrame(() => {
-
-                requestAnimationFrame(resolve);
-
+            const targetIndex = direction > 0 ? 1 : 0;
+            if (direction > 0) {
+                swiper.wrapperEl.appendChild(incomingSlide);
+            } else {
+                swiper.wrapperEl.prepend(incomingSlide);
+            }
+            swiper.update();
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                if (incomingViewer.isConnected) incomingViewer.classList.add('story-viewer-entered');
+            }));
+            if (direction < 0) swiper.slideTo(1, 0, false);
+            await new Promise(resolve => {
+                let resolved = false;
+                let fallbackTimer = null;
+                const finish = () => {
+                    if (resolved) return;
+                    resolved = true;
+                    if (fallbackTimer !== null) window.clearTimeout(fallbackTimer);
+                    swiper.off('transitionEnd', finish);
+                    resolve();
+                };
+                fallbackTimer = window.setTimeout(finish, swiper.params.speed + 150);
+                swiper.once('transitionEnd', finish);
+                swiper.slideTo(targetIndex, swiper.params.speed);
             });
 
-        });
+            // Keep only the incoming account's slide after Swiper completes the transition.
+            outgoingSlide.remove();
+            swiper.update();
+            swiper.slideTo(0, 0, false);
 
-
-        /* 이동 카드 제거 */
-        movingCard.remove();
-
-
-        /* 가운데 카드 원래 위치로 복구 */
-        viewer.style.transition = 'none';
-
-        viewer.style.transform =
-            'translateX(0)';
-
-
-        /* 오른쪽 카드 다시 표시 */
-        nextCard.style.visibility = '';
-
-
-        /* 다음 이동을 위해 transition 복구 */
-        requestAnimationFrame(() => {
-
-            viewer.style.transition =
-                'transform 0.45s ease';
-
-        });
-
+            userStories = incomingStories;
+            currentIdx = userStories.findIndex(item => item.id === data.id);
+            nextUserStoryId = group.next_story_id;
+            previousUserStoryId = group.previous_story_id;
+            renderProgress(userStories, currentIdx);
+            mainVideo = media.tagName === 'VIDEO' ? media : null;
+            setStoryPaused(false);
+            if (mainVideo) {
+                const video = mainVideo;
+                video.onended = () => {
+                    if (transitionToken !== displayToken || video !== mainVideo) return;
+                    clearStoryTimer();
+                    if (isTransitioning) pendingTransitionAdvance = true;
+                    else goNext();
+                };
+                storyTimer = setInterval(() => {
+                    if (isStoryPaused) return;
+                    const activeFill = fills[currentIdx];
+                    if (video.duration && activeFill) activeFill.style.width = `${video.currentTime / video.duration * 100}%`;
+                }, 70);
+                video.play().catch(() => {});
+            } else startImageTimer();
+            renderAdjacentCards(group);
+            updateStoryNavigation();
+            preloadStory(userStories[currentIdx + 1]);
+            if (currentIdx === userStories.length - 1) primeAdjacentUser(1);
+            if (currentIdx === 0) primeAdjacentUser(-1);
+            transitionCompleted = true;
+        } catch (error) {
+            console.error('Story 사용자 전환 실패:', error);
+            window.alert('스토리를 불러오지 못했습니다. 다시 시도해 주세요.');
+        }
+        finally {
+            if (incomingSlide?.isConnected && !transitionCompleted) incomingSlide.remove();
+            swiper.update();
+            swiper.slideTo(0, 0, false);
+            isTransitioning = false;
+            if (pendingTransitionAdvance) {
+                pendingTransitionAdvance = false;
+                queueMicrotask(() => goNext());
+            }
+            if (!transitionCompleted && storyTimer === null) restartCurrentStory();
+        }
     }
 
-    /* 이전 스토리 */
-    async function goPrevious() {
-        clearInterval(storyTimer);
-        if (currentIdx > 0) {
-            if (fills[currentIdx]) {
-                fills[currentIdx].classList.remove('active');
-                fills[currentIdx].classList.add('watched');
-                fills[currentIdx].style.width = '100%';
-            }
-            currentIdx -= 1;
-            if (fills[currentIdx]) {
-                fills[currentIdx].classList.remove('watched');
-                fills[currentIdx].classList.add('active');
-                fills[currentIdx].style.width = '0%';
-            }
-            await displayStory(stories[currentIdx]);
-            updateStoryNavigation();
+    function restartCurrentStory() {
+        if (currentIdx < 0 || !userStories[currentIdx]) return;
+        resetProgress(currentIdx);
+        if (mainVideo) {
+            mainVideo.currentTime = 0;
+            mainVideo.play().then(startVideoTimer).catch(startVideoTimer);
+        } else startImageTimer();
+    }
+
+    async function goNext() {
+        if (isTransitioning) return;
+        if (currentIdx + 1 < userStories.length) {
+            currentIdx += 1; resetProgress(currentIdx); updateStoryNavigation(); await displayStory(userStories[currentIdx], 1);
             return;
         }
-        if (previousUserUrl) window.location.href = previousUserUrl;
-    }
-
-    function updateStoryNavigation() {
-        if (previousButton) {
-            previousButton.disabled = currentIdx <= 0 && !previousUserUrl;
+        if (!nextUserStoryId) {
+            window.location.assign(storyHomeUrl);
+            return;
         }
+        await transitionUser(1);
     }
-
+    async function goPrevious() {
+        if (isTransitioning) return;
+        if (currentIdx > 0) {
+            currentIdx -= 1; resetProgress(currentIdx); updateStoryNavigation(); await displayStory(userStories[currentIdx], -1);
+            return;
+        }
+        await transitionUser(-1);
+    }
+    function updateStoryNavigation() {
+        const viewer = document.querySelector('.story-viewer');
+        const previousButton = viewer?.querySelector('#storyPrevButton, .story-nav-prev');
+        const nextButton = viewer?.querySelector('#storyNextButton, .story-nav-next');
+        if (previousButton) previousButton.disabled = currentIdx <= 0 && !previousUserStoryId;
+        if (nextButton) nextButton.disabled = currentIdx >= userStories.length - 1 && !nextUserStoryId;
+    }
     let swipeActionTaken = false;
-    previousButton?.addEventListener('click', () => {
-        if (!swipeActionTaken) goPrevious();
+    viewerWrapper?.addEventListener('click', event => {
+        if (swipeActionTaken) return;
+        if (event.target.closest('.story-nav-prev')) {
+            goPrevious();
+            return;
+        }
+        if (event.target.closest('.story-nav-next')) {
+            goNext();
+            return;
+        }
+        if (!window.matchMedia('(max-width: 576px)').matches) return;
+        const viewer = event.target.closest('.story-viewer');
+        if (!viewer || event.target.closest('.story-viewer-user, .story-play-toggle, .story-viewer-buttons, a, button, input, textarea, select, .dropdown-menu')) return;
+        const bounds = viewer.getBoundingClientRect();
+        if (event.clientX < bounds.left + bounds.width / 2) goPrevious();
+        else goNext();
     });
-    nextButton?.addEventListener('click', () => {
-        if (!swipeActionTaken) goNext();
-    });
-
-    const storyViewer = document.querySelector('.story-viewer');
+    document.querySelectorAll('.story-adjacent-group').forEach(group => group.addEventListener('click', event => {
+        const card = event.target.closest('.story-adjacent-card');
+        if (!card) return;
+        event.preventDefault();
+        const direction = group.classList.contains('next-group') ? 1 : -1;
+        transitionUser(direction, card.dataset.storyId);
+    }));
     let swipeStartX = null;
-    storyViewer?.addEventListener('touchstart', (event) => {
+    viewerWrapper?.addEventListener('touchstart', (event) => {
+        if (!event.target.closest('.story-viewer')) return;
         swipeStartX = event.changedTouches[0].clientX;
     }, { passive: true });
-    storyViewer?.addEventListener('touchend', (event) => {
+    viewerWrapper?.addEventListener('touchend', (event) => {
+        if (!event.target.closest('.story-viewer')) return;
         if (swipeStartX === null) return;
         const deltaX = event.changedTouches[0].clientX - swipeStartX;
         swipeStartX = null;
         if (Math.abs(deltaX) < 50) return;
         swipeActionTaken = true;
         window.setTimeout(() => { swipeActionTaken = false; }, 400);
-        if (deltaX < 0) goNext();
-        else goPrevious();
+        if (deltaX < 0) transitionUser(1);
+        else transitionUser(-1);
     }, { passive: true });
+
     /* 첫 스토리 시작 */
     if (typeof currentIdx !== 'undefined' && currentIdx >= 0) {
         updateStoryNavigation();
+        preloadStory(stories[currentIdx + 1]);
         displayStory(stories[currentIdx]);
     }
 

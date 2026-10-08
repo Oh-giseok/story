@@ -38,23 +38,12 @@
         border: 1px solid #dee2e6;
     }
 
-    /* 전체 메인 컨테이너 */
-    .main-wrapper {
-        width: 100%;
-        max-width: 100%;
-        margin: 0 auto;
-        display: flex;
-        justify-content: center;
-        position: relative;
-        padding-left: 15px;
-        padding-right: 15px;
-    }
-
     /* 중앙 피드 영역 */
     .center-feed-area {
+        flex: 1;
         width: 100%;
         max-width: 800px;
-        margin: 0 auto;
+        min-width: 0;
     }
 
     /* 스토리 가로 스크롤 영역 */
@@ -109,7 +98,7 @@
         height: auto;
     }
 
-    /* 태블릿 */
+    /* 태블릿 및 모바일 대응 */
     @media (max-width: 992px) {
         .temp-top-nav {
             position: static;
@@ -119,23 +108,12 @@
             box-shadow: none;
         }
 
-        .main-wrapper {
-            padding-left: 12px;
-            padding-right: 12px;
-        }
-
         .center-feed-area {
             max-width: 800px;
         }
     }
 
-    /* 모바일 */
     @media (max-width: 576px) {
-        .main-wrapper {
-            padding-left: 8px;
-            padding-right: 8px;
-        }
-
         .center-feed-area {
             width: 100%;
             max-width: 100%;
@@ -172,177 +150,174 @@
         }
     }
 </style>
-<div class="main-wrapper py-3">
 
-    <!-- 중앙 메인 피드 영역 -->
-    <main class="center-feed-area">
+<!-- 좌측 최근 대화 사이드바 영역은 base.html에서 이미 처리되므로, 여기서는 중앙 메인 피드 영역만 올바르게 출력합니다 -->
+<main class="center-feed-area">
 
-        <!-- (1) 상단 STORY 영역 - 인스타 스타일 디자인 및 정밀 연동 완료 -->
-        <section class="insta-story-container"
-                 style="display: flex; gap: 24px; align-items: center; overflow-x:
-                 auto; padding: 18px; background-color: #ffffff; border-radius: 16px;
-                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); margin-bottom: 20px;">
+    <!-- (1) 상단 STORY 영역 - 인스타 스타일 디자인 및 정밀 연동 완료 -->
+    <section class="insta-story-container"
+             style="display: flex; gap: 24px; align-items: center; overflow-x:
+             auto; padding: 18px; background-color: #ffffff; border-radius: 16px;
+             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); margin-bottom: 20px;">
 
-            {% for story in stories %}
-                <div class="insta-story-item"
-                     style="display: flex; flex-direction: column; align-items:
-                     center; text-align: center; min-width: 76px;">
+        {% for story in stories %}
+            <div class="insta-story-item"
+                 style="display: flex; flex-direction: column; align-items:
+                 center; text-align: center; min-width: 76px;">
 
-                    <a href="{{ url_for('story.detail', story_id=story.id) }}" class="text-decoration-none d-block">
+                <a href="{{ url_for('story.detail', story_id=story.id) }}" class="text-decoration-none d-block">
 
-                        <!-- 알록달록한 스토리 링 테두리 복구 -->
-                        <div class="insta-story-ring"
-                             style="width: 74px; height: 74px; padding: 3px; border-radius:
-                              50%; display: flex; justify-content: center; align-items: center;
-                              background: linear-gradient(45deg, #f09433, #dc2743, #bc1888);">
+                    <!-- 알록달록한 스토리 링 테두리 복구 -->
+                    <div class="insta-story-ring"
+                         style="width: 74px; height: 74px; padding: 3px; border-radius:
+                          50%; display: flex; justify-content: center; align-items: center;
+                          background: linear-gradient(45deg, #f09433, #dc2743, #bc1888);">
 
-                            {% if story.user and story.user.profile_img_url %}
-                                <img
-                                        src="{{ url_for('static', filename=story.user.profile_img_url) }}"
-                                        class="insta-story-img"
-                                        style="width: 66px; height: 66px; object-fit:
-                                        cover; border-radius: 50%; border: 2px solid #ffffff;"
-                                        alt="스토리">
-
-                            {% else %}
-
-                                <div class="insta-story-no-img"
-                                     style="width: 74px !important; height: 74px !important; border-radius: 50%;
-                                     background-color: #a0a0a0; display: flex; justify-content: center;
-                                     align-items: center; border: 2px solid #ffffff;">
-                                    <i class="bi bi-person-fill"
-                                       style="font-size: 2.5rem !important; color: #ffffff;
-                                       display: inline-flex; align-items: center; justify-content:
-                                       center; line-height: 1;"></i>
-                                </div>
-
-                            {% endif %}
-                        </div>
-
-                        <!-- 작성자 아이디 정돈 -->
-                        <div class="insta-story-username"
-                             style="font-size: 13px; font-weight: 500; color: #333333; margin-top: 8px;
-                             max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                            {{ story.user.username if story.user else '익명' }}
-                        </div>
-
-                    </a>
-                </div>
-
-            {% else %}
-
-                <div class="insta-story-empty"
-                     style="width: 100%; text-align: center; color: #999999; padding: 20px 0;">
-                    현재 활성화된 스토리가 없습니다.
-                </div>
-
-            {% endfor %}
-
-        </section>
-
-
-        <!-- (2) 중앙 POST 피드 영역 -->
-        <section class="post-feed">
-
-            {% for post in posts %}
-
-                {% set author = post.user or post.author %}
-
-                <article class="post-card p-3 shadow-sm">
-
-                    <!-- 작성자 -->
-                    <div class="d-flex align-items-center mb-3">
-
-                        {% if author and author.profile_img_url %}
-
+                        {% if story.user and story.user.profile_img_url %}
                             <img
-                                src="{{ author.profile_img_url | profile_img }}"
-                                class="rounded-circle me-2"
-                                width="38"
-                                height="38"
-                                style="object-fit: cover;"
-                                alt="프로필"
-                            >
+                                    src="{{ url_for('static', filename=story.user.profile_img_url) }}"
+                                    class="insta-story-img"
+                                    style="width: 66px; height: 66px; object-fit:
+                                    cover; border-radius: 50%; border: 2px solid #ffffff;"
+                                    alt="스토리">
 
                         {% else %}
 
-                            <i class="bi bi-person-circle fs-3 text-secondary me-2"></i>
-
-                        {% endif %}
-
-                        <div>
-
-                            <div class="fw-bold text-dark small">
-                                {{ (author.name or author.username) if author else '사용자' }}
+                            <div class="insta-story-no-img"
+                                 style="width: 74px !important; height: 74px !important; border-radius: 50%;
+                                 background-color: #a0a0a0; display: flex; justify-content: center;
+                                 align-items: center; border: 2px solid #ffffff;">
+                                <i class="bi bi-person-fill"
+                                   style="font-size: 2.5rem !important; color: #ffffff;
+                                   display: inline-flex; align-items: center; justify-content:
+                                   center; line-height: 1;"></i>
                             </div>
 
-                            <small
-                                class="text-muted"
-                                style="font-size: 0.7rem;"
-                            >
-                                @{{ author.username if author else '' }}
-                            </small>
-
-                        </div>
-
+                        {% endif %}
                     </div>
 
+                    <!-- 작성자 아이디 정돈 -->
+                    <div class="insta-story-username"
+                         style="font-size: 13px; font-weight: 500; color: #333333; margin-top: 8px;
+                         max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        {{ story.user.username if story.user else '익명' }}
+                    </div>
 
-                    <!-- 게시물 이미지 -->
-                    {% if post.image_url or post.media_url %}
+                </a>
+            </div>
 
-                        <div class="mb-3 overflow-hidden rounded">
+        {% else %}
 
-                            <img
-                                src="{{ (post.image_url or post.media_url) | media_url }}"
-                                class="img-fluid w-100"
-                                style="max-height: 500px; object-fit: cover;"
-                                alt="게시물 이미지"
-                            >
+            <div class="insta-story-empty"
+                 style="width: 100%; text-align: center; color: #999999; padding: 20px 0;">
+                현재 활성화된 스토리가 없습니다.
+            </div>
 
-                        </div>
+        {% endfor %}
+
+    </section>
+
+
+    <!-- (2) 중앙 POST 피드 영역 -->
+    <section class="post-feed">
+
+        {% for post in posts %}
+
+            {% set author = post.user or post.author %}
+
+            <article class="post-card p-3 shadow-sm">
+
+                <!-- 작성자 -->
+                <div class="d-flex align-items-center mb-3">
+
+                    {% if author and author.profile_img_url %}
+
+                        <img
+                            src="{{ author.profile_img_url | profile_img }}"
+                            class="rounded-circle me-2"
+                            width="38"
+                            height="38"
+                            style="object-fit: cover;"
+                            alt="프로필"
+                        >
+
+                    {% else %}
+
+                        <i class="bi bi-person-circle fs-3 text-secondary me-2"></i>
 
                     {% endif %}
 
+                    <div>
 
-                    <!-- 게시물 내용 -->
-                    <p
-                        class="mb-2 text-secondary"
-                        style="line-height: 1.5;"
-                    >
-                        {{ post.content or post.caption }}
-                    </p>
+                        <div class="fw-bold text-dark small">
+                            {{ (author.name or author.username) if author else '사용자' }}
+                        </div>
 
+                        <small
+                            class="text-muted"
+                            style="font-size: 0.7rem;"
+                        >
+                            @{{ author.username if author else '' }}
+                        </small>
 
-                    <!-- 작성 시간 -->
-                    <small
-                        class="text-muted d-block"
-                        style="font-size: 0.72rem;"
-                    >
-                        {{ post.created_at|kst_datetime('%Y-%m-%d %H:%M')
-                           if post.created_at else '' }}
-                    </small>
-
-                </article>
-
-            {% else %}
-
-                <div class="card p-5 text-center text-muted shadow-sm border-0">
-
-                    <i class="bi bi-card-text display-4 mb-3 text-secondary"></i>
-
-                    <p class="mb-0">
-                        게시글이 없습니다. 첫 번째 포스트를 등록해 보세요!
-                    </p>
+                    </div>
 
                 </div>
 
-            {% endfor %}
 
-        </section>
+                <!-- 게시물 이미지 -->
+                {% if post.image_url or post.media_url %}
 
-    </main>
+                    <div class="mb-3 overflow-hidden rounded">
 
-</div>
+                        <img
+                            src="{{ post.image_url or post.media_url }}"
+                            class="img-fluid w-100"
+                            style="max-height: 500px; object-fit: cover;"
+                            alt="게시물 이미지"
+                        >
+
+                    </div>
+
+                {% endif %}
+
+
+                <!-- 게시물 내용 -->
+                <p
+                    class="mb-2 text-secondary"
+                    style="line-height: 1.5;"
+                >
+                    {{ post.content or post.caption }}
+                </p>
+
+
+                <!-- 작성 시간 -->
+                <small
+                    class="text-muted d-block"
+                    style="font-size: 0.72rem;"
+                >
+                    {{ post.created_at|kst_datetime('%Y-%m-%d %H:%M')
+                       if post.created_at else '' }}
+                </small>
+
+            </article>
+
+        {% else %}
+
+            <div class="card p-5 text-center text-muted shadow-sm border-0">
+
+                <i class="bi bi-card-text display-4 mb-3 text-secondary"></i>
+
+                <p class="mb-0">
+                    게시글이 없습니다. 첫 번째 포스트를 등록해 보세요!
+                </p>
+
+            </div>
+
+        {% endfor %}
+
+    </section>
+
+</main>
 
 {% endblock %}

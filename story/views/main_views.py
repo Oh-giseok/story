@@ -17,8 +17,8 @@ def index():
     active_chat_users = []
     if current_uid:
         try:
-            if hasattr(dmviews, 'get_active_chat_users'):
-                active_chat_users = dmviews.get_active_chat_users(current_uid)
+            if hasattr(dmviews, 'get_recent_chat_users'):
+                active_chat_users = dmviews.get_recent_chat_users(current_uid)
         except Exception as e:
             print(f"[DM Query Error in main_views.py]: {e}")
     stories = []
@@ -31,12 +31,17 @@ def index():
     notifications = []
     unread_notification_count = 0
     reposted_post_ids = set()
+    liked_post_ids = set()
     try:
         posts = Post.query.order_by(Post.id.desc()).all()
         if current_uid:
             reposted_post_ids = {
                 repost.post_id
                 for repost in PostRepost.query.filter_by(user_id=current_uid).all()
+            }
+            liked_post_ids = {
+                like.post_id
+                for like in PostLike.query.filter_by(user_id=current_uid).all()
             }
     except Exception:
         pass
@@ -52,6 +57,7 @@ def index():
         'post/post_list.html',
         posts=posts,
         reposted_post_ids=reposted_post_ids,
+        liked_post_ids=liked_post_ids,
         story_list=stories,
         active_chat_users=active_chat_users,
         notifications=notifications,
