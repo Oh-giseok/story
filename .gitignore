@@ -1,7 +1,9 @@
 .venv/
 .idea/
 __pycache__/
-
+.build
 migrations/
 instance
 #*.db
+story/static/
+reports
