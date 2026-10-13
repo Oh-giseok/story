@@ -1,0 +1,711 @@
+ /* 스토리 목록 전체 영역 */
+.insta-story-container {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    white-space: nowrap;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 16px;
+}
+
+.insta-story-container::-webkit-scrollbar {
+    display: none;
+}
+
+.insta-story-slider {
+    position: relative;
+}
+
+.insta-story-slide {
+    position: absolute;
+    z-index: 2;
+    top: 50%;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    transform: translateY(-50%);
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .95);
+    color: #333;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, .25);
+}
+
+.insta-story-slide[hidden] {
+    display: none;
+}
+
+.insta-story-slide:disabled {
+    opacity: .45;
+}
+
+.insta-story-slide-prev {
+    left: 7px;
+}
+
+.insta-story-slide-next {
+    right: 7px;
+}
+
+/* 각각의 스토리 아이템 */
+.insta-story-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    flex: 0 0 76px;
+    min-width: 76px;
+    color: #333333;
+    text-decoration: none;
+}
+
+/* 스토리 이미지 바깥쪽 테두리 */
+.insta-story-ring {
+    width: 74px;
+    height: 74px;
+    padding: 3px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(45deg, #f09433, #dc2743, #bc1888);
+}
+
+/* 스토리 이미지 */
+.insta-story-img {
+    width: 66px;
+    height: 66px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+}
+
+/* 프로필 이미지가 없을 때 */
+.insta-story-no-img {
+    width: 66px;
+    height: 66px;
+    border-radius: 50%;
+    background-color: #a0a0a0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 2px solid #ffffff;
+}
+
+/*  메인 홈 화면 원형 안의 사람 이모티콘 크기를 꽉 차게 키워줍니다! */
+.insta-story-no-img i {
+    font-size: 2.2rem !important;
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+/* 스토리 작성 버튼 */
+.insta-story-create-ring {
+    padding: 0;
+    border: 1px solid #dbdbdb;
+    background: #e0e0e0;
+}
+
+/* 스토리 작성 버튼 안쪽 */
+.insta-story-create {
+    border: 0;
+    background-color: #dbdbdb;
+}
+
+/* 스토리 작성 버튼 아이콘 */
+.insta-story-create i {
+    color: #555555;
+    font-size: 1.8rem;
+}
+
+/* 스토리 작성자 이름 */
+.insta-story-username {
+    font-size: 13px;
+    font-weight: 500;
+    color: #333333;
+    margin-top: 8px;
+    max-width: 76px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 스토리 작성 시간 */
+.insta-story-time {
+    font-size: 11px;
+    color: #8e8e8e;
+    margin-top: 3px;
+    max-width: 76px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 활성화된 스토리가 없을 때 */
+.insta-story-empty {
+    width: 100%;
+    text-align: center;
+    color: #999999;
+    padding: 20px 0;
+}
+
+
+/* 스토리 전체 화면 */
+.story-viewer-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #1a1a1a;
+    /* Keep the custom Story viewer below Bootstrap's backdrop/modal layers. */
+    z-index: 1030;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 25px;
+    overflow: hidden;
+}
+
+
+/* 이전 / 다음 스토리 그룹 */
+.story-adjacent-group {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+}
+
+
+/* 이전 / 다음 스토리 카드 */
+.story-adjacent-card,
+.story-adjacent-card.prev-card,
+.story-adjacent-card.next-card,
+.story-adjacent-card.prev-card-far,
+.story-adjacent-card.next-card-far {
+    position: relative;
+    display: block;
+    width: 158px;
+    height: 280px;
+    flex: 0 0 158px;
+    background-color: #222222;
+    border: 1px solid #333333;
+    border-radius: 12px;
+    opacity: 0.35;
+    overflow: hidden;
+    text-decoration: none;
+}
+
+
+/* 이전 / 다음 스토리에 마우스를 올렸을 때 */
+.story-adjacent-card:hover {
+    opacity: 0.6;
+}
+
+
+/* 이전 / 다음 스토리 이미지 */
+.story-adjacent-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+
+/* 이전 스토리 이동 표시 */
+.story-adjacent-group.prev-group {
+    position: relative;
+}
+
+.story-adjacent-group.prev-group::after {
+    content: "‹";
+    position: absolute;
+    top: 50%;
+    right: -43px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-50%);
+    border-radius: 50%;
+    color: #333333;
+    font-size: 25px;
+    background: rgba(255, 255, 255, 0.8);
+    z-index: 20;
+}
+
+
+/* 다음 스토리 이동 표시 */
+.story-adjacent-group.next-group {
+    position: relative;
+}
+
+.story-adjacent-group.next-group::before {
+    content: "›";
+    position: absolute;
+    top: 50%;
+    left: -43px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-50%);
+    border-radius: 50%;
+    color: #333333;
+    font-size: 25px;
+    background: rgba(255, 255, 255, 0.8);
+    z-index: 20;
+}
+
+
+/* 가운데 현재 스토리 */
+.story-viewer {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(394px, calc(100vw - 24px));
+    height: min(700px, calc(100vh - 24px));
+    height: min(700px, calc(100dvh - 24px));
+    margin: 0;
+    translate: -50% -50%;
+    background-color: #000000;
+    border-radius: 12px;
+    overflow: hidden;
+    z-index: 20;
+    touch-action: pan-y;
+}
+
+.story-nav-button {
+    position: absolute;
+    top: 50%;
+    z-index: 30;
+    display: flex;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-50%);
+    border: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, .4);
+    color: #fff;
+    font-size: 1.25rem;
+}
+
+.story-nav-button:hover:not(:disabled) {
+    background: rgba(0, 0, 0, .65);
+}
+
+.story-nav-button:disabled {
+    opacity: .35;
+}
+
+.story-play-toggle {
+    position: absolute;
+    top: 40px;
+    right: 16px;
+    z-index: 35;
+    display: grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, .32);
+    color: #fff;
+    font-size: 1.25rem;
+    cursor: pointer;
+}
+
+.story-play-toggle:hover,
+.story-play-toggle:focus-visible {
+    background: rgba(0, 0, 0, .58);
+    color: #fff;
+}
+
+.story-nav-prev { left: 10px; }
+.story-nav-next { right: 10px; }
+
+/* 스토리 이미지 */
+.story-viewer-image {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    background: #000000;
+}
+
+/* 스토리 이미지 */
+.story-viewer-image img,
+.story-viewer-image video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    z-index: 1;
+    transform: translateX(0);
+    transition: opacity 240ms ease, transform 300ms cubic-bezier(.22, .61, .36, 1);
+}
+
+.story-viewer-image img.story-slide-from-left,
+.story-viewer-image video.story-slide-from-left {
+    transform: translateX(-100%);
+}
+
+.story-viewer-image img.story-slide-from-right,
+.story-viewer-image video.story-slide-from-right {
+    transform: translateX(100%);
+}
+
+/* 스토리 이미지 / 영상 표시 */
+.story-viewer-image img.is-visible,
+.story-viewer-image video.is-visible {
+    opacity: 1;
+    z-index: 2;
+    transform: translateX(0);
+}
+
+/* 닫기 버튼 */
+.story-viewer-close {
+    position: fixed;
+    top: 18px;
+    right: 24px;
+    color: #ffffff;
+    font-size: 42px;
+    line-height: 1;
+    text-decoration: none;
+    z-index: 10000;
+}
+
+/* 작성자 정보 */
+.story-viewer-user {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: auto;
+    padding: 38px 16px 32px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0) 100%);
+    color: #ffffff;
+    z-index: 5;
+    box-sizing: border-box;
+}
+
+/* 작성자 정보 안의 아이디와 시간 묶음 방 가로 정렬 */
+.story-viewer-user > div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 프로필 이미지 */
+.story-viewer-profile {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #ffffff;
+}
+
+/* 프로필 이미지가 없을 때 */
+.story-viewer-profile-default {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: #555555;
+    border: 2px solid #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 프로필 기본 아이콘 */
+.story-viewer-profile-default i {
+    color: #ffffff;
+    font-size: 18px;
+}
+
+/* 작성자 아이디 */
+.story-viewer-username {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* 작성 시간 */
+.story-viewer-time {
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 14px;
+    margin-left: 0px;
+}
+
+/* 스토리 문구 */
+.story-viewer-caption {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 40px 20px 95px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0) 100%);
+    color: #ffffff;
+    text-align: center;
+    box-sizing: border-box;
+    z-index: 30;
+}
+
+/* 수정 / 삭제 버튼 */
+.story-viewer-buttons {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    gap: 8px;
+    z-index: 40;
+}
+
+/* 이전 / 다음 스토리 정보 */
+.adjacent-info-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 16px 4px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 100%);
+    text-align: center;
+    box-sizing: border-box;
+    z-index: 5;
+}
+
+/* 이전 / 다음 스토리 프로필 */
+.adjacent-profile-img {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #ffffff;
+}
+
+/* 이전 / 다음 스토리 기본 프로필 */
+.adjacent-profile-default {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background-color: #555555;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    border: 2px solid #ffffff;
+}
+
+/* 이전 / 다음 스토리 아이디 */
+.adjacent-username {
+    display: block;
+    margin-top: 6px;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 이전 / 다음 스토리 작성 시간 */
+.adjacent-time {
+    display: block;
+    color: #b3b3b3;
+    font-size: 11px;
+    margin-top: 2px;
+}
+
+/* 스토리 게이지 바 컨테이너 */
+.story-progress-bar-container {
+    position: fixed;
+    top: max(24px, calc((100vh - 700px) / 2 + 25px));
+    top: max(24px, calc((100dvh - 700px) / 2 + 25px));
+    left: 50%;
+    z-index: 1045;
+    width: min(394px, calc(100vw - 24px));
+    padding: 0 16px !important;
+    display: flex;
+    gap: 4px;
+    box-sizing: border-box;
+    transform: translateX(-50%);
+}
+
+/* 스토리 게이지 바 기본 트랙 */
+.story-progress-bar-track {
+    flex: 1;
+    height: 2.8px;
+    background-color: rgba(255, 255, 255, 0.35);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+}
+
+/* 스토리 게이지 바 */
+.story-progress-bar-fill {
+    width: 0%;
+    height: 100%;
+    background-color: #ffffff;
+}
+
+/* 완료된 스토리 게이지 */
+.story-progress-bar-fill.watched {
+    width: 100% !important;
+}
+
+/* Keep the active story centered independently of how many side cards exist. */
+.story-viewer-wrapper {
+    display: block;
+}
+
+.story-user-swiper {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(394px, calc(100vw - 24px));
+    height: min(700px, calc(100vh - 24px));
+    height: min(700px, calc(100dvh - 24px));
+    overflow: hidden;
+    transform: translate(-50%, -50%);
+    z-index: 20;
+}
+
+.story-user-swiper .swiper-wrapper {
+    display: flex;
+    height: 100%;
+    transition-property: transform;
+    transition-timing-function: cubic-bezier(.22, .61, .36, 1);
+}
+
+.story-user-slide {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    flex: 0 0 100%;
+}
+
+.story-viewer {
+    left: 50%;
+    top: 50%;
+}
+
+.story-user-swiper .story-viewer {
+    position: relative;
+    inset: auto;
+    left: auto;
+    top: auto;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    translate: none;
+    z-index: 1;
+}
+
+.story-user-swiper .story-viewer-entering {
+    transform: scale(.92);
+    opacity: .72;
+    transition: transform 360ms cubic-bezier(.22, .61, .36, 1), opacity 360ms ease;
+}
+
+.story-user-swiper .story-viewer-entering.story-viewer-entered {
+    transform: scale(1);
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .story-user-swiper .story-viewer-entering {
+        transition-duration: 1ms;
+    }
+}
+
+.story-adjacent-group {
+    position: absolute !important;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.story-adjacent-group.prev-group {
+    right: calc(50% + 222px);
+}
+
+.story-adjacent-group.next-group {
+    left: calc(50% + 222px);
+}
+
+.story-adjacent-group.prev-group::after,
+.story-adjacent-group.next-group::before {
+    display: none;
+    content: none;
+}
+
+.story-delete-confirm-modal .modal-content {
+    border-radius: 24px;
+    overflow: hidden;
+}
+
+.story-delete-confirm-modal .btn-action {
+    width: 100%;
+    padding: 12px;
+    border: 0;
+    border-top: 1px solid #dee2e6;
+    border-radius: 0;
+}
+
+.story-delete-confirm-modal .btn-action + .btn-action {
+    border-top: 1px solid #dee2e6;
+}
+
+.story-delete-confirm-modal .btn-action:first-of-type {
+    border-top: 0;
+}
+
+@media (max-width: 576px) {
+    .story-nav-button {
+        display: none;
+    }
+
+    .story-delete-confirm-modal .modal-dialog {
+        max-width: 260px;
+        margin: 0.5rem auto;
+    }
+
+    .story-delete-confirm-modal .modal-content > .py-4 {
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+    }
+
+    .story-delete-confirm-modal .btn-action {
+        padding: 10px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .story-user-swiper .swiper-wrapper {
+        transition-duration: 1ms !important;
+    }
+
+    .story-viewer-image img,
+    .story-viewer-image video {
+        transition-duration: 1ms;
+    }
+}
+
+@media (max-height: 723px) {
+    .story-viewer-user { padding-top: 34px; }
+    .story-viewer-caption { padding-bottom: 72px; }
+}
