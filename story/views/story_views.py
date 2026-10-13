@@ -28,7 +28,7 @@ def _active_story_groups():
             ordered_user_ids.append(item.user_id)
         groups[item.user_id].append(item)
     for items in groups.values():
-        items.sort(key=lambda item: (item.create_date, item.id), reverse=True)
+        items.sort(key=lambda item: (item.create_date, item.id))
     return groups, ordered_user_ids
 
 
@@ -62,7 +62,7 @@ def _story_payload(item):
         } for story in Story.query.filter(
             Story.user_id == item.user_id,
             Story.expires_at > kst_now_naive()
-        ).order_by(Story.create_date.desc(), Story.id.desc()).all()]
+        ).order_by(Story.create_date.asc(), Story.id.asc()).all()]
     }
 
 
@@ -91,10 +91,10 @@ def detail_data(story_id):
     payload = _story_payload(item)
     payload['user_stories'] = payload.pop('stories')
     payload['next_story_id'] = groups[ordered_user_ids[user_index + 1]][0].id if user_index + 1 < len(ordered_user_ids) else None
-    payload['previous_story_id'] = groups[ordered_user_ids[user_index - 1]][0].id if user_index > 0 else None
+    payload['previous_story_id'] = groups[ordered_user_ids[user_index - 1]][-1].id if user_index > 0 else None
     payload['adjacent'] = {
-        'prev_story': _adjacent_story_payload(groups[ordered_user_ids[user_index - 1]][0]) if user_index > 0 else None,
-        'prev_story2': _adjacent_story_payload(groups[ordered_user_ids[user_index - 2]][0]) if user_index > 1 else None,
+        'prev_story': _adjacent_story_payload(groups[ordered_user_ids[user_index - 1]][-1]) if user_index > 0 else None,
+        'prev_story2': _adjacent_story_payload(groups[ordered_user_ids[user_index - 2]][-1]) if user_index > 1 else None,
         'next_story': _adjacent_story_payload(groups[ordered_user_ids[user_index + 1]][0]) if user_index + 1 < len(ordered_user_ids) else None,
         'next_story2': _adjacent_story_payload(groups[ordered_user_ids[user_index + 2]][0]) if user_index + 2 < len(ordered_user_ids) else None,
     }
@@ -137,7 +137,7 @@ def detail(story_id):
     if current_user_idx > 0:
         prev_user_id = ordered_user_ids[current_user_idx - 1]
         prev_user_stories = user_groups[prev_user_id]
-        prev_story = prev_user_stories[0]
+        prev_story = prev_user_stories[-1]
 
     # 현재 사용자보다 두 번째 앞의 사용자 스토리
     if current_user_idx > 1:
